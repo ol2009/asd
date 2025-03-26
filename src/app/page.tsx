@@ -1,147 +1,150 @@
 'use client'
 
-import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
-import { Button } from '@/components/ui/button'
-import Image from "next/image";
+import React, { useEffect, useState } from 'react'
+import Image from "next/image"
 
 export default function Home() {
-  const [isConnected, setIsConnected] = useState<boolean | null>(null)
+  const [user, setUser] = useState<any>(null)
 
   useEffect(() => {
-    async function checkConnection() {
-      try {
-        const { data, error } = await supabase.from('test').select('*').limit(1)
-        if (error) throw error
-        setIsConnected(true)
-      } catch (error) {
-        console.error('Error:', error)
-        setIsConnected(false)
+    // 로컬 스토리지에서 사용자 정보 가져오기
+    try {
+      const userData = localStorage.getItem('user')
+      if (userData) {
+        setUser(JSON.parse(userData))
+        // 로그인된 상태면 학급관리 페이지로 리디렉션
+        window.location.href = '/classes'
       }
+    } catch (error) {
+      console.error('Failed to parse user data:', error)
     }
-
-    checkConnection()
   }, [])
 
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  // 로그아웃 함수
+  const handleLogout = () => {
+    try {
+      localStorage.removeItem('user')
+      setUser(null)
+    } catch (error) {
+      console.error('Logout error:', error)
+    }
+  }
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+  // 로그인 페이지로 이동
+  const goToLogin = () => {
+    window.location.href = '/login'
+  }
+
+  // 학급관리 페이지로 이동
+  const goToClasses = () => {
+    if (user) {
+      window.location.href = '/classes'
+    } else {
+      window.location.href = '/login'
+    }
+  }
+
+  const stats = [
+    { label: "레벨", value: 12, maxValue: 100 },
+    { label: "수학", value: 80, maxValue: 100 },
+    { label: "독서", value: 45, maxValue: 100 },
+    { label: "운동능력", value: 70, maxValue: 100 },
+    { label: "성실성", value: 60, maxValue: 100 },
+  ]
+
+  return (
+    <div className="min-h-screen bg-[url('/images/backgrounds/fantasy-bg.jpg')] bg-cover bg-center relative overflow-hidden">
+      {/* 배경 오버레이 */}
+      <div className="absolute inset-0 w-full h-full opacity-70">
+        <div className="absolute inset-0 bg-[#0f172a]/60" />
+      </div>
+
+      {/* 상단 네비게이션 */}
+      <header className="relative z-10 flex justify-between items-center px-4 py-3">
+        <h1 className="text-2xl font-bold text-pink-300">상태창</h1>
+        {user ? (
+          <div className="flex items-center gap-4">
+            <span className="text-white">{user.name}님</span>
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 rounded-md bg-slate-800/80 text-white hover:bg-slate-700/80 transition"
+            >
+              로그아웃
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={goToLogin}
+            className="px-4 py-2 rounded-md bg-slate-800/80 text-white hover:bg-slate-700/80 transition"
           >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            로그인
+          </button>
+        )}
+      </header>
+
+      {/* 메인 콘텐츠 */}
+      <main className="relative z-10 flex flex-col items-center justify-center min-h-[80vh] px-4">
+        <div className="text-center mb-8">
+          <h2 className="text-4xl font-bold text-pink-300 mb-3">상태창</h2>
+          <p className="text-lg text-slate-200">
+            성장의 모든 순간을 한눈에!<br />
+            학생들의 성장을 완성하자!
+          </p>
+          <button
+            onClick={goToClasses}
+            className="mt-6 px-6 py-3 rounded-md bg-pink-500 text-white hover:bg-pink-600 transition"
           >
-            Read our docs
-          </a>
+            {user ? '학급 관리하기' : '모험 시작하기'}
+          </button>
         </div>
 
-        <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm">
-          <h1 className="text-4xl font-bold mb-8">Supabase Connection Test</h1>
-          <div className="mb-4">
-            Connection Status:{' '}
-            {isConnected === null ? (
-              'Checking...'
-            ) : isConnected ? (
-              <span className="text-green-500">Connected</span>
-            ) : (
-              <span className="text-red-500">Not Connected</span>
-            )}
+        {/* 스탯 카드 */}
+        <div className="bg-slate-800/60 backdrop-blur-sm rounded-lg p-6 w-[300px] space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-xl font-semibold text-white">{user ? user.name : 'OOO'}의 상태창</h3>
+            <span className="text-pink-300">Lv. 12</span>
           </div>
-          <Button
-            onClick={async () => {
-              const { data, error } = await supabase.from('test').select('*').limit(1)
-              console.log('Test Query Result:', { data, error })
-            }}
-          >
-            Test Query
-          </Button>
+          <div className="space-y-3">
+            {stats.map((stat, index) => (
+              <div key={index} className="space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-slate-200">{stat.label}</span>
+                  <span className="text-slate-300">{stat.value}/{stat.maxValue}</span>
+                </div>
+                <div className="h-2 bg-slate-700 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-pink-400"
+                    style={{ width: `${(stat.value / stat.maxValue) * 100}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+      {/* 하단 네비게이션 */}
+      <div className="fixed bottom-0 left-0 right-0 bg-slate-900/80 backdrop-blur-sm">
+        <div className="container mx-auto px-4">
+          <div className="grid grid-cols-3 gap-4 py-4">
+            <button className="flex flex-col items-center text-pink-400">
+              <span className="text-lg mb-1">🏠</span>
+              <span className="text-sm">홈</span>
+            </button>
+            <button
+              onClick={goToClasses}
+              className="flex flex-col items-center text-white"
+            >
+              <span className="text-lg mb-1">👨‍👩‍👧‍👦</span>
+              <span className="text-sm">학급 관리</span>
+            </button>
+            <button className="flex flex-col items-center text-white">
+              <span className="text-lg mb-1">👤</span>
+              <span className="text-sm">프로필</span>
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
-  );
+  )
 }
