@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { X, User, BookOpen, Sparkles, Award, Brain, Star, PenTool, Code, Coffee, Zap, Heart, Globe, Compass, Edit } from 'lucide-react'
+import { X, Edit } from 'lucide-react'
 import { toast } from 'sonner'
+import Image from 'next/image'
 
 interface Student {
     id: string
@@ -18,11 +19,20 @@ interface Student {
     rewardCards?: string[] // 획득한 칭찬 카드 ID 목록
 }
 
-// 아이콘 타입 목록
+// 이미지 아이콘 경로
 const iconTypes = [
-    'user', 'book', 'sparkles', 'award', 'brain',
-    'star', 'pen', 'code', 'coffee', 'zap',
-    'heart', 'globe', 'compass'
+    '/images/icons/Gemini_Generated_Image_3zghrv3zghrv3zgh.jpg',
+    '/images/icons/Gemini_Generated_Image_49lajh49lajh49la.jpg',
+    '/images/icons/Gemini_Generated_Image_6thu0u6thu0u6thu.jpg',
+    '/images/icons/Gemini_Generated_Image_el7avsel7avsel7a.jpg',
+    '/images/icons/Gemini_Generated_Image_eun2yveun2yveun2.jpg',
+    '/images/icons/Gemini_Generated_Image_gf0wfdgf0wfdgf0w.jpg',
+    '/images/icons/Gemini_Generated_Image_jzqdr4jzqdr4jzqd.jpg',
+    '/images/icons/Gemini_Generated_Image_ogd5ztogd5ztogd5.jpg',
+    '/images/icons/Gemini_Generated_Image_t3iddit3iddit3id.jpg',
+    '/images/icons/Gemini_Generated_Image_t4umtlt4umtlt4um.jpg',
+    '/images/icons/Gemini_Generated_Image_vl29o5vl29o5vl29.jpg',
+    '/images/icons/Gemini_Generated_Image_xg0y2rxg0y2rxg0y.jpg'
 ]
 
 // 칭호 목록
@@ -159,21 +169,35 @@ export default function StudentDetailModal({ classId, studentId, isOpen, onClose
 
     // 아이콘 렌더링 함수
     const renderIcon = (iconType: string, size = 6) => {
-        switch (iconType) {
-            case 'user': return <User className={`w-${size} h-${size}`} />
-            case 'book': return <BookOpen className={`w-${size} h-${size}`} />
-            case 'sparkles': return <Sparkles className={`w-${size} h-${size}`} />
-            case 'award': return <Award className={`w-${size} h-${size}`} />
-            case 'brain': return <Brain className={`w-${size} h-${size}`} />
-            case 'star': return <Star className={`w-${size} h-${size}`} />
-            case 'pen': return <PenTool className={`w-${size} h-${size}`} />
-            case 'code': return <Code className={`w-${size} h-${size}`} />
-            case 'coffee': return <Coffee className={`w-${size} h-${size}`} />
-            case 'zap': return <Zap className={`w-${size} h-${size}`} />
-            case 'heart': return <Heart className={`w-${size} h-${size}`} />
-            case 'globe': return <Globe className={`w-${size} h-${size}`} />
-            case 'compass': return <Compass className={`w-${size} h-${size}`} />
-            default: return <User className={`w-${size} h-${size}`} />
+        // iconType이 기존 Lucide 아이콘 이름인 경우 (이전 데이터 호환성 유지)
+        if (iconType.startsWith('user') || iconType.startsWith('book') || iconType.startsWith('sparkles') ||
+            iconType.startsWith('award') || iconType.startsWith('brain') || iconType.startsWith('star') ||
+            iconType.startsWith('pen') || iconType.startsWith('code') || iconType.startsWith('coffee') ||
+            iconType.startsWith('zap') || iconType.startsWith('heart') || iconType.startsWith('globe') ||
+            iconType.startsWith('compass')) {
+            // 기존 아이콘 대신 기본 이미지 사용
+            return (
+                <div className="relative w-full h-full overflow-hidden rounded-full">
+                    <Image
+                        src={iconTypes[0]} // 기본 이미지
+                        alt="Student avatar"
+                        fill
+                        className="object-cover"
+                    />
+                </div>
+            )
+        } else {
+            // 이미지 경로인 경우
+            return (
+                <div className="relative w-full h-full overflow-hidden rounded-full">
+                    <Image
+                        src={iconType}
+                        alt="Student avatar"
+                        fill
+                        className="object-cover"
+                    />
+                </div>
+            )
         }
     }
 
@@ -233,7 +257,7 @@ export default function StudentDetailModal({ classId, studentId, isOpen, onClose
                     <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
                         {/* 아이콘 영역 */}
                         <div className="relative">
-                            <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
+                            <div className="w-24 h-24 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 overflow-hidden">
                                 {renderIcon(student.iconType, 10)}
                             </div>
                             <button
@@ -280,9 +304,16 @@ export default function StudentDetailModal({ classId, studentId, isOpen, onClose
                                     <button
                                         key={iconType}
                                         onClick={() => handleIconChange(iconType)}
-                                        className={`w-full h-14 rounded-lg flex items-center justify-center ${student.iconType === iconType ? 'bg-blue-500 text-white' : 'bg-blue-100 text-blue-600'} hover:bg-blue-300 transition`}
+                                        className={`w-full h-14 rounded-lg flex items-center justify-center overflow-hidden ${student.iconType === iconType ? 'ring-2 ring-blue-500' : ''} hover:ring-1 hover:ring-blue-300 transition`}
                                     >
-                                        {renderIcon(iconType)}
+                                        <div className="relative w-full h-full">
+                                            <Image
+                                                src={iconType}
+                                                alt="Student avatar option"
+                                                fill
+                                                className="object-cover"
+                                            />
+                                        </div>
                                     </button>
                                 ))}
                             </div>

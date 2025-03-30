@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import { toast } from 'sonner'
+import Image from 'next/image'
 
 interface Student {
     id: string
@@ -16,11 +17,20 @@ interface Student {
     iconType: string
 }
 
-// 랜덤 아이콘 타입 가져오기
+// 이미지 아이콘 경로
 const iconTypes = [
-    'user', 'book', 'sparkles', 'award', 'brain',
-    'star', 'pen', 'code', 'coffee', 'zap',
-    'heart', 'globe', 'compass'
+    '/images/icons/Gemini_Generated_Image_3zghrv3zghrv3zgh.jpg',
+    '/images/icons/Gemini_Generated_Image_49lajh49lajh49la.jpg',
+    '/images/icons/Gemini_Generated_Image_6thu0u6thu0u6thu.jpg',
+    '/images/icons/Gemini_Generated_Image_el7avsel7avsel7a.jpg',
+    '/images/icons/Gemini_Generated_Image_eun2yveun2yveun2.jpg',
+    '/images/icons/Gemini_Generated_Image_gf0wfdgf0wfdgf0w.jpg',
+    '/images/icons/Gemini_Generated_Image_jzqdr4jzqdr4jzqd.jpg',
+    '/images/icons/Gemini_Generated_Image_ogd5ztogd5ztogd5.jpg',
+    '/images/icons/Gemini_Generated_Image_t3iddit3iddit3id.jpg',
+    '/images/icons/Gemini_Generated_Image_t4umtlt4umtlt4um.jpg',
+    '/images/icons/Gemini_Generated_Image_vl29o5vl29o5vl29.jpg',
+    '/images/icons/Gemini_Generated_Image_xg0y2rxg0y2rxg0y.jpg'
 ]
 
 // 랜덤 칭호 가져오기
