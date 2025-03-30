@@ -6,14 +6,21 @@ import Image from 'next/image'
 import {
     User, BookOpen, Sparkles, Award, Brain,
     Star, PenTool, Code, Coffee, Zap,
-    Heart, Globe, Compass
+    Heart, Globe, Compass, Plus, ArrowLeft,
+    LogOut
 } from 'lucide-react'
+import Link from 'next/link'
+import AddStudentModal from './components/AddStudentModal'
+import StudentDetailModal from './components/StudentDetailModal'
 
 interface ClassInfo {
     id: string
     name: string
-    schoolName: string
-    students: number
+    grade: string
+    subject: string
+    description: string
+    coverImage: string
+    students: Student[]
     createdAt: string
 }
 
@@ -45,185 +52,83 @@ const honorifics = [
 
 export default function ClassDetailPage() {
     const router = useRouter()
-    const { id } = useParams() as { id: string }
-    const [user, setUser] = useState<any>(null)
+    const params = useParams()
+    const classId = params.id as string
+    const [isLoading, setIsLoading] = useState(true)
     const [classInfo, setClassInfo] = useState<ClassInfo | null>(null)
     const [students, setStudents] = useState<Student[]>([])
-    const [activeTab, setActiveTab] = useState('students')
+    const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false)
+    const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
+    const [isStudentDetailModalOpen, setIsStudentDetailModalOpen] = useState(false)
 
     useEffect(() => {
         // 로그인 상태 확인
-        const userData = localStorage.getItem('user')
-        if (!userData) {
-            window.location.href = '/login'
+        const isLoggedIn = localStorage.getItem('isLoggedIn')
+        if (!isLoggedIn) {
+            router.push('/login')
             return
         }
-        setUser(JSON.parse(userData))
 
-        // 학급 정보 가져오기
+        // 클래스 정보 가져오기
         const savedClasses = localStorage.getItem('classes')
         if (savedClasses) {
-            const classesData: ClassInfo[] = JSON.parse(savedClasses)
-            const currentClass = classesData.find(c => c.id === id)
-            if (currentClass) {
-                setClassInfo(currentClass)
-            } else {
-                // 해당 ID의 학급을 찾을 수 없는 경우
-                router.push('/classes')
-            }
-        }
-
-        // 학생 목록 가져오기
-        const savedStudents = localStorage.getItem(`students_${id}`)
-        if (savedStudents) {
             try {
-                const parsedStudents = JSON.parse(savedStudents)
+                const classes = JSON.parse(savedClasses)
+                const foundClass = classes.find((c: ClassInfo) => c.id === classId)
 
-                // honorific 속성이 없는 학생에게 추가
-                const updatedStudents = parsedStudents.map((student: any) => {
-                    if (!student.honorific) {
-                        return {
-                            ...student,
-                            honorific: honorifics[Math.floor(Math.random() * honorifics.length)]
-                        }
+                if (foundClass) {
+                    setClassInfo(foundClass)
+                    // 학생 정보 가져오기
+                    const savedStudents = localStorage.getItem(`students_${classId}`)
+                    if (savedStudents) {
+                        setStudents(JSON.parse(savedStudents))
+                    } else {
+                        // 데모 학생 데이터 (처음 방문 시)
+                        const demoStudents = [
+                            {
+                                id: '1',
+                                number: 1,
+                                name: '김학생',
+                                title: '반장',
+                                honorific: '수학천재',
+                                stats: {
+                                    level: 7
+                                },
+                                iconType: 'sparkles'
+                            },
+                            {
+                                id: '2',
+                                number: 2,
+                                name: '이영재',
+                                title: '부반장',
+                                honorific: '독서왕',
+                                stats: {
+                                    level: 5
+                                },
+                                iconType: 'book'
+                            },
+                            {
+                                id: '3',
+                                number: 3,
+                                name: '박미래',
+                                title: '학생',
+                                honorific: '영어고수',
+                                stats: {
+                                    level: 6
+                                },
+                                iconType: 'globe'
+                            }
+                        ]
+                        setStudents(demoStudents)
+                        localStorage.setItem(`students_${classId}`, JSON.stringify(demoStudents))
                     }
-                    return student
-                })
-
-                setStudents(updatedStudents)
-                // 업데이트된 데이터를 다시 저장
-                localStorage.setItem(`students_${id}`, JSON.stringify(updatedStudents))
+                }
             } catch (error) {
-                console.error('학생 데이터 파싱 오류:', error)
-                // 오류 발생 시 새 데이터 생성
-                const demoStudents = [
-                    {
-                        id: '1',
-                        name: '김학생',
-                        number: 1,
-                        title: '초보자',
-                        honorific: honorifics[Math.floor(Math.random() * honorifics.length)],
-                        iconType: 'user',
-                        stats: {
-                            level: 12
-                        }
-                    },
-                    {
-                        id: '2',
-                        name: '이학생',
-                        number: 2,
-                        title: '초보자',
-                        honorific: honorifics[Math.floor(Math.random() * honorifics.length)],
-                        iconType: 'book',
-                        stats: {
-                            level: 10
-                        }
-                    },
-                    {
-                        id: '3',
-                        name: '박학생',
-                        number: 3,
-                        title: '초보자',
-                        honorific: honorifics[Math.floor(Math.random() * honorifics.length)],
-                        iconType: 'sparkles',
-                        stats: {
-                            level: 11
-                        }
-                    }
-                ]
-                setStudents(demoStudents)
-                localStorage.setItem(`students_${id}`, JSON.stringify(demoStudents))
+                console.error('클래스 데이터 파싱 오류:', error)
             }
-        } else {
-            // 아이콘 파일 목록 (정확한 경로 사용)
-            const iconPaths = [
-                '/images/icons/Gemini_Generated_Image_3zghrv3zghrv3zgh.jpg',
-                '/images/icons/Gemini_Generated_Image_49lajh49lajh49la.jpg',
-                '/images/icons/Gemini_Generated_Image_6thu0u6thu0u6thu.jpg',
-                '/images/icons/Gemini_Generated_Image_t4umtlt4umtlt4um.jpg',
-                '/images/icons/Gemini_Generated_Image_jzqdr4jzqdr4jzqd.jpg',
-                '/images/icons/Gemini_Generated_Image_t3iddit3iddit3id.jpg',
-                '/images/icons/Gemini_Generated_Image_vl29o5vl29o5vl29.jpg',
-                '/images/icons/Gemini_Generated_Image_xg0y2rxg0y2rxg0y.jpg',
-                '/images/icons/Gemini_Generated_Image_el7avsel7avsel7a.jpg',
-                '/images/icons/Gemini_Generated_Image_ogd5ztogd5ztogd5.jpg',
-                '/images/icons/Gemini_Generated_Image_eun2yveun2yveun2.jpg',
-                '/images/icons/Gemini_Generated_Image_gf0wfdgf0wfdgf0w.jpg'
-            ]
-
-            // 예시 학생 데이터
-            const demoStudents: Student[] = [
-                {
-                    id: '1',
-                    name: '김학생',
-                    number: 1,
-                    title: '초보자',
-                    honorific: honorifics[Math.floor(Math.random() * honorifics.length)],
-                    iconType: 'user',
-                    stats: {
-                        level: 12
-                    }
-                },
-                {
-                    id: '2',
-                    name: '이학생',
-                    number: 2,
-                    title: '초보자',
-                    honorific: honorifics[Math.floor(Math.random() * honorifics.length)],
-                    iconType: 'book',
-                    stats: {
-                        level: 10
-                    }
-                },
-                {
-                    id: '3',
-                    name: '박학생',
-                    number: 3,
-                    title: '초보자',
-                    honorific: honorifics[Math.floor(Math.random() * honorifics.length)],
-                    iconType: 'sparkles',
-                    stats: {
-                        level: 11
-                    }
-                }
-            ]
-            setStudents(demoStudents)
-            localStorage.setItem(`students_${id}`, JSON.stringify(demoStudents))
         }
-    }, [id, router])
-
-    const handleLogout = () => {
-        localStorage.removeItem('user')
-        window.location.href = '/login'
-    }
-
-    const handleStudentAdd = () => {
-        // 추후 구현: 학생 추가 기능
-        alert('학생 추가 기능은 추후 업데이트 예정입니다.')
-    }
-
-    // 학생 데이터를 생성하는 함수
-    const generateDemoStudents = (count: number): Student[] => {
-        const titles = ['초보자', '도전자', '숙련자', '전문가', '마스터']
-
-        return Array.from({ length: count }, (_, i) => {
-            const randomTitleIndex = Math.floor(Math.random() * titles.length)
-            const randomIconIndex = Math.floor(Math.random() * iconTypes.length)
-            const randomHonorificIndex = Math.floor(Math.random() * honorifics.length)
-
-            return {
-                id: `student-${i + 1}`,
-                number: i + 1,
-                name: `학생 ${i + 1}`,
-                title: titles[randomTitleIndex],
-                honorific: honorifics[randomHonorificIndex],
-                iconType: iconTypes[randomIconIndex],
-                stats: {
-                    level: Math.floor(Math.random() * 10) + 1
-                }
-            }
-        })
-    }
+        setIsLoading(false)
+    }, [classId, router])
 
     // 아이콘을 렌더링하는 함수
     const renderIcon = (iconType: string) => {
@@ -245,171 +150,173 @@ export default function ClassDetailPage() {
         }
     }
 
+    // 랭킹 순서로 정렬된 학생 목록 반환
+    const getSortedStudents = () => {
+        return students.sort((a, b) => b.stats.level - a.stats.level)
+    }
+
+    // 학생 클릭 핸들러 - 모달을 열도록 수정
+    const handleStudentClick = (studentId: string) => {
+        setSelectedStudentId(studentId)
+        setIsStudentDetailModalOpen(true)
+    }
+
+    // 학생 추가 모달 닫기 핸들러
+    const handleAddStudentModalClose = () => {
+        setIsAddStudentModalOpen(false)
+    }
+
+    // 학생 상세 모달 닫기 핸들러
+    const handleStudentDetailModalClose = () => {
+        setIsStudentDetailModalOpen(false)
+        setSelectedStudentId(null)
+    }
+
+    // 학생 추가 모달에서 제출 핸들러
+    const handleStudentAdded = (newStudent: Student) => {
+        // 학생 목록 상태 업데이트
+        setStudents(prevStudents => {
+            const updatedStudents = [...prevStudents, newStudent]
+            return updatedStudents
+        })
+
+        // 클래스 정보에도 학생 추가
+        if (classInfo) {
+            const updatedClassInfo = {
+                ...classInfo,
+                students: [...classInfo.students, newStudent]
+            }
+            setClassInfo(updatedClassInfo)
+
+            // 로컬 스토리지의 classes 업데이트
+            const savedClasses = localStorage.getItem('classes')
+            if (savedClasses) {
+                try {
+                    const classes = JSON.parse(savedClasses)
+                    const updatedClasses = classes.map((c: ClassInfo) =>
+                        c.id === classInfo.id ? updatedClassInfo : c
+                    )
+                    localStorage.setItem('classes', JSON.stringify(updatedClasses))
+                } catch (error) {
+                    console.error('클래스 데이터 업데이트 오류:', error)
+                }
+            }
+        }
+    }
+
+    // 로그아웃 핸들러 추가
+    const handleLogout = () => {
+        localStorage.removeItem('isLoggedIn')
+        localStorage.removeItem('user')
+        router.push('/login')
+    }
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen text-slate-700 p-8">
+                <div className="max-w-6xl mx-auto">
+                    <p className="text-xl">학급 정보를 불러오는 중...</p>
+                </div>
+            </div>
+        )
+    }
+
     if (!classInfo) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-[url('/images/backgrounds/fantasy-bg.jpg')] bg-cover">
-                <div className="text-white text-2xl">로딩 중...</div>
+            <div className="min-h-screen text-slate-700 p-8">
+                <div className="max-w-6xl mx-auto">
+                    <p className="text-xl">학급 정보를 찾을 수 없습니다.</p>
+                    <Link href="/classes" className="text-blue-600 hover:text-blue-800 mt-4 inline-block">
+                        학급 목록으로 돌아가기
+                    </Link>
+                </div>
             </div>
         )
     }
 
     return (
-        <div className="min-h-screen bg-[url('/images/backgrounds/fantasy-bg.jpg')] bg-cover bg-center relative">
-            <div className="absolute inset-0 bg-[#0f172a]/70" />
-
-            {/* 헤더 */}
-            <header className="relative z-10 flex justify-between items-center px-4 py-3 bg-slate-800/60">
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => router.push('/classes')}
-                        className="text-white hover:text-pink-300"
-                    >
-                        ← 뒤로
-                    </button>
-                    <h1 className="text-2xl font-bold text-pink-300">{classInfo.schoolName} {classInfo.name}</h1>
-                </div>
-
-                <div className="flex items-center gap-4">
-                    {user && (
-                        <>
-                            <span className="text-white">{user.name}님</span>
-                            <button
-                                onClick={handleLogout}
-                                className="px-4 py-2 rounded-md bg-slate-700/80 text-white hover:bg-slate-600/80 transition"
-                            >
-                                로그아웃
-                            </button>
-                        </>
-                    )}
-                </div>
-            </header>
-
-            <div className="relative z-10 flex">
-                {/* 사이드바 */}
-                <aside className="w-64 min-h-[calc(100vh-64px)] bg-slate-800/80 backdrop-blur-sm p-4">
-                    <nav>
-                        <ul className="space-y-1">
-                            <li>
-                                <button
-                                    onClick={() => setActiveTab('students')}
-                                    className={`w-full text-left px-4 py-3 rounded-md transition ${activeTab === 'students' ? 'bg-pink-500 text-white' : 'text-gray-300 hover:bg-slate-700'}`}
-                                >
-                                    👨‍👩‍👧‍👦 학생 목록
-                                </button>
-                            </li>
-                            <li>
-                                <button
-                                    onClick={() => setActiveTab('roadmap')}
-                                    className={`w-full text-left px-4 py-3 rounded-md transition ${activeTab === 'roadmap' ? 'bg-pink-500 text-white' : 'text-gray-300 hover:bg-slate-700'}`}
-                                >
-                                    🗺️ 성장 로드맵
-                                </button>
-                            </li>
-                            <li>
-                                <button
-                                    onClick={() => setActiveTab('quests')}
-                                    className={`w-full text-left px-4 py-3 rounded-md transition ${activeTab === 'quests' ? 'bg-pink-500 text-white' : 'text-gray-300 hover:bg-slate-700'}`}
-                                >
-                                    ⚔️ 퀘스트 관리
-                                </button>
-                            </li>
-                            <li>
-                                <button
-                                    onClick={() => setActiveTab('rewards')}
-                                    className={`w-full text-left px-4 py-3 rounded-md transition ${activeTab === 'rewards' ? 'bg-pink-500 text-white' : 'text-gray-300 hover:bg-slate-700'}`}
-                                >
-                                    🏅 칭찬 카드 관리
-                                </button>
-                            </li>
-                            <li>
-                                <button
-                                    onClick={() => setActiveTab('settings')}
-                                    className={`w-full text-left px-4 py-3 rounded-md transition ${activeTab === 'settings' ? 'bg-pink-500 text-white' : 'text-gray-300 hover:bg-slate-700'}`}
-                                >
-                                    ⚙️ 학급 설정
-                                </button>
-                            </li>
-                        </ul>
-                    </nav>
-                </aside>
-
-                {/* 메인 컨텐츠 */}
-                <main className="flex-1 p-6">
-                    {activeTab === 'students' && (
-                        <div>
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-2xl font-bold text-white">학생 목록</h2>
-                                <button
-                                    onClick={handleStudentAdd}
-                                    className="px-4 py-2 rounded-md bg-pink-500 text-white hover:bg-pink-600 transition"
-                                >
-                                    학생 추가
-                                </button>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                                {students.map(student => (
-                                    <div
-                                        key={student.id}
-                                        className="bg-slate-800/60 backdrop-blur-sm rounded-lg p-4 hover:bg-slate-800/80 transition cursor-pointer"
-                                        onClick={() => router.push(`/classes/${id}/students/${student.id}`)}
-                                    >
-                                        <div className="flex items-center space-x-3 mb-3">
-                                            <div className="w-12 h-12 bg-slate-700 rounded-full flex items-center justify-center text-white">
-                                                {renderIcon(student.iconType)}
-                                            </div>
-                                            <div>
-                                                <div className="flex flex-col">
-                                                    <span className="text-pink-500 text-sm font-bold whitespace-nowrap">
-                                                        {student.honorific} {student.title}
-                                                    </span>
-                                                    <h3 className="font-medium text-white">{student.name}</h3>
-                                                </div>
-                                                <p className="text-sm text-gray-300">레벨 {student.stats.level}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-                                ))}
-
-                                {students.length === 0 && (
-                                    <div className="col-span-full flex flex-col items-center justify-center py-10 text-gray-400">
-                                        <p className="text-xl mb-2">등록된 학생이 없습니다</p>
-                                        <p>학생을 추가해보세요</p>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-                    {activeTab === 'roadmap' && (
-                        <div className="text-center py-10">
-                            <h2 className="text-2xl font-bold text-white mb-4">성장 로드맵</h2>
-                            <p className="text-gray-300">이 기능은 아직 개발 중입니다 🚧</p>
-                        </div>
-                    )}
-
-                    {activeTab === 'quests' && (
-                        <div className="text-center py-10">
-                            <h2 className="text-2xl font-bold text-white mb-4">퀘스트 관리</h2>
-                            <p className="text-gray-300">이 기능은 아직 개발 중입니다 🚧</p>
-                        </div>
-                    )}
-
-                    {activeTab === 'rewards' && (
-                        <div className="text-center py-10">
-                            <h2 className="text-2xl font-bold text-white mb-4">칭찬 카드 관리</h2>
-                            <p className="text-gray-300">이 기능은 아직 개발 중입니다 🚧</p>
-                        </div>
-                    )}
-
-                    {activeTab === 'settings' && (
-                        <div className="text-center py-10">
-                            <h2 className="text-2xl font-bold text-white mb-4">학급 설정</h2>
-                            <p className="text-gray-300">이 기능은 아직 개발 중입니다 🚧</p>
-                        </div>
-                    )}
-                </main>
+        <div className="min-h-screen text-slate-700">
+            {/* 뒤로가기 버튼 */}
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+                <Link
+                    href="/classes"
+                    className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors duration-200"
+                >
+                    <ArrowLeft className="w-5 h-5" />
+                    <span>학급 목록으로</span>
+                </Link>
             </div>
+
+            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+                {/* 학교 및 학급 정보 */}
+                <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
+                        <div>
+                            <h2 className="text-xl text-blue-600 font-medium">동두천신천초등학교</h2>
+                            <h1 className="text-3xl font-bold text-slate-800 mt-1">{classInfo.name}</h1>
+                        </div>
+                        <div className="mt-2 md:mt-0 text-slate-500">
+                            <p>학급운영일: {new Date(classInfo.createdAt).toLocaleDateString()}</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 학생 목록 */}
+                <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
+                    <div className="flex justify-between items-center mb-6">
+                        <h2 className="text-xl font-bold text-slate-800">학생 목록</h2>
+                        <button
+                            onClick={() => setIsAddStudentModalOpen(true)}
+                            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md flex items-center gap-2 transition-colors duration-200"
+                        >
+                            <Plus className="w-4 h-4" />
+                            학생 추가
+                        </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {getSortedStudents().map((student) => (
+                            <div
+                                key={student.id}
+                                className="bg-blue-50 hover:bg-blue-100 rounded-lg p-4 cursor-pointer transition-colors duration-200"
+                                onClick={() => handleStudentClick(student.id)}
+                            >
+                                <div className="flex items-center gap-4">
+                                    <div className="w-12 h-12 bg-blue-200 rounded-full flex items-center justify-center text-blue-600">
+                                        {renderIcon(student.iconType)}
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-blue-600 text-sm font-medium">{student.honorific}</span>
+                                            <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">Lv.{student.stats.level}</span>
+                                        </div>
+                                        <h3 className="text-slate-800 font-medium">{student.name}</h3>
+                                        <p className="text-slate-500 text-sm">{student.title}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            {/* 학생 추가 모달 */}
+            <AddStudentModal
+                classId={classId}
+                isOpen={isAddStudentModalOpen}
+                onClose={handleAddStudentModalClose}
+                onStudentAdded={handleStudentAdded}
+            />
+
+            {/* 학생 상세 모달 */}
+            {selectedStudentId && (
+                <StudentDetailModal
+                    classId={classId}
+                    studentId={selectedStudentId}
+                    isOpen={isStudentDetailModalOpen}
+                    onClose={handleStudentDetailModalClose}
+                />
+            )}
         </div>
     )
 } 

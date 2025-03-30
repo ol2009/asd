@@ -24,9 +24,11 @@ export default function LoginPage() {
                 localStorage.setItem('user', JSON.stringify({
                     username,
                     name: '테스트 유저',
-                    isLoggedIn: true,
                     loginTime: new Date().toISOString()
                 }))
+
+                // isLoggedIn 상태를 별도로 저장
+                localStorage.setItem('isLoggedIn', 'true')
 
                 // 학급관리 페이지로 리디렉션
                 window.location.href = '/classes'
@@ -40,17 +42,17 @@ export default function LoginPage() {
     }
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-[url('/images/backgrounds/fantasy-bg.jpg')] bg-cover relative">
-            <div className="absolute inset-0 bg-[#0f172a]/70" />
+        <div className="min-h-screen flex items-center justify-center relative">
+            <div className="absolute inset-0 bg-sky-50/60" />
 
-            <div className="w-full max-w-md p-8 space-y-8 bg-slate-800/80 backdrop-blur-sm rounded-lg shadow-xl relative z-10">
+            <div className="w-full max-w-md p-8 space-y-8 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg relative z-10">
                 <div className="text-center">
-                    <h1 className="text-3xl font-bold text-pink-300">상태창</h1>
-                    <p className="mt-2 text-gray-300">계정에 로그인하세요</p>
+                    <h1 className="text-3xl font-bold text-blue-600">상태창</h1>
+                    <p className="mt-2 text-slate-600">계정에 로그인하세요</p>
                 </div>
 
                 {error && (
-                    <div className="p-3 bg-red-500/30 border border-red-500 text-white rounded-md">
+                    <div className="p-3 bg-red-100 border border-red-300 text-red-700 rounded-md">
                         {error}
                     </div>
                 )}
@@ -58,7 +60,7 @@ export default function LoginPage() {
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
                     <div className="space-y-4">
                         <div>
-                            <label htmlFor="username" className="block text-sm font-medium text-gray-200">
+                            <label htmlFor="username" className="block text-sm font-medium text-slate-700">
                                 아이디
                             </label>
                             <input
@@ -68,13 +70,13 @@ export default function LoginPage() {
                                 required
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
-                                className="mt-1 block w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-pink-500"
+                                className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 placeholder="아이디를 입력하세요"
                             />
                         </div>
 
                         <div>
-                            <label htmlFor="password" className="block text-sm font-medium text-gray-200">
+                            <label htmlFor="password" className="block text-sm font-medium text-slate-700">
                                 비밀번호
                             </label>
                             <input
@@ -84,7 +86,7 @@ export default function LoginPage() {
                                 required
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="mt-1 block w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white focus:outline-none focus:ring-2 focus:ring-pink-500"
+                                className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 placeholder="비밀번호를 입력하세요"
                             />
                         </div>
@@ -93,19 +95,19 @@ export default function LoginPage() {
                     <div>
                         <button
                             type="submit"
-                            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-pink-500 hover:bg-pink-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500"
+                            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                         >
                             로그인
                         </button>
                     </div>
                 </form>
 
-                <div className="text-center text-sm text-gray-400">
+                <div className="text-center text-sm text-slate-500">
                     <p>테스트 계정: test / 1234</p>
                     <p className="mt-2">
                         <button
                             onClick={() => window.location.href = '/'}
-                            className="text-pink-400 hover:text-pink-300"
+                            className="text-blue-600 hover:text-blue-800"
                         >
                             홈으로 돌아가기
                         </button>

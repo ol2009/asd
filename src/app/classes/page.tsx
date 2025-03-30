@@ -82,19 +82,19 @@ export default function ClassesPage() {
     }
 
     return (
-        <div className="min-h-screen bg-[url('/images/backgrounds/fantasy-bg.jpg')] bg-cover bg-center relative">
-            <div className="absolute inset-0 bg-[#0f172a]/70" />
+        <div className="min-h-screen relative">
+            <div className="absolute inset-0 bg-sky-50/60" />
 
             {/* 헤더 */}
-            <header className="relative z-10 flex justify-between items-center px-4 py-3 bg-slate-800/60">
-                <h1 className="text-2xl font-bold text-pink-300">상태창</h1>
+            <header className="relative z-10 flex justify-between items-center px-4 py-3 bg-white/80 shadow-sm">
+                <h1 className="text-2xl font-bold text-blue-600">상태창</h1>
                 <div className="flex items-center gap-4">
                     {user && (
                         <>
-                            <span className="text-white">{user.name}님</span>
+                            <span className="text-slate-700">{user.name}님</span>
                             <button
                                 onClick={handleLogout}
-                                className="px-4 py-2 rounded-md bg-slate-700/80 text-white hover:bg-slate-600/80 transition"
+                                className="px-4 py-2 rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 transition"
                             >
                                 로그아웃
                             </button>
@@ -106,10 +106,10 @@ export default function ClassesPage() {
             {/* 메인 콘텐츠 */}
             <main className="relative z-10 container mx-auto px-4 py-8">
                 <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-3xl font-bold text-white">학급 관리</h2>
+                    <h2 className="text-3xl font-bold text-slate-800">학급 관리</h2>
                     <button
                         onClick={() => setIsAddingClass(true)}
-                        className="px-4 py-2 rounded-md bg-pink-500 text-white hover:bg-pink-600 transition"
+                        className="px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 transition"
                     >
                         학급 추가
                     </button>
@@ -117,30 +117,30 @@ export default function ClassesPage() {
 
                 {/* 학급 추가 폼 */}
                 {isAddingClass && (
-                    <div className="mb-8 p-6 bg-slate-800/80 backdrop-blur-sm rounded-lg">
-                        <h3 className="text-xl font-semibold text-white mb-4">새 학급 추가</h3>
+                    <div className="mb-8 p-6 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg">
+                        <h3 className="text-xl font-semibold text-slate-800 mb-4">새 학급 추가</h3>
                         <form onSubmit={handleAddClassSubmit} className="space-y-4">
                             <div>
-                                <label htmlFor="schoolName" className="block text-sm font-medium text-gray-200 mb-1">
+                                <label htmlFor="schoolName" className="block text-sm font-medium text-slate-700 mb-1">
                                     학교이름
                                 </label>
                                 <input
                                     id="schoolName"
                                     value={newClass.schoolName}
                                     onChange={(e) => setNewClass({ ...newClass, schoolName: e.target.value })}
-                                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white"
+                                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     placeholder="예: 한국초등학교"
                                 />
                             </div>
                             <div>
-                                <label htmlFor="className" className="block text-sm font-medium text-gray-200 mb-1">
+                                <label htmlFor="className" className="block text-sm font-medium text-slate-700 mb-1">
                                     학급이름
                                 </label>
                                 <input
                                     id="className"
                                     value={newClass.name}
                                     onChange={(e) => setNewClass({ ...newClass, name: e.target.value })}
-                                    className="w-full px-3 py-2 bg-slate-700 border border-slate-600 rounded-md text-white"
+                                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     placeholder="예: 1학년 1반"
                                 />
                             </div>
@@ -148,13 +148,13 @@ export default function ClassesPage() {
                                 <button
                                     type="button"
                                     onClick={() => setIsAddingClass(false)}
-                                    className="px-4 py-2 rounded-md bg-slate-700 text-white hover:bg-slate-600 transition"
+                                    className="px-4 py-2 rounded-md bg-slate-100 text-slate-700 hover:bg-slate-200 transition"
                                 >
                                     취소
                                 </button>
                                 <button
                                     type="submit"
-                                    className="px-4 py-2 rounded-md bg-pink-500 text-white hover:bg-pink-600 transition"
+                                    className="px-4 py-2 rounded-md bg-blue-500 text-white hover:bg-blue-600 transition"
                                 >
                                     추가
                                 </button>
@@ -167,30 +167,30 @@ export default function ClassesPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {classes.length > 0 ? (
                         classes.map((classInfo) => (
-                            <div key={classInfo.id} className="bg-slate-800/60 backdrop-blur-sm rounded-lg p-6 hover:bg-slate-800/80 transition">
+                            <div key={classInfo.id} className="bg-white/90 backdrop-blur-sm rounded-lg shadow-md p-6 hover:shadow-lg transition">
                                 <div className="flex justify-between items-start">
                                     <div>
-                                        <h3 className="text-xl font-semibold text-white">{classInfo.name}</h3>
-                                        <p className="text-slate-300 mt-1">{classInfo.schoolName}</p>
-                                        <p className="text-slate-300 mt-1">학생 {classInfo.students}명</p>
+                                        <h3 className="text-xl font-semibold text-slate-800">{classInfo.name}</h3>
+                                        <p className="text-slate-600 mt-1">{classInfo.schoolName}</p>
+                                        <p className="text-slate-600 mt-1">학생 {classInfo.students}명</p>
                                     </div>
                                     <button
                                         onClick={() => handleDeleteClass(classInfo.id)}
-                                        className="text-pink-400 hover:text-pink-300"
+                                        className="text-red-500 hover:text-red-700"
                                     >
                                         삭제
                                     </button>
                                 </div>
                                 <button
                                     onClick={() => router.push(`/classes/${classInfo.id}`)}
-                                    className="mt-4 w-full px-4 py-2 rounded-md bg-slate-700 text-white hover:bg-slate-600 transition"
+                                    className="mt-4 w-full px-4 py-2 rounded-md bg-blue-100 text-blue-700 hover:bg-blue-200 transition"
                                 >
                                     상세 보기
                                 </button>
                             </div>
                         ))
                     ) : (
-                        <div className="col-span-full text-center py-12 text-gray-400">
+                        <div className="col-span-full text-center py-12 text-slate-500">
                             <p className="text-xl mb-2">등록된 학급이 없습니다</p>
                             <p>새 학급을 추가해보세요</p>
                         </div>
@@ -199,26 +199,26 @@ export default function ClassesPage() {
             </main>
 
             {/* 하단 네비게이션 */}
-            <div className="fixed bottom-0 left-0 right-0 bg-slate-900/80 backdrop-blur-sm">
+            <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-sm shadow-md">
                 <div className="container mx-auto px-4">
                     <div className="grid grid-cols-3 gap-4 py-4">
                         <button
                             onClick={() => router.push('/')}
-                            className="flex flex-col items-center text-white"
+                            className="flex flex-col items-center text-slate-600"
                         >
                             <span className="text-lg mb-1">🏠</span>
                             <span className="text-sm">홈</span>
                         </button>
                         <button
                             onClick={() => router.push('/classes')}
-                            className="flex flex-col items-center text-pink-400"
+                            className="flex flex-col items-center text-blue-600"
                         >
                             <span className="text-lg mb-1">👨‍👩‍👧‍👦</span>
                             <span className="text-sm">학급 관리</span>
                         </button>
                         <button
                             onClick={() => router.push('/profile')}
-                            className="flex flex-col items-center text-white"
+                            className="flex flex-col items-center text-slate-600"
                         >
                             <span className="text-lg mb-1">👤</span>
                             <span className="text-sm">프로필</span>
