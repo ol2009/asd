@@ -35,7 +35,34 @@ export default function ClassesPage() {
         // 로컬 스토리지에서 학급 정보 가져오기
         const savedClasses = localStorage.getItem('classes')
         if (savedClasses) {
-            setClasses(JSON.parse(savedClasses))
+            try {
+                const parsedClasses = JSON.parse(savedClasses);
+
+                // 각 클래스마다 학생 수를 계산하여 설정
+                const classesWithStudentCount = parsedClasses.map((classData: any) => {
+                    // students가 배열인 경우 길이를 사용하고, 숫자인 경우 그대로 사용
+                    let studentCount = 0;
+
+                    if (classData.students) {
+                        if (Array.isArray(classData.students)) {
+                            studentCount = classData.students.length;
+                        } else if (typeof classData.students === 'number') {
+                            studentCount = classData.students;
+                        }
+                    }
+
+                    // 클래스 정보에서 students 객체 배열을 제거하고 학생 수만 포함
+                    return {
+                        ...classData,
+                        students: studentCount
+                    };
+                });
+
+                setClasses(classesWithStudentCount);
+            } catch (error) {
+                console.error('클래스 데이터 파싱 오류:', error);
+                setClasses([]);
+            }
         }
     }, [])
 
@@ -66,6 +93,9 @@ export default function ClassesPage() {
 
         // 로컬 스토리지에 저장
         localStorage.setItem('classes', JSON.stringify(updatedClasses))
+
+        // 학생 데이터용 빈 배열도 초기화
+        localStorage.setItem(`students_${newClassInfo.id}`, JSON.stringify([]))
 
         // 폼 초기화
         setNewClass({

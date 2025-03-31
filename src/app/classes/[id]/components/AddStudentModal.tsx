@@ -97,11 +97,11 @@ export default function AddStudentModal({ classId, isOpen, onClose, onStudentAdd
                 number: nextNumber++,
                 name,
                 title: '학생',
-                honorific: getRandomFromArray(honorifics),
+                honorific: '', // 빈 칭호로 시작
                 stats: {
-                    level: Math.floor(Math.random() * 10) + 1 // 1-10 사이의 랜덤 레벨
+                    level: 1 // 레벨 1로 고정
                 },
-                iconType: getRandomFromArray(iconTypes)
+                iconType: iconTypes[0] // 첫 번째 기본 이미지 사용
             }
 
             // 학생 목록에 추가

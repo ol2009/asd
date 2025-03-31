@@ -193,6 +193,54 @@ export default function ClassDetailPage() {
         setSelectedStudentId(null)
     }
 
+    // 학생 정보 업데이트 핸들러
+    const handleStudentUpdated = (updatedStudent: Student) => {
+        // 학생 목록 상태 업데이트
+        setStudents(prevStudents => {
+            const updatedStudents = prevStudents.map(s =>
+                s.id === updatedStudent.id ? updatedStudent : s
+            )
+            return updatedStudents
+        })
+
+        // 클래스 정보에도 학생 정보 업데이트
+        if (classInfo) {
+            let updatedStudents = [];
+
+            // students가 배열인지 확인
+            if (classInfo.students && Array.isArray(classInfo.students)) {
+                updatedStudents = classInfo.students.map(s =>
+                    s.id === updatedStudent.id ? updatedStudent : s
+                );
+            } else {
+                // students가 배열이 아니거나 존재하지 않는 경우
+                console.warn('classInfo.students is not an array:', classInfo.students);
+                // 현재 students 상태를 사용
+                updatedStudents = [...students];
+            }
+
+            const updatedClassInfo = {
+                ...classInfo,
+                students: updatedStudents
+            }
+            setClassInfo(updatedClassInfo)
+
+            // 로컬 스토리지의 classes 업데이트
+            const savedClasses = localStorage.getItem('classes')
+            if (savedClasses) {
+                try {
+                    const classes = JSON.parse(savedClasses)
+                    const updatedClasses = classes.map((c: ClassInfo) =>
+                        c.id === classInfo.id ? updatedClassInfo : c
+                    )
+                    localStorage.setItem('classes', JSON.stringify(updatedClasses))
+                } catch (error) {
+                    console.error('클래스 데이터 업데이트 오류:', error)
+                }
+            }
+        }
+    }
+
     // 학생 추가 모달에서 제출 핸들러
     const handleStudentAdded = (newStudent: Student) => {
         // 학생 목록 상태 업데이트
@@ -308,7 +356,11 @@ export default function ClassDetailPage() {
                                     </div>
                                     <div>
                                         <div className="flex items-center gap-2">
-                                            <span className="text-blue-600 text-sm font-medium">{student.honorific}</span>
+                                            {student.honorific ? (
+                                                <span className="text-blue-600 text-sm font-medium">{student.honorific}</span>
+                                            ) : (
+                                                <span className="text-slate-400 text-sm font-medium">칭호 없음</span>
+                                            )}
                                             <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">Lv.{student.stats.level}</span>
                                         </div>
                                         <h3 className="text-slate-800 font-medium">{student.name}</h3>
@@ -336,6 +388,7 @@ export default function ClassDetailPage() {
                     studentId={selectedStudentId}
                     isOpen={isStudentDetailModalOpen}
                     onClose={handleStudentDetailModalClose}
+                    onStudentUpdated={handleStudentUpdated}
                 />
             )}
         </div>

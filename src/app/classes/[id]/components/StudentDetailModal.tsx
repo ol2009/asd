@@ -74,9 +74,16 @@ interface StudentDetailModalProps {
     studentId: string
     isOpen: boolean
     onClose: () => void
+    onStudentUpdated?: (updatedStudent: Student) => void
 }
 
-export default function StudentDetailModal({ classId, studentId, isOpen, onClose }: StudentDetailModalProps) {
+export default function StudentDetailModal({
+    classId,
+    studentId,
+    isOpen,
+    onClose,
+    onStudentUpdated
+}: StudentDetailModalProps) {
     const [student, setStudent] = useState<Student | null>(null)
     const [isEditingIcon, setIsEditingIcon] = useState(false)
     const [isEditingHonorific, setIsEditingHonorific] = useState(false)
@@ -117,7 +124,7 @@ export default function StudentDetailModal({ classId, studentId, isOpen, onClose
         }
     }, [classId, studentId, isOpen, onClose])
 
-    // 아이콘 변경 함수
+    // 아이콘 변경 핸들러
     const handleIconChange = (newIconType: string) => {
         if (!student) return
 
@@ -126,15 +133,30 @@ export default function StudentDetailModal({ classId, studentId, isOpen, onClose
             iconType: newIconType
         }
 
-        // 로컬 스토리지에서 학생 데이터 업데이트
-        updateStudentInLocalStorage(updatedStudent)
-
-        setStudent(updatedStudent)
-        setIsEditingIcon(false)
-        toast.success('아이콘이 변경되었습니다')
+        // 로컬 스토리지 업데이트
+        const savedStudents = localStorage.getItem(`students_${classId}`)
+        if (savedStudents) {
+            try {
+                const students = JSON.parse(savedStudents)
+                const updatedStudents = students.map((s: Student) =>
+                    s.id === studentId ? updatedStudent : s
+                )
+                localStorage.setItem(`students_${classId}`, JSON.stringify(updatedStudents))
+                setStudent(updatedStudent)
+                // 부모 컴포넌트에 변경 사항 알림
+                onStudentUpdated?.(updatedStudent)
+                // 아이콘 변경 모달 닫기
+                setIsEditingIcon(false)
+                // 아이콘 변경 메시지 표시
+                toast.success('아이콘이 변경되었습니다')
+            } catch (error) {
+                console.error('학생 데이터 업데이트 오류:', error)
+                toast.error('아이콘 변경 중 오류가 발생했습니다')
+            }
+        }
     }
 
-    // 칭호 변경 함수
+    // 칭호 변경 핸들러
     const handleHonorificChange = (newHonorific: string) => {
         if (!student) return
 
@@ -143,26 +165,25 @@ export default function StudentDetailModal({ classId, studentId, isOpen, onClose
             honorific: newHonorific
         }
 
-        // 로컬 스토리지에서 학생 데이터 업데이트
-        updateStudentInLocalStorage(updatedStudent)
-
-        setStudent(updatedStudent)
-        setIsEditingHonorific(false)
-        toast.success('칭호가 변경되었습니다')
-    }
-
-    // 로컬 스토리지에 학생 데이터 업데이트
-    const updateStudentInLocalStorage = (updatedStudent: Student) => {
+        // 로컬 스토리지 업데이트
         const savedStudents = localStorage.getItem(`students_${classId}`)
         if (savedStudents) {
             try {
                 const students = JSON.parse(savedStudents)
                 const updatedStudents = students.map((s: Student) =>
-                    s.id === updatedStudent.id ? updatedStudent : s
+                    s.id === studentId ? updatedStudent : s
                 )
                 localStorage.setItem(`students_${classId}`, JSON.stringify(updatedStudents))
+                setStudent(updatedStudent)
+                // 부모 컴포넌트에 변경 사항 알림
+                onStudentUpdated?.(updatedStudent)
+                // 칭호 변경 모달 닫기
+                setIsEditingHonorific(false)
+                // 칭호 변경 메시지 표시
+                toast.success('칭호가 변경되었습니다')
             } catch (error) {
                 console.error('학생 데이터 업데이트 오류:', error)
+                toast.error('칭호 변경 중 오류가 발생했습니다')
             }
         }
     }
@@ -273,9 +294,15 @@ export default function StudentDetailModal({ classId, studentId, isOpen, onClose
                         <div className="flex-1">
                             <div className="flex flex-col items-center md:items-start">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-blue-600 text-lg font-bold">
-                                        {student.honorific}
-                                    </span>
+                                    {student.honorific ? (
+                                        <span className="text-blue-600 text-lg font-bold">
+                                            {student.honorific}
+                                        </span>
+                                    ) : (
+                                        <span className="text-slate-400 text-lg font-bold">
+                                            칭호 없음
+                                        </span>
+                                    )}
                                     <button
                                         onClick={() => setIsEditingHonorific(true)}
                                         className="p-1 hover:bg-blue-100 rounded"

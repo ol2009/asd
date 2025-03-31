@@ -56,7 +56,7 @@ export default function ClassDetailLayout({ children }: DashboardLayoutProps) {
                         className="flex items-center gap-3 px-4 py-2 rounded-lg transition-colors duration-200 text-slate-600 hover:bg-blue-100"
                     >
                         <Map size={20} className="text-blue-500" />
-                        <span>성장로드맵관리</span>
+                        <span>성장로드맵</span>
                     </Link>
                     <Link
                         href={`/classes/${pathname.split('/')[2]}/missions`}
