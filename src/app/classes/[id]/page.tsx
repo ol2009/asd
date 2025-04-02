@@ -26,12 +26,13 @@ interface Student {
     id: string
     number: number
     name: string
-    title: string
     honorific: string
     stats: {
         level: number
+        exp?: number
     }
     iconType: string
+    points?: number
 }
 
 // 이미지 아이콘 경로
@@ -96,7 +97,6 @@ export default function ClassDetailPage() {
                                 id: '1',
                                 number: 1,
                                 name: '김학생',
-                                title: '반장',
                                 honorific: '수학천재',
                                 stats: {
                                     level: 7
@@ -107,7 +107,6 @@ export default function ClassDetailPage() {
                                 id: '2',
                                 number: 2,
                                 name: '이영재',
-                                title: '부반장',
                                 honorific: '독서왕',
                                 stats: {
                                     level: 5
@@ -118,7 +117,6 @@ export default function ClassDetailPage() {
                                 id: '3',
                                 number: 3,
                                 name: '박미래',
-                                title: '학생',
                                 honorific: '영어고수',
                                 stats: {
                                     level: 6
@@ -191,6 +189,21 @@ export default function ClassDetailPage() {
     const handleStudentDetailModalClose = () => {
         setIsStudentDetailModalOpen(false)
         setSelectedStudentId(null)
+
+        // 학생 정보 다시 로드 (업데이트된 정보 반영)
+        const savedClasses = localStorage.getItem('classes')
+        if (savedClasses) {
+            try {
+                const classes = JSON.parse(savedClasses)
+                const foundClass = classes.find((c: ClassInfo) => c.id === classId)
+                if (foundClass) {
+                    setClassInfo(foundClass)
+                    setStudents(foundClass.students)
+                }
+            } catch (error) {
+                console.error('클래스 데이터 업데이트 오류:', error)
+            }
+        }
     }
 
     // 학생 정보 업데이트 핸들러
@@ -364,7 +377,6 @@ export default function ClassDetailPage() {
                                             <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">Lv.{student.stats.level}</span>
                                         </div>
                                         <h3 className="text-slate-800 font-medium">{student.name}</h3>
-                                        <p className="text-slate-500 text-sm">{student.title}</p>
                                     </div>
                                 </div>
                             </div>
@@ -388,7 +400,6 @@ export default function ClassDetailPage() {
                     studentId={selectedStudentId}
                     isOpen={isStudentDetailModalOpen}
                     onClose={handleStudentDetailModalClose}
-                    onStudentUpdated={handleStudentUpdated}
                 />
             )}
         </div>

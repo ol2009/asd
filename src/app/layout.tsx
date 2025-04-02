@@ -37,7 +37,25 @@ export default function RootLayout({
       >
         <div className="min-h-screen bg-sky-50/80">
           {children}
-          <Toaster position="top-center" richColors />
+          <Toaster
+            position="top-center"
+            richColors
+            offset={100}
+            gap={20}
+            visibleToasts={10}
+            expand={true}
+            closeButton={true}
+            hotkey={["altKey", "KeyT"]}
+            toastOptions={{
+              duration: 4000,
+              className: "my-toast-class",
+              style: {
+                marginBottom: '30px',
+                marginTop: '10px',
+                opacity: 1
+              }
+            }}
+          />
         </div>
       </body>
     </html>

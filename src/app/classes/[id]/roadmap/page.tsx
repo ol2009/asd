@@ -33,9 +33,24 @@ interface ClassInfo {
     createdAt: string
 }
 
+interface Student {
+    id: string
+    number: number
+    name: string
+    title: string
+    honorific: string
+    stats: {
+        level: number
+        exp?: number
+    }
+    iconType: string
+    points?: number
+}
+
 interface RoadmapStep {
     id: string
     goal: string
+    students?: string[] // 학생 ID 배열
 }
 
 interface Roadmap {
@@ -46,6 +61,11 @@ interface Roadmap {
     rewardIcon: string
     createdAt: string
 }
+
+// 상수 값을 추가
+const EXP_PER_LEVEL = 100 // 레벨업에 필요한 경험치
+const EXP_FOR_ROADMAP_STEP = 100 // 로드맵 단계 완료 시 획득 경험치
+const POINTS_PER_LEVEL = 100 // 레벨업 시 획득 포인트
 
 export default function RoadmapPage() {
     const router = useRouter()
@@ -214,19 +234,35 @@ export default function RoadmapPage() {
         }))
     }
 
-    // 로드맵 클릭 핸들러 추가
+    // 로드맵 클릭 핸들러
     const handleRoadmapClick = (roadmapId: string) => {
-        const roadmap = roadmaps.find(r => r.id === roadmapId)
-        if (roadmap) {
-            setSelectedRoadmap(roadmap)
+        // 선택된 로드맵 찾기
+        const foundRoadmap = roadmaps.find(roadmap => roadmap.id === roadmapId)
 
-            // 로드맵 단계별 학생 목록 불러오기
+        if (foundRoadmap) {
+            setSelectedRoadmap(foundRoadmap)
+
+            // 로드맵 각 단계별 학생 목록 불러오기
             const stepsStudents: { [stepId: string]: string[] } = {}
-            roadmap.steps.forEach(step => {
+
+            foundRoadmap.steps.forEach(step => {
+                // 로컬 스토리지에서 학생 목록 불러오기
                 const savedStepStudents = localStorage.getItem(`roadmap_${classId}_step_${step.id}_students`)
+
                 if (savedStepStudents) {
                     try {
-                        stepsStudents[step.id] = JSON.parse(savedStepStudents)
+                        // 로컬 스토리지의 학생 목록과 로드맵 객체의 학생 목록 동기화
+                        const stepStudents = JSON.parse(savedStepStudents)
+                        stepsStudents[step.id] = stepStudents
+
+                        // 로드맵 객체의 학생 목록 업데이트 (동기화)
+                        const roadmapIndex = roadmaps.findIndex(r => r.id === roadmapId)
+                        if (roadmapIndex !== -1) {
+                            const stepIndex = roadmaps[roadmapIndex].steps.findIndex(s => s.id === step.id)
+                            if (stepIndex !== -1) {
+                                roadmaps[roadmapIndex].steps[stepIndex].students = stepStudents
+                            }
+                        }
                     } catch (error) {
                         console.error('단계별 학생 데이터 파싱 오류:', error)
                         stepsStudents[step.id] = []
@@ -235,6 +271,7 @@ export default function RoadmapPage() {
                     stepsStudents[step.id] = []
                 }
             })
+
             setStudentsInSteps(stepsStudents)
 
             // 클래스의 모든 학생 목록 불러오기
@@ -280,11 +317,44 @@ export default function RoadmapPage() {
         // 필터링된 학생 ID만 추가
         const filteredStudentIds = studentIds.filter(id => !existingStudentIds.includes(id))
 
+        if (filteredStudentIds.length === 0) {
+            toast.info('추가할 학생이 없습니다');
+            setIsAddStudentModalOpen(false);
+            return;
+        }
+
         // 새 학생 추가
         const updatedStudentsInStep = [...(studentsInSteps[step.id] || []), ...filteredStudentIds]
 
         // 로컬 스토리지 업데이트
         localStorage.setItem(`roadmap_${classId}_step_${step.id}_students`, JSON.stringify(updatedStudentsInStep))
+
+        // 1. 이전 단계에서 학생 제거 (선택된 학생을 이전 단계에서 제거)
+        if (selectedRoadmapStepIndex > 0) {
+            for (let i = 0; i < selectedRoadmapStepIndex; i++) {
+                const prevStepId = selectedRoadmap.steps[i].id;
+                const prevStepStudents = studentsInSteps[prevStepId] || [];
+
+                // 이전 단계에서 선택된 학생 제거
+                const updatedPrevStepStudents = prevStepStudents.filter(
+                    studentId => !filteredStudentIds.includes(studentId)
+                );
+
+                // 로컬 스토리지 업데이트
+                localStorage.setItem(
+                    `roadmap_${classId}_step_${prevStepId}_students`,
+                    JSON.stringify(updatedPrevStepStudents)
+                );
+
+                // 상태 업데이트
+                studentsInSteps[prevStepId] = updatedPrevStepStudents;
+            }
+        }
+
+        // 2. 경험치와 레벨 업데이트
+        filteredStudentIds.forEach(studentId => {
+            updateStudentExpAndLevel(studentId, EXP_FOR_ROADMAP_STEP);
+        });
 
         // 상태 업데이트
         setStudentsInSteps({
@@ -293,7 +363,187 @@ export default function RoadmapPage() {
         })
 
         setIsAddStudentModalOpen(false)
-        toast.success('학생이 로드맵 단계에 추가되었습니다')
+        toast.success(`${filteredStudentIds.length}명의 학생이 로드맵 단계에 추가되었습니다`)
+    }
+
+    // 학생을 로드맵 단계에 추가하는 함수
+    const addStudentToRoadmapStep = (roadmapId: string, stepId: string, studentId: string) => {
+        // 현재 로드맵 목록 가져오기
+        const currentRoadmaps = [...roadmaps]
+
+        // 해당 로드맵과 단계 찾기
+        const roadmapIndex = currentRoadmaps.findIndex(r => r.id === roadmapId)
+        if (roadmapIndex === -1) return
+
+        const roadmap = currentRoadmaps[roadmapIndex];
+        const stepIndex = roadmap.steps.findIndex(s => s.id === stepId)
+        if (stepIndex === -1) return
+
+        // 학생이 이미 이 단계에 있는지 확인
+        const stepStudents = roadmap.steps[stepIndex].students || []
+        const isStudentAlreadyInStep = stepStudents.includes(studentId)
+        if (isStudentAlreadyInStep) {
+            toast.info('학생이 이미 이 단계에 있습니다.')
+            return
+        }
+
+        // 1. 이전 단계에서 학생 제거
+        if (stepIndex > 0) {
+            for (let i = 0; i < stepIndex; i++) {
+                const prevStep = roadmap.steps[i];
+
+                if (prevStep.students && prevStep.students.includes(studentId)) {
+                    // 이전 단계에서 학생 제거
+                    prevStep.students = prevStep.students.filter(id => id !== studentId);
+
+                    // 로컬 스토리지 업데이트 (단계별 학생 목록)
+                    localStorage.setItem(
+                        `roadmap_${classId}_step_${prevStep.id}_students`,
+                        JSON.stringify(prevStep.students)
+                    );
+
+                    // 상태 업데이트 (studentsInSteps)
+                    if (studentsInSteps[prevStep.id]) {
+                        studentsInSteps[prevStep.id] = studentsInSteps[prevStep.id].filter(
+                            id => id !== studentId
+                        );
+                    }
+                }
+            }
+        }
+
+        // 2. 학생을 단계에 추가
+        if (!roadmap.steps[stepIndex].students) {
+            roadmap.steps[stepIndex].students = []
+        }
+        roadmap.steps[stepIndex].students!.push(studentId)
+
+        // 3. 로드맵 목록 업데이트
+        setRoadmaps(currentRoadmaps)
+
+        // 4. 로컬스토리지에 저장
+        localStorage.setItem(`roadmaps_${classId}`, JSON.stringify(currentRoadmaps))
+
+        // 5. 단계별 학생 목록 업데이트
+        const updatedStepStudents = [...(studentsInSteps[stepId] || []), studentId];
+        localStorage.setItem(`roadmap_${classId}_step_${stepId}_students`, JSON.stringify(updatedStepStudents));
+
+        // 6. 상태 업데이트
+        setStudentsInSteps({
+            ...studentsInSteps,
+            [stepId]: updatedStepStudents
+        });
+
+        // 7. 학생 경험치 및 레벨 업데이트
+        updateStudentExpAndLevel(studentId, EXP_FOR_ROADMAP_STEP)
+
+        toast.success('학생이 성장 단계에 추가되었습니다.')
+        setIsAddStudentModalOpen(false)
+    }
+
+    // 학생의 경험치와 레벨을 업데이트하는 함수
+    const updateStudentExpAndLevel = (studentId: string, expToAdd: number) => {
+        // 학생 목록 가져오기
+        const savedStudents = localStorage.getItem(`students_${classId}`)
+        if (!savedStudents) return
+
+        try {
+            const students = JSON.parse(savedStudents)
+            const studentIndex = students.findIndex((s: Student) => s.id === studentId)
+
+            if (studentIndex === -1) return
+
+            // 학생 데이터 업데이트
+            const student = students[studentIndex]
+
+            // 경험치가 없으면 초기화
+            if (!student.stats.exp) {
+                student.stats.exp = 0
+            }
+
+            // 포인트가 없으면 초기화
+            if (!student.points) {
+                student.points = 0
+            }
+
+            // 현재 레벨
+            const currentLevel = student.stats.level
+
+            // 경험치 추가
+            student.stats.exp += expToAdd
+
+            // 레벨업 계산
+            const newLevel = Math.floor(student.stats.exp / EXP_PER_LEVEL) + 1
+
+            // 학생 데이터 저장 (먼저 저장하여 UI 상태 업데이트)
+            students[studentIndex] = student
+            localStorage.setItem(`students_${classId}`, JSON.stringify(students))
+
+            // 현재 컴포넌트 상태에 반영된 학생 목록도 업데이트
+            setStudentsInClass(students)
+
+            // 레벨업이 발생했는지 확인
+            if (newLevel > currentLevel) {
+                // 레벨 업데이트
+                student.stats.level = newLevel
+
+                // 레벨업 시 포인트 지급
+                const levelsGained = newLevel - currentLevel
+                student.points += levelsGained * POINTS_PER_LEVEL
+
+                // 경험치 획득 메시지 (먼저 표시)
+                const baseToastId = `student-${student.id}-${Date.now()}`;
+                toast.success(`${student.name} 학생이 ${expToAdd} 경험치를 획득했습니다!`, {
+                    id: `${baseToastId}-exp`,
+                    duration: 3000,
+                    style: {
+                        opacity: 1,
+                        backgroundColor: '#fff',
+                        border: '1px solid rgba(0, 0, 0, 0.1)'
+                    }
+                });
+
+                // 레벨업 메시지 (1초 후 표시)
+                setTimeout(() => {
+                    toast.success(`${student.name} 학생이 Lv.${currentLevel}에서 Lv.${newLevel}로 레벨업했습니다!`, {
+                        id: `${baseToastId}-level`,
+                        duration: 3000,
+                        style: {
+                            opacity: 1,
+                            backgroundColor: '#fff',
+                            border: '1px solid rgba(0, 0, 0, 0.1)'
+                        }
+                    });
+                }, 1000);
+
+                // 포인트 지급 메시지 (2초 후 표시)
+                setTimeout(() => {
+                    toast.success(`${student.name} 학생에게 ${levelsGained * POINTS_PER_LEVEL} 포인트가 지급되었습니다!`, {
+                        id: `${baseToastId}-points`,
+                        duration: 3000,
+                        style: {
+                            opacity: 1,
+                            backgroundColor: '#fff',
+                            border: '1px solid rgba(0, 0, 0, 0.1)'
+                        }
+                    });
+                }, 2000);
+            } else {
+                // 경험치만 획득한 경우
+                toast.success(`${student.name} 학생이 ${expToAdd} 경험치를 획득했습니다!`, {
+                    id: `exp-${student.id}-${Date.now()}`,
+                    duration: 3000,
+                    style: {
+                        opacity: 1,
+                        backgroundColor: '#fff',
+                        border: '1px solid rgba(0, 0, 0, 0.1)'
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('학생 데이터 업데이트 오류:', error)
+            toast.error('학생 데이터를 업데이트하는 중 오류가 발생했습니다.')
+        }
     }
 
     if (isLoading) {
@@ -711,7 +961,8 @@ function getExistingStudentIds(roadmap: Roadmap, stepIndex: number, studentsInSt
         }
     }
 
-    return existingStudentIds
+    // 중복 제거
+    return [...new Set(existingStudentIds)];
 }
 
 // 학생 추가 폼 컴포넌트

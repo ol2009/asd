@@ -9,7 +9,6 @@ interface Student {
     id: string
     number: number
     name: string
-    title: string
     honorific: string
     stats: {
         level: number
@@ -96,7 +95,6 @@ export default function AddStudentModal({ classId, isOpen, onClose, onStudentAdd
                 id: Date.now().toString() + nextNumber.toString(),
                 number: nextNumber++,
                 name,
-                title: '학생',
                 honorific: '', // 빈 칭호로 시작
                 stats: {
                     level: 1 // 레벨 1로 고정

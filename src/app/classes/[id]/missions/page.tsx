@@ -23,6 +23,11 @@ interface Student {
     number: string
     honorific: string
     iconType: string
+    stats: {
+        exp: number
+        level: number
+    }
+    points: number
 }
 
 // 클래스 정보 타입 정의
@@ -32,6 +37,11 @@ interface ClassInfo {
     grade: string
     classNumber: string
 }
+
+// 상수 값을 추가
+const EXP_PER_LEVEL = 100 // 레벨업에 필요한 경험치
+const EXP_FOR_MISSION = 100 // 미션 완료 시 획득 경험치
+const POINTS_PER_LEVEL = 100 // 레벨업 시 획득 포인트
 
 export default function MissionsPage() {
     const router = useRouter()
@@ -143,31 +153,139 @@ export default function MissionsPage() {
     }
 
     // 달성자 추가 처리
-    const handleAddAchiever = (studentIds: string[]) => {
-        if (!selectedMission) return
+    const handleAddAchiever = (missionId: string, studentId: string) => {
+        const currentMissions = [...missions]
+        const missionIndex = currentMissions.findIndex(m => m.id === missionId)
 
-        // 이미 달성자로 등록된 학생 제외하고 새 달성자만 추가
-        const newAchievers = [
-            ...selectedMission.achievers,
-            ...studentIds.filter(id => !selectedMission.achievers.includes(id))
-        ]
+        if (missionIndex === -1) return
 
-        const updatedMission = {
-            ...selectedMission,
-            achievers: newAchievers
+        // 이미 달성자에 포함되어 있는지 확인
+        if (currentMissions[missionIndex].achievers?.includes(studentId)) {
+            toast.info('이미 미션을 달성한 학생입니다.')
+            return
         }
 
-        // 미션 목록 업데이트
-        const updatedMissions = missions.map(mission =>
-            mission.id === selectedMission.id ? updatedMission : mission
-        )
+        // 달성자 목록이 없으면 초기화
+        if (!currentMissions[missionIndex].achievers) {
+            currentMissions[missionIndex].achievers = []
+        }
 
-        setMissions(updatedMissions)
-        setSelectedMission(updatedMission)
-        localStorage.setItem(`missions_${classId}`, JSON.stringify(updatedMissions))
+        // 달성자에 추가
+        currentMissions[missionIndex].achievers!.push(studentId)
+        setMissions(currentMissions)
 
+        // 학생에게 경험치 부여
+        updateStudentExpAndLevel(studentId, EXP_FOR_MISSION)
+
+        // 로컬 스토리지 업데이트
+        localStorage.setItem(`missions_${classId}`, JSON.stringify(currentMissions))
+        toast.success('미션 달성자로 등록되었습니다.')
         setIsAddAchieverModalOpen(false)
-        toast.success('미션 달성자가 추가되었습니다')
+    }
+
+    // 학생의 경험치와 레벨을 업데이트하는 함수
+    const updateStudentExpAndLevel = (studentId: string, expToAdd: number) => {
+        // 학생 목록 가져오기
+        const savedStudents = localStorage.getItem(`students_${classId}`)
+        if (!savedStudents) return
+
+        try {
+            const students = JSON.parse(savedStudents)
+            const studentIndex = students.findIndex((s: Student) => s.id === studentId)
+
+            if (studentIndex === -1) return
+
+            // 학생 데이터 업데이트
+            const student = students[studentIndex]
+
+            // 경험치가 없으면 초기화
+            if (!student.stats.exp) {
+                student.stats.exp = 0
+            }
+
+            // 포인트가 없으면 초기화
+            if (!student.points) {
+                student.points = 0
+            }
+
+            // 현재 레벨
+            const currentLevel = student.stats.level
+
+            // 경험치 추가
+            student.stats.exp += expToAdd
+
+            // 레벨업 계산
+            const newLevel = Math.floor(student.stats.exp / EXP_PER_LEVEL) + 1
+
+            // 학생 데이터 저장 (먼저 저장하여 UI 상태 업데이트)
+            students[studentIndex] = student
+            localStorage.setItem(`students_${classId}`, JSON.stringify(students))
+
+            // 현재 컴포넌트 상태에 반영된 학생 목록도 업데이트
+            setStudents(students)
+
+            // 레벨업이 발생했는지 확인
+            if (newLevel > currentLevel) {
+                // 레벨 업데이트
+                student.stats.level = newLevel
+
+                // 레벨업 시 포인트 지급
+                const levelsGained = newLevel - currentLevel
+                student.points += levelsGained * POINTS_PER_LEVEL
+
+                // 경험치 획득 메시지 (먼저 표시)
+                const baseToastId = `student-${student.id}-${Date.now()}`;
+                toast.success(`${student.name} 학생이 ${expToAdd} 경험치를 획득했습니다!`, {
+                    id: `${baseToastId}-exp`,
+                    duration: 3000,
+                    style: {
+                        opacity: 1,
+                        backgroundColor: '#fff',
+                        border: '1px solid rgba(0, 0, 0, 0.1)'
+                    }
+                });
+
+                // 레벨업 메시지 (1초 후 표시)
+                setTimeout(() => {
+                    toast.success(`${student.name} 학생이 Lv.${currentLevel}에서 Lv.${newLevel}로 레벨업했습니다!`, {
+                        id: `${baseToastId}-level`,
+                        duration: 3000,
+                        style: {
+                            opacity: 1,
+                            backgroundColor: '#fff',
+                            border: '1px solid rgba(0, 0, 0, 0.1)'
+                        }
+                    });
+                }, 1000);
+
+                // 포인트 지급 메시지 (2초 후 표시)
+                setTimeout(() => {
+                    toast.success(`${student.name} 학생에게 ${levelsGained * POINTS_PER_LEVEL} 포인트가 지급되었습니다!`, {
+                        id: `${baseToastId}-points`,
+                        duration: 3000,
+                        style: {
+                            opacity: 1,
+                            backgroundColor: '#fff',
+                            border: '1px solid rgba(0, 0, 0, 0.1)'
+                        }
+                    });
+                }, 2000);
+            } else {
+                // 경험치만 획득한 경우
+                toast.success(`${student.name} 학생이 ${expToAdd} 경험치를 획득했습니다!`, {
+                    id: `exp-${student.id}-${Date.now()}`,
+                    duration: 3000,
+                    style: {
+                        opacity: 1,
+                        backgroundColor: '#fff',
+                        border: '1px solid rgba(0, 0, 0, 0.1)'
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('학생 데이터 업데이트 오류:', error)
+            toast.error('학생 데이터를 업데이트하는 중 오류가 발생했습니다.')
+        }
     }
 
     // 달성자 제거 처리
@@ -422,7 +540,9 @@ export default function MissionsPage() {
                             <AddAchieverForm
                                 students={students}
                                 existingAchieverIds={selectedMission.achievers}
-                                onSubmit={handleAddAchiever}
+                                onSubmit={(studentIds) => {
+                                    studentIds.forEach(studentId => handleAddAchiever(selectedMission.id, studentId))
+                                }}
                                 onCancel={() => setIsAddAchieverModalOpen(false)}
                             />
                         </div>

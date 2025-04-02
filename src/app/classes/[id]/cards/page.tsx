@@ -73,13 +73,16 @@ const renderStudentIcon = (iconType: string) => {
 
 // 칭찬카드 부여 기록 인터페이스
 interface PraiseCardHistory {
-    id: string;
-    cardId: number;
-    cardName: string;
-    studentId: string;
-    studentName: string;
-    date: string;
+    id: string
+    cardId: string
+    studentId: string
+    issuedAt: string  // 카드 발급 시간
 }
+
+// 상수 값을 추가
+const EXP_PER_LEVEL = 100 // 레벨업에 필요한 경험치
+const EXP_FOR_PRAISE_CARD = 50 // 칭찬 카드 획득 시 획득 경험치
+const POINTS_PER_LEVEL = 100 // 레벨업 시 획득 포인트
 
 export default function PraiseCardsPage() {
     const params = useParams()
@@ -187,39 +190,143 @@ export default function PraiseCardsPage() {
 
     // 칭찬카드 발급 확정
     const handleGiveCard = () => {
-        if (!selectedCard) return
-        if (selectedStudents.length === 0) {
-            toast.error('학생을 한 명 이상 선택해주세요')
+        if (!selectedCard || selectedStudents.length === 0) {
+            toast.error('카드와 학생을 모두 선택해주세요.')
             return
         }
 
-        // 선택된 각 학생에게 칭찬카드 부여
         const now = new Date().toISOString()
-        const newHistories: PraiseCardHistory[] = selectedStudents.map(studentId => {
+
+        // 선택된 학생들에게 칭찬 카드 발급
+        const newHistoryItems = selectedStudents.map(studentId => {
             const student = students.find(s => s.id === studentId)
             return {
                 id: `${Date.now()}_${studentId}`,
-                cardId: selectedCard.id,
-                cardName: selectedCard.name,
+                cardId: selectedCard.id.toString(),
                 studentId,
-                studentName: student?.name || '알 수 없음',
-                date: now
+                issuedAt: now
             }
         })
 
-        // 기존 기록과 새 기록 합치기
-        const updatedHistories = [...praiseCardHistories, ...newHistories]
-        setPraiseCardHistories(updatedHistories)
-        localStorage.setItem(`praiseCardHistories_${classId}`, JSON.stringify(updatedHistories))
+        // 카드 발급 이력 업데이트
+        const updatedHistory = [...praiseCardHistories, ...newHistoryItems]
+        setPraiseCardHistories(updatedHistory)
+        localStorage.setItem(`praiseCardHistories_${classId}`, JSON.stringify(updatedHistory))
 
-        // 결과 메시지 생성
-        const studentNames = selectedStudents
-            .map(id => students.find(s => s.id === id)?.name || '알 수 없음')
-            .join(', ')
+        // 각 학생에게 경험치 부여
+        selectedStudents.forEach(studentId => {
+            updateStudentExpAndLevel(studentId, EXP_FOR_PRAISE_CARD)
+        })
 
-        toast.success(`${selectedCard.name} 칭찬카드를 ${studentNames}님에게 발급했습니다.`)
-        setShowStudentSelectModal(false)
+        // 선택 초기화
         setSelectedStudents([])
+        setShowStudentSelectModal(false)
+        toast.success(`${selectedStudents.length}명의 학생에게 '${selectedCard.name}' 카드가 발급되었습니다.`)
+    }
+
+    // 학생의 경험치와 레벨을 업데이트하는 함수
+    const updateStudentExpAndLevel = (studentId: string, expToAdd: number) => {
+        // 학생 목록 가져오기
+        const savedStudents = localStorage.getItem(`students_${classId}`)
+        if (!savedStudents) return
+
+        try {
+            const students = JSON.parse(savedStudents)
+            const studentIndex = students.findIndex((s: Student) => s.id === studentId)
+
+            if (studentIndex === -1) return
+
+            // 학생 데이터 업데이트
+            const student = students[studentIndex]
+
+            // 경험치가 없으면 초기화
+            if (!student.stats.exp) {
+                student.stats.exp = 0
+            }
+
+            // 포인트가 없으면 초기화
+            if (!student.points) {
+                student.points = 0
+            }
+
+            // 현재 레벨
+            const currentLevel = student.stats.level
+
+            // 경험치 추가
+            student.stats.exp += expToAdd
+
+            // 레벨업 계산
+            const newLevel = Math.floor(student.stats.exp / EXP_PER_LEVEL) + 1
+
+            // 학생 데이터 저장 (먼저 저장하여 UI 상태 업데이트)
+            students[studentIndex] = student
+            localStorage.setItem(`students_${classId}`, JSON.stringify(students))
+
+            // 현재 컴포넌트 상태에 반영된 학생 목록도 업데이트
+            setStudents(students)
+
+            // 레벨업이 발생했는지 확인
+            if (newLevel > currentLevel) {
+                // 레벨 업데이트
+                student.stats.level = newLevel
+
+                // 레벨업 시 포인트 지급
+                const levelsGained = newLevel - currentLevel
+                student.points += levelsGained * POINTS_PER_LEVEL
+
+                // 경험치 획득 메시지 (먼저 표시)
+                const baseToastId = `student-${student.id}-${Date.now()}`;
+                toast.success(`${student.name} 학생이 ${expToAdd} 경험치를 획득했습니다!`, {
+                    id: `${baseToastId}-exp`,
+                    duration: 3000,
+                    style: {
+                        opacity: 1,
+                        backgroundColor: '#fff',
+                        border: '1px solid rgba(0, 0, 0, 0.1)'
+                    }
+                });
+
+                // 레벨업 메시지 (1초 후 표시)
+                setTimeout(() => {
+                    toast.success(`${student.name} 학생이 Lv.${currentLevel}에서 Lv.${newLevel}로 레벨업했습니다!`, {
+                        id: `${baseToastId}-level`,
+                        duration: 3000,
+                        style: {
+                            opacity: 1,
+                            backgroundColor: '#fff',
+                            border: '1px solid rgba(0, 0, 0, 0.1)'
+                        }
+                    });
+                }, 1000);
+
+                // 포인트 지급 메시지 (2초 후 표시)
+                setTimeout(() => {
+                    toast.success(`${student.name} 학생에게 ${levelsGained * POINTS_PER_LEVEL} 포인트가 지급되었습니다!`, {
+                        id: `${baseToastId}-points`,
+                        duration: 3000,
+                        style: {
+                            opacity: 1,
+                            backgroundColor: '#fff',
+                            border: '1px solid rgba(0, 0, 0, 0.1)'
+                        }
+                    });
+                }, 2000);
+            } else {
+                // 경험치만 획득한 경우
+                toast.success(`${student.name} 학생이 ${expToAdd} 경험치를 획득했습니다!`, {
+                    id: `exp-${student.id}-${Date.now()}`,
+                    duration: 3000,
+                    style: {
+                        opacity: 1,
+                        backgroundColor: '#fff',
+                        border: '1px solid rgba(0, 0, 0, 0.1)'
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('학생 데이터 업데이트 오류:', error)
+            toast.error('학생 데이터를 업데이트하는 중 오류가 발생했습니다.')
+        }
     }
 
     // 검색어에 맞는 학생만 필터링
@@ -404,8 +511,8 @@ export default function PraiseCardsPage() {
                                         key={student.id}
                                         onClick={() => toggleStudentSelection(student.id)}
                                         className={`flex items-center p-3 rounded-lg cursor-pointer border transition-colors ${selectedStudents.includes(student.id)
-                                                ? 'bg-blue-50 border-blue-300'
-                                                : 'bg-white border-gray-200 hover:bg-gray-50'
+                                            ? 'bg-blue-50 border-blue-300'
+                                            : 'bg-white border-gray-200 hover:bg-gray-50'
                                             }`}
                                     >
                                         <div className="relative w-10 h-10 mr-3 flex-shrink-0">
