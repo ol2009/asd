@@ -12,24 +12,29 @@ interface Student {
     honorific: string
     stats: {
         level: number
+        exp: number
     }
     iconType: string
+    points?: number
 }
 
 // 이미지 아이콘 경로
-const iconTypes = [
-    '/images/icons/Gemini_Generated_Image_3zghrv3zghrv3zgh.jpg',
-    '/images/icons/Gemini_Generated_Image_49lajh49lajh49la.jpg',
-    '/images/icons/Gemini_Generated_Image_6thu0u6thu0u6thu.jpg',
-    '/images/icons/Gemini_Generated_Image_el7avsel7avsel7a.jpg',
-    '/images/icons/Gemini_Generated_Image_eun2yveun2yveun2.jpg',
-    '/images/icons/Gemini_Generated_Image_gf0wfdgf0wfdgf0w.jpg',
-    '/images/icons/Gemini_Generated_Image_jzqdr4jzqdr4jzqd.jpg',
-    '/images/icons/Gemini_Generated_Image_ogd5ztogd5ztogd5.jpg',
-    '/images/icons/Gemini_Generated_Image_t3iddit3iddit3id.jpg',
-    '/images/icons/Gemini_Generated_Image_t4umtlt4umtlt4um.jpg',
-    '/images/icons/Gemini_Generated_Image_vl29o5vl29o5vl29.jpg',
-    '/images/icons/Gemini_Generated_Image_xg0y2rxg0y2rxg0y.jpg'
+const gradeIcons = {
+    d: [
+        '/images/icons/grade_d/Gemini_Generated_Image_t4umtlt4umtlt4um.jpg',
+        '/images/icons/grade_d/Gemini_Generated_Image_t3iddit3iddit3id.jpg',
+        '/images/icons/grade_d/Gemini_Generated_Image_jzqdr4jzqdr4jzqd.jpg',
+        '/images/icons/grade_d/Gemini_Generated_Image_6thu0u6thu0u6thu.jpg',
+        '/images/icons/grade_d/Gemini_Generated_Image_3zghrv3zghrv3zgh.jpg',
+    ]
+}
+
+// 알 이미지 경로
+const eggImages = [
+    '/images/icons/growmon/egg/egg1.jpg',
+    '/images/icons/growmon/egg/egg2.jpg',
+    '/images/icons/growmon/egg/egg3.jpg',
+    '/images/icons/growmon/egg/egg4.jpg'
 ]
 
 // 랜덤 칭호 가져오기
@@ -49,75 +54,113 @@ interface AddStudentModalProps {
 export default function AddStudentModal({ classId, isOpen, onClose, onStudentAdded }: AddStudentModalProps) {
     const [names, setNames] = useState('')
 
-    // 랜덤 값 가져오기 함수
-    const getRandomFromArray = (array: string[]) => {
-        return array[Math.floor(Math.random() * array.length)];
+    // 여러 학생 이름을 처리하는 함수
+    const processNames = (namesString: string) => {
+        return namesString
+            .split(/[,\s]+/) // 쉼표나 연속된 공백으로 분리
+            .map(name => name.trim())
+            .filter(name => name !== ''); // 빈 문자열 제거
     }
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
         if (!names.trim()) {
-            toast.error('학생 이름을 입력해주세요')
+            toast.error('학생 이름을 입력해주세요.')
             return
         }
 
-        // 쉼표나 공백으로 구분된 이름들을 분리
-        const nameList = names
-            .split(/[,\s]+/) // 쉼표나 연속된 공백으로 분리
-            .map(name => name.trim())
-            .filter(name => name !== '') // 빈 문자열 제거
+        try {
+            // 이름 목록 생성
+            const nameList = processNames(names);
 
-        if (nameList.length === 0) {
-            toast.error('유효한 학생 이름을 입력해주세요')
-            return
-        }
+            if (nameList.length === 0) {
+                toast.error('유효한 학생 이름을 입력해주세요.')
+                return
+            }
 
-        // 현재 학생 목록 가져오기
-        const savedStudents = localStorage.getItem(`students_${classId}`)
-        let students: Student[] = []
+            console.log('새 학생 추가 시작:', { nameList, classId });
 
-        if (savedStudents) {
-            try {
+            // 추가할 학생 번호 계산 (클래스 내 학생 수 + 1)
+            let nextNumber = 1
+            const savedStudents = localStorage.getItem(`students_${classId}`)
+            let students = [];
+
+            if (savedStudents) {
                 students = JSON.parse(savedStudents)
-            } catch (error) {
-                console.error('학생 데이터 로드 오류:', error)
-            }
-        }
-
-        let nextNumber = students.length + 1
-        const newStudents: Student[] = []
-
-        // 각 이름별로 학생 추가
-        for (const name of nameList) {
-            // 새 학생 데이터 생성 (랜덤 값으로 설정)
-            const newStudent: Student = {
-                id: Date.now().toString() + nextNumber.toString(),
-                number: nextNumber++,
-                name,
-                honorific: '', // 빈 칭호로 시작
-                stats: {
-                    level: 1 // 레벨 1로 고정
-                },
-                iconType: iconTypes[0] // 첫 번째 기본 이미지 사용
+                if (Array.isArray(students) && students.length > 0) {
+                    nextNumber = students.length + 1
+                }
             }
 
-            // 학생 목록에 추가
-            students.push(newStudent)
-            newStudents.push(newStudent)
+            const newStudents: Student[] = [];
 
-            // 각 학생을 부모 컴포넌트에 알림
-            onStudentAdded(newStudent)
+            // 각 이름별로 학생 추가
+            for (const name of nameList) {
+                // 현재 시간 + 랜덤 문자열로 고유 ID 생성
+                const uniqueId = Date.now().toString() + Math.random().toString(36).substring(2, 10) + nextNumber.toString();
+
+                // 새 학생 데이터 생성
+                const newStudent: Student = {
+                    id: uniqueId,
+                    number: nextNumber++,
+                    name,
+                    honorific: '', // 빈 칭호로 시작
+                    stats: {
+                        level: 0, // 레벨 0으로 시작
+                        exp: 0 // 경험치는 0으로 시작
+                    },
+                    iconType: eggImages[Math.floor(Math.random() * eggImages.length)], // 랜덤 알 이미지 선택
+                    points: 0 // 포인트도 0으로 시작
+                }
+
+                newStudents.push(newStudent);
+            }
+
+            // 1. students_classId에 학생들 추가
+            const updatedStudents = [...students, ...newStudents]
+            localStorage.setItem(`students_${classId}`, JSON.stringify(updatedStudents))
+            console.log('students_classId에 학생 추가 완료');
+
+            // 2. classes 데이터에도 학생 정보 추가
+            const savedClasses = localStorage.getItem('classes')
+            if (savedClasses) {
+                const classes = JSON.parse(savedClasses)
+                const classIndex = classes.findIndex((c: any) => c.id === classId)
+
+                if (classIndex !== -1) {
+                    // 해당 클래스의 students 배열이 없으면 생성
+                    if (!classes[classIndex].students || !Array.isArray(classes[classIndex].students)) {
+                        classes[classIndex].students = []
+                    }
+
+                    // 학생들 추가
+                    classes[classIndex].students.push(...newStudents)
+                    localStorage.setItem('classes', JSON.stringify(classes))
+                    console.log('classes에 학생 추가 완료');
+                }
+            }
+
+            // 3. 상태 업데이트를 위해 각 학생마다 콜백 호출
+            // 여기서는 newStudents 배열을 통째로 전달하는 방식이 더 효율적일 수 있음
+            newStudents.forEach(student => {
+                if (onStudentAdded) {
+                    onStudentAdded(student);
+                }
+            });
+
+            // 폼 초기화
+            setNames('')
+
+            // 모달 닫기
+            onClose()
+
+            // 성공 메시지
+            toast.success(`${newStudents.length}명의 학생이 추가되었습니다.`)
+        } catch (error) {
+            console.error('학생 추가 중 오류 발생:', error)
+            toast.error('학생을 추가하는 중 오류가 발생했습니다.')
         }
-
-        // 저장
-        localStorage.setItem(`students_${classId}`, JSON.stringify(students))
-
-        // 폼 초기화
-        setNames('')
-
-        toast.success(`${newStudents.length}명의 학생이 추가되었습니다`)
-        onClose()
     }
 
     if (!isOpen) return null

@@ -5,9 +5,10 @@ import { useParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import {
     Plus, ArrowLeft,
-    LogOut, X
+    LogOut
 } from 'lucide-react'
 import Link from 'next/link'
+import { toast } from 'sonner'
 import AddStudentModal from './components/AddStudentModal'
 import StudentDetailModal from './components/StudentDetailModal'
 
@@ -20,6 +21,7 @@ interface ClassInfo {
     coverImage: string
     students: Student[]
     createdAt: string
+    schoolName?: string
 }
 
 interface Student {
@@ -58,16 +60,16 @@ const honorifics = [
     '창의왕', '성실상', '발표왕', '노력상', '협동왕'
 ]
 
-export default function ClassDetailPage() {
-    const router = useRouter()
+export default function ClassDetail() {
     const params = useParams()
+    const router = useRouter()
     const classId = params.id as string
-    const [isLoading, setIsLoading] = useState(true)
     const [classInfo, setClassInfo] = useState<ClassInfo | null>(null)
     const [students, setStudents] = useState<Student[]>([])
-    const [isAddStudentModalOpen, setIsAddStudentModalOpen] = useState(false)
+    const [isLoading, setIsLoading] = useState(true)
     const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
     const [isStudentDetailModalOpen, setIsStudentDetailModalOpen] = useState(false)
+    const [isAddModalOpen, setIsAddModalOpen] = useState(false)
 
     useEffect(() => {
         // 로그인 상태 확인
@@ -77,6 +79,11 @@ export default function ClassDetailPage() {
             return
         }
 
+        loadStudents();
+    }, [classId, router])
+
+    // 학생 목록 로드 함수 (중복 제거 로직 추가)
+    const loadStudents = () => {
         // 클래스 정보 가져오기
         const savedClasses = localStorage.getItem('classes')
         if (savedClasses) {
@@ -89,7 +96,21 @@ export default function ClassDetailPage() {
                     // 학생 정보 가져오기
                     const savedStudents = localStorage.getItem(`students_${classId}`)
                     if (savedStudents) {
-                        setStudents(JSON.parse(savedStudents))
+                        const parsedStudents = JSON.parse(savedStudents);
+
+                        // ID 기준으로 중복 제거
+                        const uniqueStudents = removeDuplicateStudents(parsedStudents);
+
+                        // 중복이 제거된 경우 localStorage 업데이트
+                        if (uniqueStudents.length !== parsedStudents.length) {
+                            console.log(`중복 학생 ${parsedStudents.length - uniqueStudents.length}명 제거됨`);
+                            localStorage.setItem(`students_${classId}`, JSON.stringify(uniqueStudents));
+
+                            // classes 데이터와 class_classId 데이터도 동기화
+                            syncStudentsWithClasses(uniqueStudents);
+                        }
+
+                        setStudents(uniqueStudents);
                     } else {
                         // 데모 학생 데이터 (처음 방문 시)
                         const demoStudents = [
@@ -133,7 +154,57 @@ export default function ClassDetailPage() {
             }
         }
         setIsLoading(false)
-    }, [classId, router])
+    }
+
+    // 학생 데이터를 classes와 class_classId 저장소에 동기화하는 함수
+    const syncStudentsWithClasses = (studentsData: Student[]) => {
+        // 1. classes 데이터와 동기화
+        const savedClasses = localStorage.getItem('classes');
+        if (savedClasses) {
+            try {
+                const classes = JSON.parse(savedClasses);
+                const updatedClasses = classes.map((c: ClassInfo) => {
+                    if (c.id === classId) {
+                        return {
+                            ...c,
+                            students: studentsData
+                        };
+                    }
+                    return c;
+                });
+
+                localStorage.setItem('classes', JSON.stringify(updatedClasses));
+                console.log('classes 스토리지 학생 정보 동기화 완료');
+            } catch (error) {
+                console.error('classes 데이터 동기화 오류:', error);
+            }
+        }
+
+        // 2. class_classId 저장소와도 동기화
+        const classDataJson = localStorage.getItem(`class_${classId}`);
+        if (classDataJson) {
+            try {
+                const classData = JSON.parse(classDataJson);
+                classData.students = studentsData;
+                localStorage.setItem(`class_${classId}`, JSON.stringify(classData));
+                console.log('class_classId 스토리지 학생 정보 동기화 완료');
+            } catch (error) {
+                console.error('class_classId 데이터 동기화 오류:', error);
+            }
+        }
+    }
+
+    // ID 기준으로 중복 학생 제거 함수
+    const removeDuplicateStudents = (students: Student[]): Student[] => {
+        const uniqueIds = new Set();
+        return students.filter(student => {
+            if (uniqueIds.has(student.id)) {
+                return false; // 이미 처리된 ID는 제외
+            }
+            uniqueIds.add(student.id);
+            return true; // 새로운 ID는 포함
+        });
+    }
 
     // 아이콘을 렌더링하는 함수
     const renderIcon = (iconType: string) => {
@@ -182,7 +253,7 @@ export default function ClassDetailPage() {
 
     // 학생 추가 모달 닫기 핸들러
     const handleAddStudentModalClose = () => {
-        setIsAddStudentModalOpen(false)
+        setIsAddModalOpen(false)
     }
 
     // 학생 상세 모달 닫기 핸들러
@@ -190,101 +261,145 @@ export default function ClassDetailPage() {
         setIsStudentDetailModalOpen(false)
         setSelectedStudentId(null)
 
-        // 학생 정보 다시 로드 (업데이트된 정보 반영)
-        const savedClasses = localStorage.getItem('classes')
-        if (savedClasses) {
-            try {
-                const classes = JSON.parse(savedClasses)
-                const foundClass = classes.find((c: ClassInfo) => c.id === classId)
-                if (foundClass) {
-                    setClassInfo(foundClass)
-                    setStudents(foundClass.students)
-                }
-            } catch (error) {
-                console.error('클래스 데이터 업데이트 오류:', error)
-            }
-        }
+        console.log('학생 상세 모달 닫기 - 학생 정보 다시 로드');
+
+        // 저장소에서 최신 학생 정보를 로드하고 중복 처리
+        loadStudents();
     }
 
     // 학생 정보 업데이트 핸들러
     const handleStudentUpdated = (updatedStudent: Student) => {
-        // 학생 목록 상태 업데이트
-        setStudents(prevStudents => {
-            const updatedStudents = prevStudents.map(s =>
-                s.id === updatedStudent.id ? updatedStudent : s
-            )
-            return updatedStudents
-        })
-
-        // 클래스 정보에도 학생 정보 업데이트
-        if (classInfo) {
-            let updatedStudents = [];
-
-            // students가 배열인지 확인
-            if (classInfo.students && Array.isArray(classInfo.students)) {
-                updatedStudents = classInfo.students.map(s =>
+        console.log('학생 정보 업데이트 시작:', updatedStudent);
+        try {
+            // 학생 목록 상태 업데이트
+            setStudents(prevStudents => {
+                const updatedStudents = prevStudents.map(s =>
                     s.id === updatedStudent.id ? updatedStudent : s
                 );
-            } else {
-                // students가 배열이 아니거나 존재하지 않는 경우
-                console.warn('classInfo.students is not an array:', classInfo.students);
-                // 현재 students 상태를 사용
-                updatedStudents = [...students];
-            }
+                console.log('로컬 상태 학생 목록 업데이트 완료');
+                return updatedStudents;
+            });
 
-            const updatedClassInfo = {
-                ...classInfo,
-                students: updatedStudents
-            }
-            setClassInfo(updatedClassInfo)
+            // 클래스 정보에도 학생 정보 업데이트
+            if (classInfo) {
+                let updatedStudents = [];
 
-            // 로컬 스토리지의 classes 업데이트
-            const savedClasses = localStorage.getItem('classes')
-            if (savedClasses) {
-                try {
-                    const classes = JSON.parse(savedClasses)
-                    const updatedClasses = classes.map((c: ClassInfo) =>
-                        c.id === classInfo.id ? updatedClassInfo : c
-                    )
-                    localStorage.setItem('classes', JSON.stringify(updatedClasses))
-                } catch (error) {
-                    console.error('클래스 데이터 업데이트 오류:', error)
+                // students가 배열인지 확인
+                if (classInfo.students && Array.isArray(classInfo.students)) {
+                    updatedStudents = classInfo.students.map(s =>
+                        s.id === updatedStudent.id ? updatedStudent : s
+                    );
+                } else {
+                    // students가 배열이 아니거나 존재하지 않는 경우
+                    console.warn('classInfo.students가 배열이 아님:', classInfo.students);
+                    // 현재 students 상태를 사용
+                    updatedStudents = [...students];
+                }
+
+                const updatedClassInfo = {
+                    ...classInfo,
+                    students: updatedStudents
+                };
+                setClassInfo(updatedClassInfo);
+                console.log('클래스 정보 학생 목록 업데이트 완료');
+
+                // 로컬 스토리지의 classes 업데이트
+                const savedClasses = localStorage.getItem('classes');
+                if (savedClasses) {
+                    try {
+                        const classes = JSON.parse(savedClasses);
+                        const updatedClasses = classes.map((c: ClassInfo) =>
+                            c.id === classInfo.id ? updatedClassInfo : c
+                        );
+                        localStorage.setItem('classes', JSON.stringify(updatedClasses));
+                        console.log('로컬 스토리지 classes 업데이트 완료');
+                    } catch (error) {
+                        console.error('classes 데이터 업데이트 오류:', error);
+                    }
+                }
+
+                // students_classId에도 업데이트 (이 부분이 누락되었었음)
+                const savedStudents = localStorage.getItem(`students_${classId}`);
+                if (savedStudents) {
+                    try {
+                        const studentsArr = JSON.parse(savedStudents);
+                        const updatedStudentsArr = studentsArr.map((s: Student) =>
+                            s.id === updatedStudent.id ? updatedStudent : s
+                        );
+                        localStorage.setItem(`students_${classId}`, JSON.stringify(updatedStudentsArr));
+                        console.log('로컬 스토리지 students_classId 업데이트 완료');
+                    } catch (error) {
+                        console.error('students_classId 데이터 업데이트 오류:', error);
+                    }
                 }
             }
+        } catch (error) {
+            console.error('학생 정보 업데이트 중 전체 오류:', error);
         }
     }
 
     // 학생 추가 모달에서 제출 핸들러
     const handleStudentAdded = (newStudent: Student) => {
+        console.log('학생 추가됨:', newStudent.name);
         // 학생 목록 상태 업데이트
         setStudents(prevStudents => {
-            const updatedStudents = [...prevStudents, newStudent]
-            return updatedStudents
-        })
+            const updatedStudents = [...prevStudents, newStudent];
+            console.log('학생 목록 상태 업데이트:', updatedStudents.length);
+            return updatedStudents;
+        });
 
         // 클래스 정보에도 학생 추가
         if (classInfo) {
+            let updatedStudents = [];
+
+            // students가 배열인지 확인
+            if (classInfo.students && Array.isArray(classInfo.students)) {
+                updatedStudents = [...classInfo.students, newStudent];
+            } else {
+                // students가 배열이 아니거나 존재하지 않는 경우
+                console.warn('classInfo.students가 배열이 아님:', classInfo.students);
+                // 현재 students 상태를 사용
+                updatedStudents = [...students, newStudent];
+            }
+
             const updatedClassInfo = {
                 ...classInfo,
-                students: [...classInfo.students, newStudent]
-            }
-            setClassInfo(updatedClassInfo)
+                students: updatedStudents
+            };
+            setClassInfo(updatedClassInfo);
+            console.log('클래스 정보 학생 목록 업데이트 완료');
 
             // 로컬 스토리지의 classes 업데이트
-            const savedClasses = localStorage.getItem('classes')
+            const savedClasses = localStorage.getItem('classes');
             if (savedClasses) {
                 try {
-                    const classes = JSON.parse(savedClasses)
+                    const classes = JSON.parse(savedClasses);
                     const updatedClasses = classes.map((c: ClassInfo) =>
                         c.id === classInfo.id ? updatedClassInfo : c
-                    )
-                    localStorage.setItem('classes', JSON.stringify(updatedClasses))
+                    );
+                    localStorage.setItem('classes', JSON.stringify(updatedClasses));
+                    console.log('로컬 스토리지 classes 업데이트 완료');
                 } catch (error) {
-                    console.error('클래스 데이터 업데이트 오류:', error)
+                    console.error('클래스 데이터 업데이트 오류:', error);
                 }
             }
+
+            // students_classId에도 업데이트
+            const savedStudents = localStorage.getItem(`students_${classId}`);
+            let studentsArr = [];
+            if (savedStudents) {
+                try {
+                    studentsArr = JSON.parse(savedStudents);
+                } catch (e) {
+                    console.error('학생 데이터 파싱 오류:', e);
+                    studentsArr = [];
+                }
+            }
+
+            localStorage.setItem(`students_${classId}`, JSON.stringify([...studentsArr, newStudent]));
+            console.log('students_classId 업데이트 완료');
         }
-    }
+    };
 
     // 로그아웃 핸들러 추가
     const handleLogout = () => {
@@ -317,91 +432,134 @@ export default function ClassDetailPage() {
     }
 
     return (
-        <div className="min-h-screen text-slate-700">
-            {/* 뒤로가기 버튼 */}
-            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
-                <Link
-                    href="/classes"
-                    className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900 transition-colors duration-200"
-                >
-                    <ArrowLeft className="w-5 h-5" />
-                    <span>학급 목록으로</span>
-                </Link>
-            </div>
+        <div className="min-h-screen relative">
+            {/* 배경 이미지 */}
+            <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: 'url("/images/backgrounds/sky-bg.jpg")' }}></div>
 
-            <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                {/* 학교 및 학급 정보 */}
-                <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center">
-                        <div>
-                            <h2 className="text-xl text-blue-600 font-medium">동두천신천초등학교</h2>
-                            <h1 className="text-3xl font-bold text-slate-800 mt-1">{classInfo.name}</h1>
-                        </div>
-                        <div className="mt-2 md:mt-0 text-slate-500">
-                            <p>학급운영일: {new Date(classInfo.createdAt).toLocaleDateString()}</p>
-                        </div>
+            {/* 배경 오버레이 */}
+            <div className="absolute inset-0 bg-gradient-to-br from-blue-400/30 via-blue-300/30 to-white/20"></div>
+
+            {/* 콘텐츠 영역 */}
+            <div className="relative z-10 min-h-screen">
+                {/* 헤더 */}
+                <div className="bg-blue-500 shadow-md py-4 px-6 flex justify-between items-center text-white">
+                    <div className="flex items-center">
+                        <Link href="/classes" className="mr-4">
+                            <ArrowLeft className="w-5 h-5" />
+                        </Link>
+                        <h1 className="text-xl font-bold">학급 목록으로</h1>
                     </div>
+                    <Link href="/login" className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-md transition-colors">
+                        <LogOut className="w-4 h-4" />
+                        <span>로그아웃</span>
+                    </Link>
                 </div>
 
-                {/* 학생 목록 */}
-                <div className="bg-white rounded-lg shadow-lg p-6 mb-8">
-                    <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-xl font-bold text-slate-800">학생 목록</h2>
-                        <button
-                            onClick={() => setIsAddStudentModalOpen(true)}
-                            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-md flex items-center gap-2 transition-colors duration-200"
-                        >
-                            <Plus className="w-4 h-4" />
-                            학생 추가
-                        </button>
+                {isLoading ? (
+                    <div className="h-[70vh] flex items-center justify-center">
+                        <div className="text-2xl text-gray-500">로딩 중...</div>
                     </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {getSortedStudents().map((student) => (
-                            <div
-                                key={student.id}
-                                className="bg-blue-50 hover:bg-blue-100 rounded-lg p-4 cursor-pointer transition-colors duration-200"
-                                onClick={() => handleStudentClick(student.id)}
-                            >
-                                <div className="flex items-center gap-4">
-                                    <div className="w-12 h-12 bg-blue-200 rounded-full flex items-center justify-center text-blue-600 overflow-hidden relative">
-                                        {renderIcon(student.iconType)}
-                                    </div>
-                                    <div>
-                                        <div className="flex items-center gap-2">
-                                            {student.honorific ? (
-                                                <span className="text-blue-600 text-sm font-medium">{student.honorific}</span>
-                                            ) : (
-                                                <span className="text-slate-400 text-sm font-medium">칭호 없음</span>
-                                            )}
-                                            <span className="bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">Lv.{student.stats.level}</span>
-                                        </div>
-                                        <h3 className="text-slate-800 font-medium">{student.name}</h3>
-                                    </div>
+                ) : classInfo ? (
+                    <div className="p-6">
+                        {/* 클래스 정보 - 이미지와 동일한 디자인으로 수정 */}
+                        <div className="bg-blue-100/90 rounded-xl shadow-sm p-8 mb-8">
+                            <div className="flex justify-between items-center">
+                                <div>
+                                    <h2 className="text-xl font-medium text-blue-800 mb-1">{classInfo.schoolName || '학교 정보 없음'}</h2>
+                                    <h1 className="text-5xl font-bold text-blue-900">{classInfo.name}</h1>
+                                </div>
+                                <div className="text-right">
+                                    <p className="text-slate-700 text-md">학급운영일: 2025. 3. 26.</p>
                                 </div>
                             </div>
-                        ))}
+                        </div>
+
+                        {/* 학생 목록 */}
+                        <div className="bg-white/30 backdrop-blur-sm rounded-xl shadow-md p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h2 className="text-xl font-bold text-blue-800">학생 목록</h2>
+                                <button
+                                    onClick={() => setIsAddModalOpen(true)}
+                                    className="px-4 py-2 bg-blue-500 text-white rounded-md flex items-center gap-2 hover:bg-blue-600 transition"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    학생 추가하기
+                                </button>
+                            </div>
+
+                            {students.length === 0 ? (
+                                <div className="text-center py-12 bg-gray-50/40 backdrop-blur-sm rounded-lg">
+                                    <p className="text-gray-500 mb-4">등록된 학생이 없습니다</p>
+                                    <button
+                                        onClick={() => setIsAddModalOpen(true)}
+                                        className="px-4 py-2 bg-blue-500 text-white rounded-md flex items-center gap-2 hover:bg-blue-600 transition"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                        학생 추가하기
+                                    </button>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                                    {getSortedStudents().map((student) => (
+                                        <div
+                                            key={student.id}
+                                            onClick={() => handleStudentClick(student.id)}
+                                            className="bg-blue-50/40 hover:bg-blue-100/50 border border-blue-100/30 rounded-lg p-4 cursor-pointer transition-colors relative"
+                                        >
+                                            <div className="flex items-center">
+                                                {/* 학생 아이콘 (왼쪽) */}
+                                                <div className="w-20 h-20 bg-white/70 rounded-full overflow-hidden shadow-md mr-3 flex-shrink-0">
+                                                    {renderIcon(student.iconType)}
+                                                </div>
+
+                                                {/* 오른쪽 정보 컨테이너 */}
+                                                <div className="flex flex-col">
+                                                    {/* 학생 레벨 */}
+                                                    <div className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-sm font-semibold rounded-full w-fit mb-1">
+                                                        Lv.{student.stats.level}
+                                                    </div>
+
+                                                    {/* 학생 칭호 */}
+                                                    <p className="text-sm text-blue-600 font-medium mb-1">
+                                                        {student.honorific || '칭호없음'}
+                                                    </p>
+
+                                                    {/* 학생 이름 */}
+                                                    <p className="font-bold text-blue-800">
+                                                        {student.name}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
-                </div>
-            </div>
+                ) : (
+                    <div className="h-[70vh] flex items-center justify-center">
+                        <div className="text-2xl text-gray-500">클래스 정보를 찾을 수 없습니다</div>
+                    </div>
+                )}
 
-            {/* 학생 추가 모달 */}
-            <AddStudentModal
-                classId={classId}
-                isOpen={isAddStudentModalOpen}
-                onClose={handleAddStudentModalClose}
-                onStudentAdded={handleStudentAdded}
-            />
+                {/* 학생 추가 모달 */}
+                {isAddModalOpen && (
+                    <AddStudentModal
+                        classId={classId}
+                        isOpen={isAddModalOpen}
+                        onClose={() => setIsAddModalOpen(false)}
+                        onStudentAdded={handleStudentAdded}
+                    />
+                )}
 
-            {/* 학생 상세 모달 */}
-            {selectedStudentId && (
+                {/* 학생 상세 정보 모달 */}
                 <StudentDetailModal
-                    classId={classId}
-                    studentId={selectedStudentId}
                     isOpen={isStudentDetailModalOpen}
                     onClose={handleStudentDetailModalClose}
+                    studentId={selectedStudentId}
+                    classId={classId}
                 />
-            )}
+            </div>
         </div>
     )
 } 
