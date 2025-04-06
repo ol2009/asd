@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "클래스룸 매니저",
+  title: "상태창",
   description: "게이미피케이션 기반 학급 관리 시스템",
 };
 

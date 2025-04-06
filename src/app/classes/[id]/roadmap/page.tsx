@@ -809,8 +809,8 @@ export default function RoadmapPage() {
                         <p className="text-slate-700">학생들의 장기적인 목표를 설정하고 학생들이 목표를 달성하게 도와주세요.</p>
                     </div>
 
-                    {/* 로드맵 관리 영역 */}
-                    <div className="bg-white/30 backdrop-blur-sm p-6 rounded-xl shadow-md">
+                    {/* 로드맵 목록 */}
+                    <div className="mb-8 bg-white/30 backdrop-blur-sm p-6 rounded-xl shadow-md">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-bold text-blue-800">로드맵 목록</h2>
                             <button
@@ -863,66 +863,6 @@ export default function RoadmapPage() {
                                     </div>
                                 ))
                             )}
-                        </div>
-                    </div>
-
-                    {/* 클래스 정보 표시 영역 */}
-                    <div className="p-6 backdrop-blur-sm rounded-xl mb-8">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            {/* 클래스 정보 카드 */}
-                            <div className="bg-gradient-to-br from-blue-500/90 to-blue-600/90 text-white p-5 rounded-xl shadow-md relative overflow-hidden">
-                                <div className="absolute inset-0 bg-center bg-cover opacity-10" style={{ backgroundImage: "url(/images/backgrounds/pattern.png)" }}></div>
-                                <div className="relative z-10">
-                                    <h3 className="text-xl font-bold mb-1">학급 정보</h3>
-                                    {classInfo && (
-                                        <>
-                                            <p className="mb-2 text-white/90 text-sm">{classInfo.description || '학급 설명이 없습니다.'}</p>
-                                            <div className="bg-white/20 rounded-lg p-3 backdrop-blur-sm">
-                                                <p className="font-medium text-lg">{classInfo.name}</p>
-                                                <div className="flex items-center gap-3 mt-1 text-sm">
-                                                    <span className="bg-blue-700/40 px-2 py-0.5 rounded-full backdrop-blur-sm">
-                                                        {classInfo.grade}학년
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* 로드맵 가이드 카드 */}
-                            <div className="bg-white/60 p-5 rounded-xl shadow-md relative overflow-hidden border border-blue-100/40">
-                                <div className="absolute inset-0 bg-center bg-cover opacity-5" style={{ backgroundImage: "url(/images/backgrounds/pattern.png)" }}></div>
-                                <div className="relative z-10">
-                                    <h3 className="text-xl font-bold text-blue-700 mb-3">로드맵 사용 방법</h3>
-                                    <ul className="space-y-2 text-slate-700">
-                                        <li className="flex items-start gap-2">
-                                            <div className="bg-blue-100 rounded-full p-1 mt-0.5">
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-700" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                                </svg>
-                                            </div>
-                                            <span>학생들의 성장 경로를 단계별로 설정하세요.</span>
-                                        </li>
-                                        <li className="flex items-start gap-2">
-                                            <div className="bg-blue-100 rounded-full p-1 mt-0.5">
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-700" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                                </svg>
-                                            </div>
-                                            <span>각 단계를 완료한 학생들을 등록해 성장을 시각화하세요.</span>
-                                        </li>
-                                        <li className="flex items-start gap-2">
-                                            <div className="bg-blue-100 rounded-full p-1 mt-0.5">
-                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-700" viewBox="0 0 20 20" fill="currentColor">
-                                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                                </svg>
-                                            </div>
-                                            <span>모든 단계를 완료한 학생에게는 특별한 칭호를 부여할 수 있습니다.</span>
-                                        </li>
-                                    </ul>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>
