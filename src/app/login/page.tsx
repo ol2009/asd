@@ -1,43 +1,87 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
 
 export default function LoginPage() {
-    const [username, setUsername] = useState('')
+    const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [error, setError] = useState('')
+    const [loading, setLoading] = useState(false)
+    const [message, setMessage] = useState('')
+    const router = useRouter()
 
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault()
-        setError('')
-
-        // 간단한 유효성 검사
-        if (!username || !password) {
-            setError('아이디와 비밀번호를 모두 입력해주세요.')
-            return
+    useEffect(() => {
+        // 이미 로그인되어 있는지 확인
+        const checkSession = async () => {
+            const { data, error } = await supabase.auth.getSession()
+            if (data.session) {
+                router.push('/classes')
+            }
         }
 
-        // 테스트용 하드코딩된 사용자 (실제 프로젝트에선 사용하지 마세요!)
-        if (username === 'test' && password === '1234') {
-            // 로그인 성공 처리
-            try {
+        checkSession()
+    }, [router])
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setError('')
+        setMessage('')
+        setLoading(true)
+
+        try {
+            // 테스트 계정 확인 (임시 기능)
+            if (email === 'test@example.com' && password === 'test1234') {
+                // 테스트 계정으로 로그인 성공
+                setMessage('테스트 계정으로 로그인 성공! 리다이렉트 중...')
+
+                // 로컬스토리지에 테스트 사용자 정보 저장
+                localStorage.setItem('isLoggedIn', 'true')
                 localStorage.setItem('user', JSON.stringify({
-                    username,
-                    name: '테스트 유저',
+                    username: 'test@example.com',
+                    name: '테스트 교사',
                     loginTime: new Date().toISOString()
                 }))
 
-                // isLoggedIn 상태를 별도로 저장
-                localStorage.setItem('isLoggedIn', 'true')
-
-                // 학급관리 페이지로 리디렉션
-                window.location.href = '/classes'
-            } catch (error) {
-                console.error('로그인 오류:', error)
-                setError('로그인 처리 중 오류가 발생했습니다.')
+                // classes 페이지로 리디렉션
+                setTimeout(() => {
+                    router.push('/classes')
+                }, 1000)
+                return
             }
-        } else {
-            setError('아이디 또는 비밀번호가 일치하지 않습니다.')
+
+            // Supabase 로그인 시도
+            const { data, error } = await supabase.auth.signInWithPassword({
+                email,
+                password,
+            })
+
+            if (error) {
+                throw error
+            }
+
+            if (data && data.user) {
+                // 로그인 성공
+                setMessage('로그인 성공! 리다이렉트 중...')
+
+                // 기존 호환성을 위해 localStorage에도 저장
+                localStorage.setItem('isLoggedIn', 'true')
+                localStorage.setItem('user', JSON.stringify({
+                    username: data.user.email,
+                    name: data.user.user_metadata.full_name || data.user.email,
+                    loginTime: new Date().toISOString()
+                }))
+
+                // classes 페이지로 리디렉션
+                router.push('/classes')
+            }
+        } catch (err: any) {
+            console.error('로그인 오류:', err)
+            setError(err.message || '로그인 중 오류가 발생했습니다.')
+        } finally {
+            setLoading(false)
         }
     }
 
@@ -57,21 +101,27 @@ export default function LoginPage() {
                     </div>
                 )}
 
+                {message && (
+                    <div className="p-3 bg-green-100 border border-green-300 text-green-700 rounded-md">
+                        {message}
+                    </div>
+                )}
+
                 <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
                     <div className="space-y-4">
                         <div>
-                            <label htmlFor="username" className="block text-sm font-medium text-slate-700">
-                                아이디
+                            <label htmlFor="email" className="block text-sm font-medium text-slate-700">
+                                이메일
                             </label>
                             <input
-                                id="username"
-                                name="username"
-                                type="text"
+                                id="email"
+                                name="email"
+                                type="email"
                                 required
-                                value={username}
-                                onChange={(e) => setUsername(e.target.value)}
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
                                 className="mt-1 block w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                placeholder="아이디를 입력하세요"
+                                placeholder="이메일을 입력하세요"
                             />
                         </div>
 
@@ -95,22 +145,21 @@ export default function LoginPage() {
                     <div>
                         <button
                             type="submit"
-                            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                            disabled={loading}
+                            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-500 hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
-                            로그인
+                            {loading ? '로그인 중...' : '로그인'}
                         </button>
                     </div>
                 </form>
 
                 <div className="text-center text-sm text-slate-500">
-                    <p>테스트 계정: test / 1234</p>
+                    <p>계정이 없으신가요? <Link href="/register" className="text-blue-600 hover:text-blue-800">회원가입</Link></p>
+                    <p className="mt-1">테스트 계정: test@example.com / test1234</p>
                     <p className="mt-2">
-                        <button
-                            onClick={() => window.location.href = '/'}
-                            className="text-blue-600 hover:text-blue-800"
-                        >
+                        <Link href="/" className="text-blue-600 hover:text-blue-800">
                             홈으로 돌아가기
-                        </button>
+                        </Link>
                     </p>
                 </div>
             </div>
