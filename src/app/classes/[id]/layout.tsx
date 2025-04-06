@@ -2,7 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname, useRouter, useParams } from 'next/navigation'
 import {
     Home,
     Users,
@@ -12,7 +12,8 @@ import {
     Map,
     Award,
     Target,
-    Gift
+    Gift,
+    ShoppingBag
 } from 'lucide-react'
 
 interface DashboardLayoutProps {
@@ -22,12 +23,53 @@ interface DashboardLayoutProps {
 export default function ClassDetailLayout({ children }: DashboardLayoutProps) {
     const pathname = usePathname()
     const router = useRouter()
+    const params = useParams()
+    const classId = params.id as string
 
     const handleLogout = () => {
         localStorage.removeItem('isLoggedIn')
         localStorage.removeItem('user')
         window.location.href = '/login'
     }
+
+    const menus = [
+        {
+            name: '학생 관리',
+            href: `/classes/${classId}`,
+            icon: <BookOpen className="w-5 h-5" />,
+            isActive: pathname === `/classes/${classId}`
+        },
+        {
+            name: '성장 로드맵',
+            href: `/classes/${classId}/roadmap`,
+            icon: <Map className="w-5 h-5" />,
+            isActive: pathname === `/classes/${classId}/roadmap` || pathname.startsWith(`/classes/${classId}/roadmap/`)
+        },
+        {
+            name: '미션',
+            href: `/classes/${classId}/missions`,
+            icon: <Target className="w-5 h-5" />,
+            isActive: pathname === `/classes/${classId}/missions` || pathname.startsWith(`/classes/${classId}/missions/`)
+        },
+        {
+            name: '칭찬 카드',
+            href: `/classes/${classId}/cards`,
+            icon: <Gift className="w-5 h-5" />,
+            isActive: pathname === `/classes/${classId}/cards` || pathname.startsWith(`/classes/${classId}/cards/`)
+        },
+        {
+            name: '포인트 상점 관리',
+            href: `/classes/${classId}/pointshop`,
+            icon: <ShoppingBag className="w-5 h-5" />,
+            isActive: pathname === `/classes/${classId}/pointshop` || pathname.startsWith(`/classes/${classId}/pointshop/`)
+        },
+        {
+            name: '학급 설정',
+            href: `/classes/${classId}/settings`,
+            icon: <Settings className="w-5 h-5" />,
+            isActive: pathname === `/classes/${classId}/settings` || pathname.startsWith(`/classes/${classId}/settings/`)
+        }
+    ]
 
     return (
         <div className="flex h-screen" style={{
@@ -44,41 +86,16 @@ export default function ClassDetailLayout({ children }: DashboardLayoutProps) {
                 </div>
 
                 <nav className="space-y-2">
-                    <Link
-                        href={`/classes/${pathname.split('/')[2]}`}
-                        className="flex items-center gap-3 px-4 py-2 rounded-lg transition-colors duration-200 text-slate-600 hover:bg-blue-100"
-                    >
-                        <Users size={20} className="text-blue-500" />
-                        <span>학생목록</span>
-                    </Link>
-                    <Link
-                        href={`/classes/${pathname.split('/')[2]}/roadmap`}
-                        className="flex items-center gap-3 px-4 py-2 rounded-lg transition-colors duration-200 text-slate-600 hover:bg-blue-100"
-                    >
-                        <Map size={20} className="text-blue-500" />
-                        <span>성장로드맵</span>
-                    </Link>
-                    <Link
-                        href={`/classes/${pathname.split('/')[2]}/missions`}
-                        className="flex items-center gap-3 px-4 py-2 rounded-lg transition-colors duration-200 text-slate-600 hover:bg-blue-100"
-                    >
-                        <Target size={20} className="text-blue-500" />
-                        <span>미션 관리</span>
-                    </Link>
-                    <Link
-                        href={`/classes/${pathname.split('/')[2]}/cards`}
-                        className="flex items-center gap-3 px-4 py-2 rounded-lg transition-colors duration-200 text-slate-600 hover:bg-blue-100"
-                    >
-                        <Gift size={20} className="text-blue-500" />
-                        <span>칭찬카드 관리</span>
-                    </Link>
-                    <Link
-                        href={`/classes/${pathname.split('/')[2]}/settings`}
-                        className="flex items-center gap-3 px-4 py-2 rounded-lg transition-colors duration-200 text-slate-600 hover:bg-blue-100"
-                    >
-                        <Settings size={20} className="text-blue-500" />
-                        <span>학급 설정</span>
-                    </Link>
+                    {menus.map((menu) => (
+                        <Link
+                            key={menu.name}
+                            href={menu.href}
+                            className="flex items-center gap-3 px-4 py-2 rounded-lg transition-colors duration-200 text-slate-600 hover:bg-blue-100"
+                        >
+                            {menu.icon}
+                            <span>{menu.name}</span>
+                        </Link>
+                    ))}
                 </nav>
 
                 <div className="absolute bottom-4 left-4 right-4">

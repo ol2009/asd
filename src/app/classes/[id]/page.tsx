@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import {
     Plus, ArrowLeft,
-    LogOut
+    LogOut, Coins
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -240,6 +240,43 @@ export default function ClassDetail() {
         }
     }
 
+    // 각 학생 카드 렌더링 컴포넌트를 내부로 이동
+    function StudentCard({ student, onClick }: { student: Student; onClick: () => void }) {
+        return (
+            <div
+                className="bg-white/70 backdrop-blur-sm border border-blue-100 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow cursor-pointer relative group w-full"
+                onClick={onClick}
+            >
+                <div className="flex items-center">
+                    {/* 학생 아이콘 (왼쪽) - 크기 증가 */}
+                    <div className="w-24 h-24 bg-white/70 rounded-full overflow-hidden shadow-md mr-3 flex-shrink-0">
+                        {renderIcon(student.iconType)}
+                    </div>
+
+                    {/* 오른쪽 정보 컨테이너 - 너비 확장 */}
+                    <div className="flex flex-col flex-grow min-w-0">
+                        {/* 학생 레벨 - 크기 증가 */}
+                        <div className="flex items-center space-x-2">
+                            <div className="px-3 py-1 bg-yellow-100 text-yellow-700 text-base font-bold rounded-full w-fit mb-1.5 shadow-sm">
+                                Lv.{student.stats.level}
+                            </div>
+                        </div>
+
+                        {/* 학생 칭호 - overflow 처리 추가 */}
+                        <p className="text-sm text-blue-600 font-medium mb-1 whitespace-normal break-words">
+                            {student.honorific || '칭호없음'}
+                        </p>
+
+                        {/* 학생 이름 - 크기 증가 */}
+                        <p className="text-lg font-extrabold text-blue-800">
+                            {student.name}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        )
+    }
+
     // 랭킹 순서로 정렬된 학생 목록 반환
     const getSortedStudents = () => {
         return students.sort((a, b) => b.stats.level - a.stats.level)
@@ -462,14 +499,14 @@ export default function ClassDetail() {
                 ) : classInfo ? (
                     <div className="p-6">
                         {/* 클래스 정보 - 이미지와 동일한 디자인으로 수정 */}
-                        <div className="bg-blue-100/90 rounded-xl shadow-sm p-8 mb-8">
+                        <div className="bg-blue-100/90 rounded-xl shadow-sm p-4 mb-6">
                             <div className="flex justify-between items-center">
                                 <div>
-                                    <h2 className="text-xl font-medium text-blue-800 mb-1">{classInfo.schoolName || '학교 정보 없음'}</h2>
-                                    <h1 className="text-5xl font-bold text-blue-900">{classInfo.name}</h1>
+                                    <h2 className="text-sm font-medium text-blue-800 mb-1">{classInfo.schoolName || '학교 정보 없음'}</h2>
+                                    <h1 className="text-3xl font-bold text-blue-900">{classInfo.name}</h1>
                                 </div>
                                 <div className="text-right">
-                                    <p className="text-slate-700 text-md">학급운영일: 2025. 3. 26.</p>
+                                    <p className="text-slate-700 text-xs">학급운영일: 2025. 3. 26.</p>
                                 </div>
                             </div>
                         </div>
@@ -499,38 +536,13 @@ export default function ClassDetail() {
                                     </button>
                                 </div>
                             ) : (
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                                     {getSortedStudents().map((student) => (
-                                        <div
+                                        <StudentCard
                                             key={student.id}
+                                            student={student}
                                             onClick={() => handleStudentClick(student.id)}
-                                            className="bg-blue-50/40 hover:bg-blue-100/50 border border-blue-100/30 rounded-lg p-4 cursor-pointer transition-colors relative"
-                                        >
-                                            <div className="flex items-center">
-                                                {/* 학생 아이콘 (왼쪽) */}
-                                                <div className="w-20 h-20 bg-white/70 rounded-full overflow-hidden shadow-md mr-3 flex-shrink-0">
-                                                    {renderIcon(student.iconType)}
-                                                </div>
-
-                                                {/* 오른쪽 정보 컨테이너 */}
-                                                <div className="flex flex-col">
-                                                    {/* 학생 레벨 */}
-                                                    <div className="px-2 py-0.5 bg-yellow-100 text-yellow-700 text-sm font-semibold rounded-full w-fit mb-1">
-                                                        Lv.{student.stats.level}
-                                                    </div>
-
-                                                    {/* 학생 칭호 */}
-                                                    <p className="text-sm text-blue-600 font-medium mb-1">
-                                                        {student.honorific || '칭호없음'}
-                                                    </p>
-
-                                                    {/* 학생 이름 */}
-                                                    <p className="font-bold text-blue-800">
-                                                        {student.name}
-                                                    </p>
-                                                </div>
-                                            </div>
-                                        </div>
+                                        />
                                     ))}
                                 </div>
                             )}

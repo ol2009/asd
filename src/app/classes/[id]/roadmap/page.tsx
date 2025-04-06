@@ -612,34 +612,43 @@ export default function RoadmapPage() {
             }
 
             // 현재 레벨
-            const currentLevel = student.stats.level
+            const currentLevel = student.stats.level || 1
 
-            // 경험치 추가
+            // 요구사항에 맞게 직접 레벨 1 증가
+            const newLevel = currentLevel + 1
+
+            // 경험치 추가 (로직 유지를 위해)
             student.stats.exp += expToAdd
 
-            // 레벨업 계산
-            const newLevel = Math.floor(student.stats.exp / EXP_PER_LEVEL) + 1
+            // 레벨 설정
+            student.stats.level = newLevel
 
-            // 학생 데이터 저장 (먼저 저장하여 UI 상태 업데이트)
+            // 레벨업 시 포인트 지급 (레벨 1당 100포인트)
+            student.points += POINTS_PER_LEVEL
+
+            // 학생 데이터 저장
             students[studentIndex] = student
             localStorage.setItem(`students_${classId}`, JSON.stringify(students))
 
             // 현재 컴포넌트 상태에 반영된 학생 목록도 업데이트
             setStudentsInClass(students)
 
-            // 레벨업이 발생했는지 확인
-            if (newLevel > currentLevel) {
-                // 레벨 업데이트
-                student.stats.level = newLevel
+            // 경험치 획득 메시지
+            const baseToastId = `student-${student.id}-${Date.now()}`;
+            toast.success(`${student.name} 학생이 ${expToAdd} 경험치를 획득했습니다!`, {
+                id: `${baseToastId}-exp`,
+                duration: 3000,
+                style: {
+                    opacity: 1,
+                    backgroundColor: '#fff',
+                    border: '1px solid rgba(0, 0, 0, 0.1)'
+                }
+            });
 
-                // 레벨업 시 포인트 지급
-                const levelsGained = newLevel - currentLevel
-                student.points += levelsGained * POINTS_PER_LEVEL
-
-                // 경험치 획득 메시지 (먼저 표시)
-                const baseToastId = `student-${student.id}-${Date.now()}`;
-                toast.success(`${student.name} 학생이 ${expToAdd} 경험치를 획득했습니다!`, {
-                    id: `${baseToastId}-exp`,
+            // 레벨업 메시지 (1초 후 표시)
+            setTimeout(() => {
+                toast.success(`${student.name} 학생이 Lv.${currentLevel}에서 Lv.${newLevel}로 레벨업했습니다!`, {
+                    id: `${baseToastId}-level`,
                     duration: 3000,
                     style: {
                         opacity: 1,
@@ -647,36 +656,12 @@ export default function RoadmapPage() {
                         border: '1px solid rgba(0, 0, 0, 0.1)'
                     }
                 });
+            }, 1000);
 
-                // 레벨업 메시지 (1초 후 표시)
-                setTimeout(() => {
-                    toast.success(`${student.name} 학생이 Lv.${currentLevel}에서 Lv.${newLevel}로 레벨업했습니다!`, {
-                        id: `${baseToastId}-level`,
-                        duration: 3000,
-                        style: {
-                            opacity: 1,
-                            backgroundColor: '#fff',
-                            border: '1px solid rgba(0, 0, 0, 0.1)'
-                        }
-                    });
-                }, 1000);
-
-                // 포인트 지급 메시지 (2초 후 표시)
-                setTimeout(() => {
-                    toast.success(`${student.name} 학생에게 ${levelsGained * POINTS_PER_LEVEL} 포인트가 지급되었습니다!`, {
-                        id: `${baseToastId}-points`,
-                        duration: 3000,
-                        style: {
-                            opacity: 1,
-                            backgroundColor: '#fff',
-                            border: '1px solid rgba(0, 0, 0, 0.1)'
-                        }
-                    });
-                }, 2000);
-            } else {
-                // 경험치만 획득한 경우
-                toast.success(`${student.name} 학생이 ${expToAdd} 경험치를 획득했습니다!`, {
-                    id: `exp-${student.id}-${Date.now()}`,
+            // 포인트 지급 메시지 (2초 후 표시)
+            setTimeout(() => {
+                toast.success(`${student.name} 학생에게 ${POINTS_PER_LEVEL} 포인트가 지급되었습니다!`, {
+                    id: `${baseToastId}-points`,
                     duration: 3000,
                     style: {
                         opacity: 1,
@@ -684,6 +669,51 @@ export default function RoadmapPage() {
                         border: '1px solid rgba(0, 0, 0, 0.1)'
                     }
                 });
+            }, 2000);
+
+            // classes 스토리지 업데이트 추가
+            const classesJson = localStorage.getItem('classes');
+            if (classesJson) {
+                const classes = JSON.parse(classesJson);
+                const classIndex = classes.findIndex((c: ClassInfo) => c.id === classId);
+
+                if (classIndex !== -1) {
+                    const studentIndex = classes[classIndex].students.findIndex(
+                        (s: Student) => s.id === studentId
+                    );
+
+                    if (studentIndex !== -1) {
+                        // 업데이트된 정보 적용
+                        classes[classIndex].students[studentIndex].stats.exp = student.stats.exp;
+                        classes[classIndex].students[studentIndex].stats.level = student.stats.level;
+                        classes[classIndex].students[studentIndex].points = student.points;
+
+                        // 저장
+                        localStorage.setItem('classes', JSON.stringify(classes));
+                    }
+                }
+            }
+
+            // class_classId 스토리지 업데이트 추가
+            const classDataJson = localStorage.getItem(`class_${classId}`);
+            if (classDataJson) {
+                const classData = JSON.parse(classDataJson);
+
+                if (classData.students && Array.isArray(classData.students)) {
+                    const studentIndex = classData.students.findIndex(
+                        (s: Student) => s.id === studentId
+                    );
+
+                    if (studentIndex !== -1) {
+                        // 업데이트된 정보 적용
+                        classData.students[studentIndex].stats.exp = student.stats.exp;
+                        classData.students[studentIndex].stats.level = student.stats.level;
+                        classData.students[studentIndex].points = student.points;
+
+                        // 저장
+                        localStorage.setItem(`class_${classId}`, JSON.stringify(classData));
+                    }
+                }
             }
         } catch (error) {
             console.error('학생 데이터 업데이트 오류:', error)
@@ -773,35 +803,48 @@ export default function RoadmapPage() {
                 </div>
 
                 <div className="container mx-auto py-8 px-4">
+                    {/* 페이지 제목과 설명 */}
                     <div className="mb-8">
-                        <h1 className="text-2xl font-bold text-blue-800 mt-4">성장 로드맵</h1>
+                        <h1 className="text-2xl font-bold text-blue-800">성장 로드맵</h1>
                         <p className="text-slate-700">학생들의 장기적인 목표를 설정하고 학생들이 목표를 달성하게 도와주세요.</p>
                     </div>
 
                     {/* 로드맵 관리 영역 */}
-                    <div className="bg-white/40 backdrop-blur-sm rounded-xl shadow-md p-6 mb-8">
+                    <div className="bg-white/30 backdrop-blur-sm p-6 rounded-xl shadow-md">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-bold text-blue-800">로드맵 목록</h2>
                             <button
                                 onClick={initAddForm}
-                                className="px-4 py-2 bg-blue-500 text-white rounded-md flex items-center gap-2 hover:bg-blue-600 transition"
+                                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition flex items-center gap-2"
                             >
                                 <Plus className="w-4 h-4" />
-                                새 로드맵 추가
+                                새 로드맵
                             </button>
                         </div>
 
-                        {/* 로드맵 목록 */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-                            {roadmaps.length > 0 ? (
+                        {/* 로드맵 목록 (그리드) */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                            {roadmaps.length === 0 ? (
+                                <div className="col-span-3 text-center py-12 bg-blue-50/50 rounded-lg">
+                                    <Image
+                                        src="/images/icons/roadmap/book-stack.png"
+                                        alt="로드맵 없음"
+                                        width={64}
+                                        height={64}
+                                        className="mx-auto mb-4"
+                                    />
+                                    <p className="text-slate-600 mb-2">로드맵이 없습니다.</p>
+                                    <p className="text-sm text-slate-500">위의 '새 로드맵' 버튼을 눌러 생성해보세요.</p>
+                                </div>
+                            ) : (
                                 roadmaps.map((roadmap) => (
                                     <div
                                         key={roadmap.id}
+                                        className="bg-white/60 p-5 rounded-xl shadow-sm hover:shadow-md transition-shadow border border-blue-100/50 cursor-pointer"
                                         onClick={() => handleRoadmapClick(roadmap.id)}
-                                        className="bg-blue-50/40 hover:bg-blue-100/50 border border-blue-100/30 rounded-lg p-5 shadow-sm cursor-pointer transition-shadow"
                                     >
                                         <div className="flex items-center gap-3 mb-3">
-                                            <div className="w-12 h-12 rounded-full overflow-hidden bg-blue-100 flex items-center justify-center">
+                                            <div className="w-12 h-12 rounded-full overflow-hidden bg-blue-50 flex items-center justify-center">
                                                 <Image
                                                     src={roadmap.icon || '/images/icons/roadmap/basicbook.jpg'}
                                                     alt={roadmap.name}
@@ -810,24 +853,76 @@ export default function RoadmapPage() {
                                                     className="object-cover"
                                                 />
                                             </div>
-                                            <div>
-                                                <h3 className="font-bold text-blue-700">{roadmap.name}</h3>
-                                                <p className="text-xs text-slate-500">보상: {roadmap.rewardTitle}</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="mt-2">
-                                            <div className="flex justify-between items-center text-sm text-slate-600 mb-1.5">
-                                                <span>총 {roadmap.steps.length}단계</span>
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="font-bold text-blue-700 truncate">{roadmap.name}</h3>
+                                                <p className="text-xs text-slate-500">
+                                                    {roadmap.steps.length}단계 · 보상: {roadmap.rewardTitle}
+                                                </p>
                                             </div>
                                         </div>
                                     </div>
                                 ))
-                            ) : (
-                                <div className="col-span-full text-center py-8 text-slate-500">
-                                    등록된 로드맵이 없습니다. 새 로드맵을 추가해보세요.
-                                </div>
                             )}
+                        </div>
+                    </div>
+
+                    {/* 클래스 정보 표시 영역 */}
+                    <div className="p-6 backdrop-blur-sm rounded-xl mb-8">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* 클래스 정보 카드 */}
+                            <div className="bg-gradient-to-br from-blue-500/90 to-blue-600/90 text-white p-5 rounded-xl shadow-md relative overflow-hidden">
+                                <div className="absolute inset-0 bg-center bg-cover opacity-10" style={{ backgroundImage: "url(/images/backgrounds/pattern.png)" }}></div>
+                                <div className="relative z-10">
+                                    <h3 className="text-xl font-bold mb-1">학급 정보</h3>
+                                    {classInfo && (
+                                        <>
+                                            <p className="mb-2 text-white/90 text-sm">{classInfo.description || '학급 설명이 없습니다.'}</p>
+                                            <div className="bg-white/20 rounded-lg p-3 backdrop-blur-sm">
+                                                <p className="font-medium text-lg">{classInfo.name}</p>
+                                                <div className="flex items-center gap-3 mt-1 text-sm">
+                                                    <span className="bg-blue-700/40 px-2 py-0.5 rounded-full backdrop-blur-sm">
+                                                        {classInfo.grade}학년
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* 로드맵 가이드 카드 */}
+                            <div className="bg-white/60 p-5 rounded-xl shadow-md relative overflow-hidden border border-blue-100/40">
+                                <div className="absolute inset-0 bg-center bg-cover opacity-5" style={{ backgroundImage: "url(/images/backgrounds/pattern.png)" }}></div>
+                                <div className="relative z-10">
+                                    <h3 className="text-xl font-bold text-blue-700 mb-3">로드맵 사용 방법</h3>
+                                    <ul className="space-y-2 text-slate-700">
+                                        <li className="flex items-start gap-2">
+                                            <div className="bg-blue-100 rounded-full p-1 mt-0.5">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-700" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                                </svg>
+                                            </div>
+                                            <span>학생들의 성장 경로를 단계별로 설정하세요.</span>
+                                        </li>
+                                        <li className="flex items-start gap-2">
+                                            <div className="bg-blue-100 rounded-full p-1 mt-0.5">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-700" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                                </svg>
+                                            </div>
+                                            <span>각 단계를 완료한 학생들을 등록해 성장을 시각화하세요.</span>
+                                        </li>
+                                        <li className="flex items-start gap-2">
+                                            <div className="bg-blue-100 rounded-full p-1 mt-0.5">
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-blue-700" viewBox="0 0 20 20" fill="currentColor">
+                                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                                </svg>
+                                            </div>
+                                            <span>모든 단계를 완료한 학생에게는 특별한 칭호를 부여할 수 있습니다.</span>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1095,14 +1190,6 @@ export default function RoadmapPage() {
                                                 <div className="flex justify-between items-center mb-2">
                                                     <h4 className="font-semibold text-slate-700">
                                                         달성 학생
-                                                        {stepStudentIds.length > 0 ?
-                                                            <span className="ml-2 bg-blue-100 text-blue-800 text-xs px-2 py-0.5 rounded-full">
-                                                                {stepStudentIds.length}명
-                                                            </span> :
-                                                            <span className="ml-2 bg-slate-100 text-slate-500 text-xs px-2 py-0.5 rounded-full">
-                                                                0명
-                                                            </span>
-                                                        }
                                                     </h4>
                                                     <button
                                                         onClick={() => handleAddStudentToStep(reverseIndex)}

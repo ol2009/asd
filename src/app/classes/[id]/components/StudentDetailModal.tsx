@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { toast } from 'sonner'
 import Image from 'next/image'
-import { X, Edit, Award, Trash2 } from 'lucide-react'
+import { X, Edit, Award, Trash2, User, Target, Gift, ShoppingBag, Coins, ShoppingCart, Loader2 } from 'lucide-react'
 
 const EXP_PER_LEVEL = 100
 const POINTS_PER_LEVEL = 100
@@ -101,9 +101,13 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
     const [student, setStudent] = useState<Student | null>(null)
     const [isEditingIcon, setIsEditingIcon] = useState(false)
     const [isEditingHonorific, setIsEditingHonorific] = useState(false)
-    const [activeTab, setActiveTab] = useState<'roadmaps' | 'missions' | 'cards'>('roadmaps')
+    const [activeTab, setActiveTab] = useState<'roadmaps' | 'missions' | 'cards' | 'pointshop'>('roadmaps')
     const [selectedMonsterType, setSelectedMonsterType] = useState<'sogymon' | 'fistmon' | 'dakomon' | 'cloudmon'>('sogymon')
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
+    const [purchasedItems, setPurchasedItems] = useState<any[]>([])
+    const [pointItems, setPointItems] = useState<any[]>([])
+    const [pointshopLoading, setPointshopLoading] = useState(true)
+    const [activePointShopTab, setActivePointShopTab] = useState<'items' | 'purchases'>('items')
 
     // 학생 완료 항목 데이터
     const [completedRoadmaps, setCompletedRoadmaps] = useState<{
@@ -342,12 +346,13 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
     };
 
     useEffect(() => {
-        if (isOpen && studentId) {
-            loadStudentInfo()
-            loadCompletedRoadmaps()
-            loadCompletedMissions()
-            loadReceivedCards()
-        }
+        if (!isOpen || !studentId || !classId) return
+
+        loadStudentInfo()
+        loadCompletedRoadmaps()
+        loadCompletedMissions()
+        loadReceivedCards()
+        loadPointShopItems()
     }, [isOpen, studentId, classId])
 
     // 학생 정보 로드 시 진화 확인
@@ -456,18 +461,36 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
             roadmaps.forEach((roadmap: any) => {
                 if (roadmap.steps) {
                     roadmap.steps.forEach((step: any) => {
+                        // roadmap 객체 내 students 배열 확인
+                        let isCompleted = false;
                         if (step.students && step.students.includes(studentId)) {
+                            isCompleted = true;
+                        }
+
+                        // localStorage에서 단계별 학생 목록 확인
+                        if (!isCompleted) {
+                            const stepStudentsJson = localStorage.getItem(`roadmap_${classId}_step_${step.id}_students`);
+                            if (stepStudentsJson) {
+                                const stepStudents = JSON.parse(stepStudentsJson);
+                                if (Array.isArray(stepStudents) && stepStudents.includes(studentId)) {
+                                    isCompleted = true;
+                                }
+                            }
+                        }
+
+                        if (isCompleted) {
                             completed.push({
                                 roadmapId: roadmap.id,
                                 stepId: step.id,
                                 roadmapName: roadmap.name,
                                 stepGoal: step.goal
-                            })
+                            });
                         }
                     })
                 }
             })
 
+            console.log('완료한 로드맵:', completed);
             setCompletedRoadmaps(completed)
         } catch (error) {
             console.error('로드맵 정보 로드 중 오류 발생:', error)
@@ -543,6 +566,144 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
             toast.error('칭찬카드 정보를 불러오는 중 오류가 발생했습니다.')
         } finally {
             setCardsLoading(false)
+        }
+    }
+
+    // 포인트 상점 아이템 불러오기
+    const loadPointShopItems = () => {
+        setPointshopLoading(true);
+        try {
+            // 로컬 스토리지에서 포인트 상점 아이템 가져오기
+            const savedItems = localStorage.getItem(`pointshop_items_${classId}`);
+            if (savedItems) {
+                setPointItems(JSON.parse(savedItems));
+            } else {
+                setPointItems([]);
+            }
+
+            // 구매 내역 가져오기
+            const savedPurchases = localStorage.getItem(`pointshop_purchases_${classId}_${studentId}`);
+            if (savedPurchases) {
+                setPurchasedItems(JSON.parse(savedPurchases));
+            } else {
+                setPurchasedItems([]);
+            }
+        } catch (error) {
+            console.error('포인트 상점 데이터 로드 중 오류:', error);
+        } finally {
+            setPointshopLoading(false);
+        }
+    }
+
+    // 포인트 상점 탭 변경 함수
+    const handlePointShopTabChange = (tab: 'items' | 'purchases') => {
+        setActivePointShopTab(tab);
+    }
+
+    // 포인트 상품 구매 함수
+    const handlePurchaseItem = (item: any) => {
+        if (!student) return;
+
+        // 포인트가 충분한지 확인
+        if ((student.points || 0) < item.price) {
+            toast.error('포인트가 부족합니다.');
+            return;
+        }
+
+        try {
+            // 새 구매 아이템 생성
+            const purchase = {
+                id: Date.now().toString(),
+                itemId: item.id,
+                itemName: item.name,
+                price: item.price,
+                purchaseDate: new Date().toISOString(),
+                used: false
+            };
+
+            // 구매 내역 업데이트
+            const updatedPurchases = [...purchasedItems, purchase];
+            setPurchasedItems(updatedPurchases);
+            localStorage.setItem(`pointshop_purchases_${classId}_${studentId}`, JSON.stringify(updatedPurchases));
+
+            // 학생 포인트 차감
+            const updatedPoints = (student.points || 0) - item.price;
+            const updatedStudent = { ...student, points: updatedPoints };
+            setStudent(updatedStudent);
+
+            // localStorage에 학생 포인트 업데이트
+            updateStudentPoints(updatedPoints);
+
+            toast.success(`${item.name}을(를) 구매했습니다.`);
+        } catch (error) {
+            console.error('상품 구매 중 오류:', error);
+            toast.error('상품 구매 중 오류가 발생했습니다.');
+        }
+    }
+
+    // 포인트 상품 사용 함수
+    const handleUseItem = (purchaseId: string) => {
+        const updatedPurchases = purchasedItems.map(item =>
+            item.id === purchaseId ? { ...item, used: true } : item
+        );
+
+        setPurchasedItems(updatedPurchases);
+        localStorage.setItem(`pointshop_purchases_${classId}_${studentId}`, JSON.stringify(updatedPurchases));
+
+        toast.success('상품을 사용했습니다.');
+    }
+
+    // 학생 포인트 업데이트 함수
+    const updateStudentPoints = (newPoints: number) => {
+        try {
+            // 1. students_classId 업데이트
+            const studentsJson = localStorage.getItem(`students_${classId}`);
+            if (studentsJson) {
+                const students = JSON.parse(studentsJson);
+                const studentIndex = students.findIndex((s: any) => s.id === studentId);
+
+                if (studentIndex !== -1) {
+                    students[studentIndex].points = newPoints;
+                    localStorage.setItem(`students_${classId}`, JSON.stringify(students));
+                }
+            }
+
+            // 2. classes 업데이트
+            const classesJson = localStorage.getItem('classes');
+            if (classesJson) {
+                const classes = JSON.parse(classesJson);
+                const classIndex = classes.findIndex((c: any) => c.id === classId);
+
+                if (classIndex !== -1) {
+                    const studentIndex = classes[classIndex].students.findIndex(
+                        (s: any) => s.id === studentId
+                    );
+
+                    if (studentIndex !== -1) {
+                        classes[classIndex].students[studentIndex].points = newPoints;
+                        localStorage.setItem('classes', JSON.stringify(classes));
+                    }
+                }
+            }
+
+            // 3. class_classId 업데이트
+            const classDataJson = localStorage.getItem(`class_${classId}`);
+            if (classDataJson) {
+                const classData = JSON.parse(classDataJson);
+
+                if (classData.students && Array.isArray(classData.students)) {
+                    const studentIndex = classData.students.findIndex(
+                        (s: any) => s.id === studentId
+                    );
+
+                    if (studentIndex !== -1) {
+                        classData.students[studentIndex].points = newPoints;
+                        localStorage.setItem(`class_${classId}`, JSON.stringify(classData));
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('포인트 업데이트 중 오류:', error);
         }
     }
 
@@ -990,6 +1151,14 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                             >
                                 받은 칭찬카드
                             </button>
+                            <button
+                                className={`py-2 px-4 font-medium ${activeTab === 'pointshop'
+                                    ? 'text-blue-600 border-b-2 border-blue-600'
+                                    : 'text-gray-500 hover:text-gray-700'}`}
+                                onClick={() => setActiveTab('pointshop')}
+                            >
+                                포인트 상점
+                            </button>
                         </div>
 
                         {/* 탭 콘텐츠 영역 */}
@@ -1091,6 +1260,152 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                                                     </div>
                                                 </div>
                                             ))}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* 포인트 상점 탭 */}
+                            {activeTab === 'pointshop' && (
+                                <div>
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h3 className="text-lg font-bold text-gray-800">포인트 상점</h3>
+                                        <div className="text-yellow-600 font-medium">
+                                            보유 포인트: {student.points || 0} P
+                                        </div>
+                                    </div>
+
+                                    {/* 탭 내 서브탭 (상품 목록/구매 내역) */}
+                                    <div className="flex border-b border-gray-200 mb-4">
+                                        <button
+                                            className={`py-1.5 px-3 text-sm font-medium ${activePointShopTab === 'items'
+                                                ? 'text-blue-600 border-b-2 border-blue-600'
+                                                : 'text-gray-500 hover:text-gray-700'
+                                                }`}
+                                            onClick={() => handlePointShopTabChange('items')}
+                                        >
+                                            상품 목록
+                                        </button>
+                                        <button
+                                            className={`py-1.5 px-3 text-sm font-medium relative ${activePointShopTab === 'purchases'
+                                                ? 'text-blue-600 border-b-2 border-blue-600'
+                                                : 'text-gray-500 hover:text-gray-700'
+                                                }`}
+                                            onClick={() => handlePointShopTabChange('purchases')}
+                                        >
+                                            구매 내역
+                                            {purchasedItems.some(item => !item.used) && (
+                                                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-full">
+                                                    {purchasedItems.filter(item => !item.used).length}
+                                                </span>
+                                            )}
+                                        </button>
+                                    </div>
+
+                                    {pointshopLoading ? (
+                                        <div className="flex justify-center items-center h-32">
+                                            <p className="text-gray-500">상품 데이터 로딩 중...</p>
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            {/* 구매 내역 섹션 */}
+                                            {activePointShopTab === 'purchases' && (
+                                                <div>
+                                                    <h4 className="font-medium text-blue-700 mb-3">구매 내역</h4>
+                                                    {purchasedItems.length === 0 ? (
+                                                        <div className="text-center py-8 bg-gray-50 rounded-lg">
+                                                            <ShoppingBag className="w-10 h-10 mx-auto text-slate-400 mb-2" />
+                                                            <p className="text-gray-500">구매한 상품이 없습니다.</p>
+                                                            <button
+                                                                className="mt-4 text-blue-500 hover:text-blue-700"
+                                                                onClick={() => handlePointShopTabChange('items')}
+                                                            >
+                                                                상품 목록 보기
+                                                            </button>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="grid grid-cols-1 gap-3">
+                                                            {purchasedItems.map((purchase) => (
+                                                                <div
+                                                                    key={purchase.id}
+                                                                    className={`border rounded-lg p-4 relative ${purchase.used
+                                                                        ? 'bg-gray-100 border-gray-200'
+                                                                        : 'bg-yellow-50 border-yellow-200'
+                                                                        }`}
+                                                                >
+                                                                    <div className="flex justify-between items-start">
+                                                                        <div>
+                                                                            <h5 className={`font-medium ${purchase.used ? 'text-gray-500' : 'text-yellow-700'}`}>
+                                                                                {purchase.itemName}
+                                                                            </h5>
+                                                                            <p className={`text-sm mt-1 ${purchase.used ? 'text-gray-500' : 'text-yellow-600'}`}>
+                                                                                {purchase.price} 포인트
+                                                                            </p>
+                                                                            <p className="text-xs text-gray-500 mt-1">
+                                                                                구매일: {new Date(purchase.purchaseDate).toLocaleDateString()}
+                                                                            </p>
+                                                                        </div>
+
+                                                                        {purchase.used ? (
+                                                                            <div className="px-2 py-1 bg-gray-200 text-gray-600 rounded text-xs font-medium">
+                                                                                사용 완료
+                                                                            </div>
+                                                                        ) : (
+                                                                            <button
+                                                                                onClick={() => handleUseItem(purchase.id)}
+                                                                                className="px-3 py-1.5 bg-yellow-500 text-white rounded-md text-sm hover:bg-yellow-600 transition"
+                                                                            >
+                                                                                사용하기
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* 상품 목록 섹션 */}
+                                            {activePointShopTab === 'items' && (
+                                                <div>
+                                                    <h4 className="font-medium text-blue-700 mb-3">상품 목록</h4>
+                                                    {pointItems.length === 0 ? (
+                                                        <div className="text-center py-8 bg-gray-50 rounded-lg">
+                                                            <p className="text-gray-500">등록된 상품이 없습니다.</p>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="grid grid-cols-1 gap-3">
+                                                            {pointItems.map((item) => (
+                                                                <div
+                                                                    key={item.id}
+                                                                    className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition"
+                                                                >
+                                                                    <div className="flex justify-between items-center">
+                                                                        <div>
+                                                                            <h5 className="font-medium text-gray-800">{item.name}</h5>
+                                                                            <p className="text-sm text-gray-600 mt-1">{item.description}</p>
+                                                                        </div>
+                                                                        <div className="flex flex-col items-end">
+                                                                            <span className="font-bold text-yellow-600 mb-2">{item.price} P</span>
+                                                                            <button
+                                                                                onClick={() => handlePurchaseItem(item)}
+                                                                                disabled={(student.points || 0) < item.price}
+                                                                                className={`px-3 py-1.5 rounded-md text-sm ${(student.points || 0) >= item.price
+                                                                                    ? 'bg-blue-500 text-white hover:bg-blue-600'
+                                                                                    : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                                                                    } transition`}
+                                                                            >
+                                                                                구매하기
+                                                                            </button>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>

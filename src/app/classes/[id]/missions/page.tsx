@@ -267,38 +267,64 @@ export default function MissionsPage() {
             const currentExp = student.stats.exp;
             console.log(`현재 상태: Lv.${currentLevel}, Exp ${currentExp}, 포인트 ${student.points}`);
 
-            // 경험치 추가
+            // 요구사항에 맞게 직접 레벨 1 증가
+            const newLevel = currentLevel + 1;
+
+            // 경험치 추가 (로직 유지를 위해)
             student.stats.exp += expToAdd;
 
-            // 레벨업 계산 (현재 경험치로 계산된 레벨)
-            const newLevel = Math.floor(student.stats.exp / EXP_PER_LEVEL);
+            // 레벨 설정
+            student.stats.level = newLevel;
 
-            // 레벨업이 발생했는지 확인
+            // 포인트 지급 (레벨 1당 100포인트)
+            student.points += POINTS_PER_LEVEL;
+
+            console.log(`레벨업! Lv.${currentLevel} → Lv.${newLevel}, 포인트 +${POINTS_PER_LEVEL}`);
+
+            // 몬스터 진화 처리 - 성장 몬스터 진화 로직 적용
             let evolutionMessage = '';
-            if (newLevel > currentLevel) {
-                // 레벨 업데이트
-                student.stats.level = newLevel;
+            if (student.iconType) {
+                // 현재 진화 단계 확인
+                const currentStage = currentLevel < 1 ? 'egg' : (currentLevel < 5 ? 'stage1' : 'stage2');
+                const newStage = newLevel < 1 ? 'egg' : (newLevel < 5 ? 'stage1' : 'stage2');
 
-                // 레벨업 시 포인트 지급
-                const levelsGained = newLevel - currentLevel;
-                student.points += levelsGained * POINTS_PER_LEVEL;
+                // 진화 단계 변화가 있는 경우만 처리
+                if (currentStage !== newStage) {
+                    const currentIcon = student.iconType;
 
-                console.log(`레벨업! Lv.${currentLevel} → Lv.${newLevel}, 포인트 +${levelsGained * POINTS_PER_LEVEL}`);
+                    // 알에서 1단계 진화 (레벨 0 -> 레벨 1)
+                    if (currentStage === 'egg' && newStage === 'stage1' && currentIcon.includes('/egg/')) {
+                        const monsterTypes = ['sogymon', 'fistmon', 'dakomon', 'cloudmon'];
+                        const randomType = monsterTypes[Math.floor(Math.random() * monsterTypes.length)];
+                        const growMonImages: Record<string, string[]> = {
+                            sogymon: ['/images/icons/growmon/sogymon/sogy1.jpg', '/images/icons/growmon/sogymon/sogy2_sorogon.jpg'],
+                            fistmon: ['/images/icons/growmon/fistmon/fist1_firefist.jpg', '/images/icons/growmon/fistmon/fist2_orafist.jpg'],
+                            dakomon: ['/images/icons/growmon/dakomon/dako1.jpg?v=2', '/images/icons/growmon/dakomon/dako2_magicion.jpg'],
+                            cloudmon: ['/images/icons/growmon/cloudmon/cloud1.jpg', '/images/icons/growmon/cloudmon/cloud2.jpg']
+                        };
 
-                // 몬스터 진화 처리 - 성장 몬스터 진화 로직 적용
-                if (student.iconType) {
-                    // 현재 진화 단계 확인
-                    const currentStage = currentLevel < 1 ? 'egg' : (currentLevel < 5 ? 'stage1' : 'stage2');
-                    const newStage = newLevel < 1 ? 'egg' : (newLevel < 5 ? 'stage1' : 'stage2');
+                        const newIcon = growMonImages[randomType][0];
+                        student.iconType = newIcon;
 
-                    // 진화 단계 변화가 있는 경우만 처리
-                    if (currentStage !== newStage) {
-                        const currentIcon = student.iconType;
+                        const monsterNames: Record<string, string> = {
+                            'sogymon': '소기몬',
+                            'fistmon': '파이어피스트',
+                            'dakomon': '다코몬',
+                            'cloudmon': '클라우드몬'
+                        };
+                        evolutionMessage = `${student.name} 학생의 알이 ${monsterNames[randomType]}으로 부화했습니다!`;
+                        console.log(`몬스터 진화: ${currentIcon} -> ${newIcon}`);
+                    }
 
-                        // 알에서 1단계 진화 (레벨 0 -> 레벨 1)
-                        if (currentStage === 'egg' && newStage === 'stage1' && currentIcon.includes('/egg/')) {
-                            const monsterTypes = ['sogymon', 'fistmon', 'dakomon', 'cloudmon'];
-                            const randomType = monsterTypes[Math.floor(Math.random() * monsterTypes.length)];
+                    // 1단계에서 2단계 진화 (레벨 4 -> 레벨 5)
+                    else if (currentStage === 'stage1' && newStage === 'stage2') {
+                        let monsterType = null;
+                        if (currentIcon.includes('sogymon')) monsterType = 'sogymon';
+                        else if (currentIcon.includes('fistmon')) monsterType = 'fistmon';
+                        else if (currentIcon.includes('dakomon')) monsterType = 'dakomon';
+                        else if (currentIcon.includes('cloudmon')) monsterType = 'cloudmon';
+
+                        if (monsterType) {
                             const growMonImages: Record<string, string[]> = {
                                 sogymon: ['/images/icons/growmon/sogymon/sogy1.jpg', '/images/icons/growmon/sogymon/sogy2_sorogon.jpg'],
                                 fistmon: ['/images/icons/growmon/fistmon/fist1_firefist.jpg', '/images/icons/growmon/fistmon/fist2_orafist.jpg'],
@@ -306,47 +332,17 @@ export default function MissionsPage() {
                                 cloudmon: ['/images/icons/growmon/cloudmon/cloud1.jpg', '/images/icons/growmon/cloudmon/cloud2.jpg']
                             };
 
-                            const newIcon = growMonImages[randomType][0];
+                            const newIcon = growMonImages[monsterType][1];
                             student.iconType = newIcon;
 
-                            const monsterNames: Record<string, string> = {
-                                'sogymon': '소기몬',
-                                'fistmon': '파이어피스트',
-                                'dakomon': '다코몬',
-                                'cloudmon': '클라우드몬'
+                            const evolvedNames: Record<string, string> = {
+                                'sogymon': '소로곤',
+                                'fistmon': '오라피스트',
+                                'dakomon': '매지션',
+                                'cloudmon': '클라우드몬 2단계'
                             };
-                            evolutionMessage = `${student.name} 학생의 알이 ${monsterNames[randomType]}으로 부화했습니다!`;
+                            evolutionMessage = `${student.name} 학생의 몬스터가 ${evolvedNames[monsterType]}으로 진화했습니다!`;
                             console.log(`몬스터 진화: ${currentIcon} -> ${newIcon}`);
-                        }
-
-                        // 1단계에서 2단계 진화 (레벨 4 -> 레벨 5)
-                        else if (currentStage === 'stage1' && newStage === 'stage2') {
-                            let monsterType = null;
-                            if (currentIcon.includes('sogymon')) monsterType = 'sogymon';
-                            else if (currentIcon.includes('fistmon')) monsterType = 'fistmon';
-                            else if (currentIcon.includes('dakomon')) monsterType = 'dakomon';
-                            else if (currentIcon.includes('cloudmon')) monsterType = 'cloudmon';
-
-                            if (monsterType) {
-                                const growMonImages: Record<string, string[]> = {
-                                    sogymon: ['/images/icons/growmon/sogymon/sogy1.jpg', '/images/icons/growmon/sogymon/sogy2_sorogon.jpg'],
-                                    fistmon: ['/images/icons/growmon/fistmon/fist1_firefist.jpg', '/images/icons/growmon/fistmon/fist2_orafist.jpg'],
-                                    dakomon: ['/images/icons/growmon/dakomon/dako1.jpg?v=2', '/images/icons/growmon/dakomon/dako2_magicion.jpg'],
-                                    cloudmon: ['/images/icons/growmon/cloudmon/cloud1.jpg', '/images/icons/growmon/cloudmon/cloud2.jpg']
-                                };
-
-                                const newIcon = growMonImages[monsterType][1];
-                                student.iconType = newIcon;
-
-                                const evolvedNames: Record<string, string> = {
-                                    'sogymon': '소로곤',
-                                    'fistmon': '오라피스트',
-                                    'dakomon': '매지션',
-                                    'cloudmon': '클라우드몬 2단계'
-                                };
-                                evolutionMessage = `${student.name} 학생의 몬스터가 ${evolvedNames[monsterType]}으로 진화했습니다!`;
-                                console.log(`몬스터 진화: ${currentIcon} -> ${newIcon}`);
-                            }
                         }
                     }
                 }
@@ -658,13 +654,19 @@ export default function MissionsPage() {
 
             {/* 콘텐츠 영역 */}
             <div className="relative z-10 min-h-screen">
+                {/* 헤더 */}
+                <div className="bg-blue-500 shadow-md py-4 px-6 flex justify-between items-center text-white">
+                    <div className="flex items-center">
+                        <Link href={`/classes/${classId}`} className="mr-4">
+                            <ArrowLeft className="w-5 h-5" />
+                        </Link>
+                        <h1 className="text-xl font-bold">학급으로 돌아가기</h1>
+                    </div>
+                </div>
+
                 <div className="container mx-auto py-8 px-4">
                     <div className="mb-8">
-                        <Link href={`/classes/${classId}`} className="text-blue-700 hover:underline flex items-center">
-                            <ArrowLeft className="h-4 w-4 mr-2" />
-                            학급으로 돌아가기
-                        </Link>
-                        <h1 className="text-2xl font-bold text-blue-800 mt-4">미션 관리</h1>
+                        <h1 className="text-2xl font-bold text-blue-800">미션 관리</h1>
                         <p className="text-slate-700">학생들의 미션 달성을 관리하고 기록하세요.</p>
                     </div>
 
@@ -699,16 +701,13 @@ export default function MissionsPage() {
                                             className="bg-blue-50/40 hover:bg-blue-100/50 border border-blue-100/30 rounded-lg p-5 shadow-sm cursor-pointer transition-shadow"
                                             onClick={() => handleMissionClick(mission)}
                                         >
-                                            <div className="flex items-center justify-between mb-3">
+                                            <div className="flex items-center mb-3">
                                                 <h3 className="font-bold text-blue-700 text-lg flex items-center">
                                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                                     </svg>
                                                     {mission.name}
                                                 </h3>
-                                                <span className="text-xs bg-blue-100/70 text-blue-800 px-2 py-1 rounded-full">
-                                                    달성자 {mission.achievers.length}명
-                                                </span>
                                             </div>
                                             <p className="text-slate-700 text-sm line-clamp-2">{mission.condition}</p>
                                         </div>
@@ -874,11 +873,6 @@ export default function MissionsPage() {
                                 <div className="flex justify-between items-center mb-4">
                                     <h3 className="text-lg font-semibold text-slate-800">
                                         미션 달성자
-                                        {selectedMission.achievers.length > 0 && (
-                                            <span className="ml-2 bg-blue-100/70 text-blue-800 text-xs px-2 py-0.5 rounded-full">
-                                                {selectedMission.achievers.length}명
-                                            </span>
-                                        )}
                                     </h3>
                                     <button
                                         onClick={handleOpenAddAchieverModal}
