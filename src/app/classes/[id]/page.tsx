@@ -11,6 +11,7 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import AddStudentModal from './components/AddStudentModal'
 import StudentDetailModal from './components/StudentDetailModal'
+import { supabase } from '@/lib/supabase'
 
 interface ClassInfo {
     id: string
@@ -70,17 +71,56 @@ export default function ClassDetail() {
     const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null)
     const [isStudentDetailModalOpen, setIsStudentDetailModalOpen] = useState(false)
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+    const [isSessionChecked, setIsSessionChecked] = useState(false)
 
+    // 로그인 상태 확인은 한 번만 실행되도록 분리
     useEffect(() => {
-        // 로그인 상태 확인
-        const isLoggedIn = localStorage.getItem('isLoggedIn')
-        if (!isLoggedIn) {
-            router.push('/login')
-            return
+        const checkLoginStatus = async () => {
+            try {
+                // 1. 로컬스토리지에서 먼저 확인 (빠른 응답을 위해)
+                const isLoggedIn = localStorage.getItem('isLoggedIn')
+
+                // 2. Supabase 세션도 확인 (더 안전한 확인)
+                const { data, error } = await supabase.auth.getSession()
+
+                // 둘 중 하나라도 있으면 로그인된 것으로 간주
+                if (!isLoggedIn && !data.session) {
+                    // 로그인 페이지로 리디렉션
+                    console.log('로그인 세션이 없습니다. 로그인 페이지로 이동합니다.')
+                    router.push('/login')
+                    return false
+                }
+
+                return true
+            } catch (error) {
+                console.error('세션 확인 오류:', error)
+
+                // 오류 발생시에도 로컬스토리지만 확인
+                const isLoggedIn = localStorage.getItem('isLoggedIn')
+                if (!isLoggedIn) {
+                    router.push('/login')
+                    return false
+                }
+                return true
+            } finally {
+                setIsSessionChecked(true)
+            }
         }
 
-        loadStudents();
-    }, [classId, router])
+        checkLoginStatus().then(isLoggedIn => {
+            if (isLoggedIn) {
+                // 로그인되어 있으면 학생 데이터 로드
+                loadStudents()
+            }
+        })
+    }, [router])
+
+    // 학생 데이터는 로그인 확인 후에만 로드
+    useEffect(() => {
+        if (isSessionChecked) {
+            loadStudents()
+        }
+    }, [classId, isSessionChecked])
 
     // 학생 목록 로드 함수 (중복 제거 로직 추가)
     const loadStudents = () => {
@@ -527,13 +567,6 @@ export default function ClassDetail() {
                             {students.length === 0 ? (
                                 <div className="text-center py-12 bg-gray-50/40 backdrop-blur-sm rounded-lg">
                                     <p className="text-gray-500 mb-4">등록된 학생이 없습니다</p>
-                                    <button
-                                        onClick={() => setIsAddModalOpen(true)}
-                                        className="px-4 py-2 bg-blue-500 text-white rounded-md flex items-center gap-2 hover:bg-blue-600 transition"
-                                    >
-                                        <Plus className="w-4 h-4" />
-                                        학생 추가하기
-                                    </button>
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">

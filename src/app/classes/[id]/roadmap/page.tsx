@@ -798,13 +798,17 @@ export default function RoadmapPage() {
                         <Link href={`/classes/${classId}`} className="mr-4">
                             <ArrowLeft className="w-5 h-5" />
                         </Link>
-                        <h1 className="text-xl font-bold">학급으로 돌아가기</h1>
+                        <h1 className="text-xl font-bold">학생 목록으로</h1>
                     </div>
+                    <Link href="/login" className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-md transition-colors">
+                        <X className="w-4 h-4" />
+                        <span>로그아웃</span>
+                    </Link>
                 </div>
 
                 <div className="container mx-auto py-8 px-4">
                     {/* 페이지 제목과 설명 */}
-                    <div className="mb-8">
+                    <div className="mb-8 bg-white/40 backdrop-blur-sm p-6 rounded-xl shadow-md">
                         <h1 className="text-2xl font-bold text-blue-800">성장 로드맵</h1>
                         <p className="text-slate-700">학생들의 장기적인 목표를 설정하고 학생들이 목표를 달성하게 도와주세요.</p>
                     </div>
@@ -826,15 +830,7 @@ export default function RoadmapPage() {
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                             {roadmaps.length === 0 ? (
                                 <div className="col-span-3 text-center py-12 bg-blue-50/50 rounded-lg">
-                                    <Image
-                                        src="/images/icons/roadmap/book-stack.png"
-                                        alt="로드맵 없음"
-                                        width={64}
-                                        height={64}
-                                        className="mx-auto mb-4"
-                                    />
-                                    <p className="text-slate-600 mb-2">로드맵이 없습니다.</p>
-                                    <p className="text-sm text-slate-500">위의 '새 로드맵' 버튼을 눌러 생성해보세요.</p>
+                                    <p className="text-slate-600">새 로드맵을 추가해보세요</p>
                                 </div>
                             ) : (
                                 roadmaps.map((roadmap) => (

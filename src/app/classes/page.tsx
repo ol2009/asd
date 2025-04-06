@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
 
 interface ClassInfo {
     id: string
@@ -9,6 +10,7 @@ interface ClassInfo {
     schoolName: string
     students: number
     createdAt: string
+    startDate: string
 }
 
 export default function ClassesPage() {
@@ -18,20 +20,60 @@ export default function ClassesPage() {
     const [newClass, setNewClass] = useState({
         name: '',
         schoolName: '',
+        startDate: new Date().toISOString().split('T')[0]
     })
+    const [isSessionChecked, setIsSessionChecked] = useState(false)
     const router = useRouter()
 
     useEffect(() => {
         // 로그인 상태 확인
-        const userData = localStorage.getItem('user')
-        if (!userData) {
-            // 로그인되지 않은 경우 로그인 페이지로 이동
-            window.location.href = '/login'
-            return
+        const checkLoginStatus = async () => {
+            try {
+                // 로컬스토리지 확인과 Supabase 세션 확인 병행
+                const userData = localStorage.getItem('user')
+                const isLoggedIn = localStorage.getItem('isLoggedIn')
+                const { data } = await supabase.auth.getSession()
+
+                if (userData) {
+                    setUser(JSON.parse(userData))
+                }
+
+                // 둘 다 없으면 로그인 페이지로 이동
+                if (!isLoggedIn && !data.session) {
+                    console.log('로그인 세션이 없습니다. 로그인 페이지로 이동합니다.')
+                    window.location.href = '/login'
+                    return false
+                }
+
+                return true
+            } catch (error) {
+                console.error('세션 확인 오류:', error)
+
+                // 오류 발생시 로컬스토리지만 확인
+                const userData = localStorage.getItem('user')
+                const isLoggedIn = localStorage.getItem('isLoggedIn')
+
+                if (userData) {
+                    setUser(JSON.parse(userData))
+                }
+
+                if (!isLoggedIn) {
+                    window.location.href = '/login'
+                    return false
+                }
+                return true
+            }
         }
 
-        setUser(JSON.parse(userData))
+        checkLoginStatus().then(isLoggedIn => {
+            if (isLoggedIn) {
+                loadClassData()
+            }
+        })
+    }, [])
 
+    // 클래스 데이터 로드 함수
+    const loadClassData = () => {
         // 로컬 스토리지에서 학급 정보 가져오기
         const savedClasses = localStorage.getItem('classes')
         if (savedClasses) {
@@ -64,18 +106,37 @@ export default function ClassesPage() {
                 setClasses([]);
             }
         }
-    }, [])
+    }
 
-    const handleLogout = () => {
-        localStorage.removeItem('user')
-        window.location.href = '/login'
+    const handleLogout = async () => {
+        try {
+            // Supabase로 로그아웃
+            const { error } = await supabase.auth.signOut()
+
+            if (error) {
+                throw error
+            }
+
+            // 기존 로컬스토리지 데이터 삭제 (호환성 유지)
+            localStorage.removeItem('isLoggedIn')
+            localStorage.removeItem('user')
+
+            // 로그인 페이지로 리디렉션
+            router.push('/login')
+        } catch (error) {
+            console.error('로그아웃 오류:', error)
+            // 에러가 발생해도 로컬 스토리지는 비우고 로그인 페이지로 이동
+            localStorage.removeItem('user')
+            localStorage.removeItem('isLoggedIn')
+            router.push('/login')
+        }
     }
 
     const handleAddClassSubmit = (e: React.FormEvent) => {
         e.preventDefault()
 
-        if (!newClass.name || !newClass.schoolName) {
-            alert('학교이름과 학급이름을 모두 입력해주세요.')
+        if (!newClass.name || !newClass.schoolName || !newClass.startDate) {
+            alert('학교이름, 학급이름, 운영 시작일을 모두 입력해주세요.')
             return
         }
 
@@ -85,7 +146,8 @@ export default function ClassesPage() {
             name: newClass.name,
             schoolName: newClass.schoolName,
             students: 0,
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
+            startDate: newClass.startDate
         }
 
         const updatedClasses = [...classes, newClassInfo]
@@ -100,7 +162,8 @@ export default function ClassesPage() {
         // 폼 초기화
         setNewClass({
             name: '',
-            schoolName: ''
+            schoolName: '',
+            startDate: new Date().toISOString().split('T')[0]
         })
         setIsAddingClass(false)
     }
@@ -174,6 +237,18 @@ export default function ClassesPage() {
                                     placeholder="예: 1학년 1반"
                                 />
                             </div>
+                            <div>
+                                <label htmlFor="startDate" className="block text-sm font-medium text-slate-700 mb-1">
+                                    학급 운영 시작일
+                                </label>
+                                <input
+                                    id="startDate"
+                                    type="date"
+                                    value={newClass.startDate}
+                                    onChange={(e) => setNewClass({ ...newClass, startDate: e.target.value })}
+                                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-md text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                />
+                            </div>
                             <div className="flex justify-end gap-2">
                                 <button
                                     type="button"
@@ -227,35 +302,6 @@ export default function ClassesPage() {
                     )}
                 </div>
             </main>
-
-            {/* 하단 네비게이션 */}
-            <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-sm shadow-md">
-                <div className="container mx-auto px-4">
-                    <div className="grid grid-cols-3 gap-4 py-4">
-                        <button
-                            onClick={() => router.push('/')}
-                            className="flex flex-col items-center text-slate-600"
-                        >
-                            <span className="text-lg mb-1">🏠</span>
-                            <span className="text-sm">홈</span>
-                        </button>
-                        <button
-                            onClick={() => router.push('/classes')}
-                            className="flex flex-col items-center text-blue-600"
-                        >
-                            <span className="text-lg mb-1">👨‍👩‍👧‍👦</span>
-                            <span className="text-sm">학급 관리</span>
-                        </button>
-                        <button
-                            onClick={() => router.push('/profile')}
-                            className="flex flex-col items-center text-slate-600"
-                        >
-                            <span className="text-lg mb-1">👤</span>
-                            <span className="text-sm">프로필</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
         </div>
     )
 } 

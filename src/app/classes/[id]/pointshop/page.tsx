@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Plus, ArrowLeft, X, Save, Trash2, ShoppingBag } from 'lucide-react'
+import { Plus, ArrowLeft, X, Save, Trash2, ShoppingBag, LogOut } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 
@@ -245,12 +245,16 @@ export default function PointShopPage() {
                         <Link href={`/classes/${classId}`} className="mr-4">
                             <ArrowLeft className="w-5 h-5" />
                         </Link>
-                        <h1 className="text-xl font-bold">학급으로 돌아가기</h1>
+                        <h1 className="text-xl font-bold">학생 목록으로</h1>
                     </div>
+                    <Link href="/login" className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-md transition-colors">
+                        <LogOut className="w-4 h-4" />
+                        <span>로그아웃</span>
+                    </Link>
                 </div>
 
                 <div className="container mx-auto py-8 px-4">
-                    <div className="mb-8">
+                    <div className="mb-8 bg-white/40 backdrop-blur-sm p-6 rounded-xl shadow-md">
                         <h1 className="text-2xl font-bold text-blue-800 mt-4">포인트 상점 관리</h1>
                         <p className="text-slate-700">학생들이 포인트로 구매할 수 있는 상품을 관리하세요.</p>
                     </div>

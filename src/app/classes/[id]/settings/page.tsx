@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card } from '@/components/ui/card'
-import { CalendarIcon, School, Users, Calendar, Save, Check, ArrowLeft } from 'lucide-react'
+import { CalendarIcon, School, Users, Calendar, Save, Check, ArrowLeft, LogOut } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
 
@@ -17,9 +17,9 @@ interface ClassInfo {
     subject: string
     description: string
     coverImage: string
-    school?: string // 추가: 학교 이름
-    startDate?: string // 추가: 학급 운영 시작일
-    endDate?: string // 추가: 학급 운영 종료일
+    schoolName: string
+    startDate?: string
+    endDate?: string
     students: any[]
     createdAt: string
 }
@@ -64,7 +64,7 @@ export default function ClassSettingsPage() {
 
                     // 폼 데이터 초기화
                     setFormData({
-                        school: foundClass.school || '',
+                        school: foundClass.schoolName || '',
                         name: foundClass.name || '',
                         startDate: foundClass.startDate || '',
                         endDate: foundClass.endDate || ''
@@ -113,7 +113,7 @@ export default function ClassSettingsPage() {
                     if (c.id === classId) {
                         return {
                             ...c,
-                            school: formData.school,
+                            schoolName: formData.school,
                             name: formData.name,
                             startDate: formData.startDate,
                             endDate: formData.endDate
@@ -128,7 +128,7 @@ export default function ClassSettingsPage() {
                 // 현재 상태 업데이트
                 setClassInfo({
                     ...classInfo,
-                    school: formData.school,
+                    schoolName: formData.school,
                     name: formData.name,
                     startDate: formData.startDate,
                     endDate: formData.endDate
@@ -180,12 +180,22 @@ export default function ClassSettingsPage() {
 
             {/* 콘텐츠 영역 */}
             <div className="relative z-10 min-h-screen p-6">
-                {/* 헤더 영역 */}
-                <div className="flex flex-col space-y-2 mb-8">
-                    <Link href={`/classes/${classId}`} className="flex items-center text-blue-700 hover:underline mb-4">
-                        <ArrowLeft className="w-4 h-4 mr-1" />
-                        학급 페이지로
+                {/* 헤더 */}
+                <div className="bg-blue-500 shadow-md py-4 px-6 mb-6 -mx-6 flex justify-between items-center text-white">
+                    <div className="flex items-center">
+                        <Link href={`/classes/${classId}`} className="mr-4">
+                            <ArrowLeft className="w-5 h-5" />
+                        </Link>
+                        <h1 className="text-xl font-bold">학생 목록으로</h1>
+                    </div>
+                    <Link href="/login" className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-md transition-colors">
+                        <LogOut className="w-4 h-4" />
+                        <span>로그아웃</span>
                     </Link>
+                </div>
+
+                {/* 헤더 영역 */}
+                <div className="mb-8 bg-white/40 backdrop-blur-sm p-6 rounded-xl shadow-md">
                     <h1 className="text-2xl font-bold text-blue-800">학급 설정</h1>
                     <p className="text-slate-700">학급 정보를 관리할 수 있습니다.</p>
                 </div>

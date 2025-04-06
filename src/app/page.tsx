@@ -27,6 +27,8 @@ export default function Home() {
       localStorage.removeItem('user')
       localStorage.removeItem('isLoggedIn')
       setUser(null)
+      // 현재 페이지 새로고침
+      window.location.reload()
     } catch (error) {
       console.error('Logout error:', error)
     }
@@ -34,15 +36,18 @@ export default function Home() {
 
   // 로그인 페이지로 이동
   const goToLogin = () => {
-    router.push('/login')
+    // router.push 대신 직접 URL 변경 사용
+    window.location.href = '/login'
   }
 
   // 학급관리 페이지로 이동
   const goToClasses = () => {
     if (user) {
-      router.push('/classes')
+      // router.push 대신 직접 URL 변경 사용
+      window.location.href = '/classes'
     } else {
-      router.push('/login')
+      // router.push 대신 직접 URL 변경 사용
+      window.location.href = '/login'
     }
   }
 

@@ -1,12 +1,12 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { PlusCircle, Award, X, Check, Search, ArrowLeft } from 'lucide-react'
+import { PlusCircle, Award, X, Check, Search, ArrowLeft, LogOut } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { toast } from 'sonner'
@@ -177,6 +177,7 @@ const evolveMonster = (student: any, currentLevel: number, newLevel: number): st
 
 export default function PraiseCardsPage() {
     const params = useParams()
+    const router = useRouter()
     const classId = params.id as string
     const [praiseCards, setPraiseCards] = useState<PraiseCard[]>([])
     const [newCard, setNewCard] = useState<{ name: string, description: string }>({ name: '', description: '' })
@@ -576,13 +577,17 @@ export default function PraiseCardsPage() {
                         <Link href={`/classes/${classId}`} className="mr-4">
                             <ArrowLeft className="w-5 h-5" />
                         </Link>
-                        <h1 className="text-xl font-bold">학급으로 돌아가기</h1>
+                        <h1 className="text-xl font-bold">학생 목록으로</h1>
                     </div>
+                    <Link href="/login" className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-md transition-colors">
+                        <LogOut className="w-4 h-4" />
+                        <span>로그아웃</span>
+                    </Link>
                 </div>
 
                 <div className="container mx-auto py-8 px-4">
                     {/* 페이지 제목과 설명 */}
-                    <div className="mb-8">
+                    <div className="mb-8 bg-white/40 backdrop-blur-sm p-6 rounded-xl shadow-md">
                         <h1 className="text-2xl font-bold text-blue-800">칭찬카드 관리</h1>
                         <p className="text-slate-700">학생들에게 칭찬카드를 발급하고 관리하세요.</p>
                     </div>
