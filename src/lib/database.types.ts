@@ -15,8 +15,8 @@ export interface Database {
                     name: string
                     grade: string
                     subject: string
-                    description: string
-                    cover_image: string
+                    description: string | null
+                    cover_image: string | null
                     school_name: string | null
                     created_at: string
                     updated_at: string | null
@@ -27,8 +27,8 @@ export interface Database {
                     name: string
                     grade: string
                     subject: string
-                    description: string
-                    cover_image: string
+                    description?: string | null
+                    cover_image?: string | null
                     school_name?: string | null
                     created_at?: string
                     updated_at?: string | null
@@ -39,13 +39,22 @@ export interface Database {
                     name?: string
                     grade?: string
                     subject?: string
-                    description?: string
-                    cover_image?: string
+                    description?: string | null
+                    cover_image?: string | null
                     school_name?: string | null
                     created_at?: string
                     updated_at?: string | null
                     user_id?: string
                 }
+                Relationships: [
+                    {
+                        foreignKeyName: "classes_user_id_fkey"
+                        columns: ["user_id"]
+                        isOneToOne: false
+                        referencedRelation: "users"
+                        referencedColumns: ["id"]
+                    }
+                ]
             }
             students: {
                 Row: {
@@ -53,8 +62,8 @@ export interface Database {
                     name: string
                     number: number
                     class_id: string
-                    honorific: string
-                    icon_type: string
+                    honorific: string | null
+                    icon_type: string | null
                     level: number
                     exp: number
                     points: number
@@ -66,8 +75,8 @@ export interface Database {
                     name: string
                     number: number
                     class_id: string
-                    honorific: string
-                    icon_type: string
+                    honorific?: string | null
+                    icon_type?: string | null
                     level?: number
                     exp?: number
                     points?: number
@@ -79,14 +88,23 @@ export interface Database {
                     name?: string
                     number?: number
                     class_id?: string
-                    honorific?: string
-                    icon_type?: string
+                    honorific?: string | null
+                    icon_type?: string | null
                     level?: number
                     exp?: number
                     points?: number
                     created_at?: string
                     updated_at?: string | null
                 }
+                Relationships: [
+                    {
+                        foreignKeyName: "students_class_id_fkey"
+                        columns: ["class_id"]
+                        isOneToOne: false
+                        referencedRelation: "classes"
+                        referencedColumns: ["id"]
+                    }
+                ]
             }
             missions: {
                 Row: {
@@ -113,6 +131,15 @@ export interface Database {
                     created_at?: string
                     updated_at?: string | null
                 }
+                Relationships: [
+                    {
+                        foreignKeyName: "missions_class_id_fkey"
+                        columns: ["class_id"]
+                        isOneToOne: false
+                        referencedRelation: "classes"
+                        referencedColumns: ["id"]
+                    }
+                ]
             }
             mission_achievements: {
                 Row: {
@@ -136,6 +163,29 @@ export interface Database {
                     timestamp?: string
                     class_id?: string
                 }
+                Relationships: [
+                    {
+                        foreignKeyName: "mission_achievements_class_id_fkey"
+                        columns: ["class_id"]
+                        isOneToOne: false
+                        referencedRelation: "classes"
+                        referencedColumns: ["id"]
+                    },
+                    {
+                        foreignKeyName: "mission_achievements_mission_id_fkey"
+                        columns: ["mission_id"]
+                        isOneToOne: false
+                        referencedRelation: "missions"
+                        referencedColumns: ["id"]
+                    },
+                    {
+                        foreignKeyName: "mission_achievements_student_id_fkey"
+                        columns: ["student_id"]
+                        isOneToOne: false
+                        referencedRelation: "students"
+                        referencedColumns: ["id"]
+                    }
+                ]
             }
             roadmaps: {
                 Row: {
@@ -304,6 +354,9 @@ export interface Database {
             [_ in never]: never
         }
         Enums: {
+            [_ in never]: never
+        }
+        CompositeTypes: {
             [_ in never]: never
         }
     }

@@ -1,9 +1,18 @@
 import { createClient } from '@supabase/supabase-js'
 import type { Database } from './database.types'
 
-// 환경 변수가 설정되어 있지 않으면 기본값 사용
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://your-project-url.supabase.co'
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'your-anon-key'
+// 환경 변수에서 Supabase URL과 API 키 가져오기
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+
+// 환경 변수가 설정되어 있지 않으면 오류 메시지를 콘솔에 출력
+if (!supabaseUrl || !supabaseAnonKey) {
+    console.error(
+        'Supabase URL 또는 API 키가 없습니다. .env.local 파일에 다음 항목이 설정되어 있는지 확인하세요:',
+        '\nNEXT_PUBLIC_SUPABASE_URL=<your-supabase-url>',
+        '\nNEXT_PUBLIC_SUPABASE_ANON_KEY=<your-supabase-key>'
+    )
+}
 
 // 타입이 지정된 Supabase 클라이언트 생성
 export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey)
