@@ -7,50 +7,55 @@ export interface ClassInfo {
     subject: string;
     description: string;
     coverImage: string;
-    students: Student[];
-    createdAt: string;
     schoolName?: string;
+    createdAt: string;
+    classId?: string;
 }
 
 export interface Student {
     id: string;
-    number: number;
     name: string;
-    honorific: string;
+    number: number;
+    classId: string;
+    honorific?: string;
+    iconType: number;
     stats: {
         level: number;
-        exp?: number;
+        exp: number;
     };
-    iconType: string;
-    points?: number;
+    points: number;
 }
 
 export interface Mission {
     id: string;
     name: string;
     condition: string;
-    achievers: string[]; // 미션 달성자 ID 목록
+    achievers: string[];
+    classId: string;
     createdAt: string;
 }
 
 export interface MissionAchievement {
+    id: string;
     studentId: string;
     missionId: string;
+    classId: string;
     timestamp: string;
 }
 
 export interface RoadmapStep {
     id: string;
     goal: string;
-    students?: string[]; // 학생 ID 배열
+    students: string[];
 }
 
 export interface Roadmap {
     id: string;
     name: string;
-    steps: RoadmapStep[];
     rewardTitle: string;
     icon: string;
+    steps: RoadmapStep[];
+    classId: string;
     createdAt: string;
 }
 
@@ -58,6 +63,7 @@ export interface PraiseCard {
     id: string;
     content: string;
     studentId: string;
+    classId: string;
     createdAt: string;
 }
 
@@ -67,6 +73,7 @@ export interface PointShopItem {
     description: string;
     price: number;
     imageUrl?: string;
+    classId: string;
     createdAt: string;
 }
 
@@ -74,9 +81,12 @@ export interface PurchaseHistory {
     id: string;
     studentId: string;
     itemId: string;
-    purchaseDate: string;
-    used: boolean;
-    usedDate?: string;
+    quantity: number;
+    classId: string;
+    timestamp: string;
+    purchaseDate?: string;
+    used?: boolean;
+    usedDate?: string | null;
 }
 
 export interface Notification {

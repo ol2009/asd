@@ -162,7 +162,6 @@ export default function LoginPage() {
 
                 <div className="text-center text-sm text-slate-500">
                     <p>계정이 없으신가요? <Link href="/register" className="text-blue-600 hover:text-blue-800">회원가입</Link></p>
-                    <p className="mt-1">테스트 계정: test@example.com / test1234</p>
                     <p className="mt-2">
                         <Link href="/" className="text-blue-600 hover:text-blue-800">
                             홈으로 돌아가기

@@ -131,7 +131,7 @@ export const getStudents = async (classId: string) => {
             number: student.number,
             name: student.name,
             honorific: student.honorific,
-            iconType: student.icon_type,
+            iconType: student.icon_type ? parseInt(student.icon_type, 10) : 0,
             stats: {
                 level: student.level,
                 exp: student.exp
@@ -161,7 +161,7 @@ export const getStudentById = async (studentId: string) => {
             number: data.number,
             name: data.name,
             honorific: data.honorific,
-            iconType: data.icon_type,
+            iconType: data.icon_type ? parseInt(data.icon_type, 10) : 0,
             stats: {
                 level: data.level,
                 exp: data.exp
@@ -181,7 +181,7 @@ export const createStudent = async (classId: string, studentData: Omit<Student, 
             number: studentData.number,
             class_id: classId,
             honorific: studentData.honorific,
-            icon_type: studentData.iconType,
+            icon_type: String(studentData.iconType),
             level: studentData.stats.level || 1,
             exp: studentData.stats.exp || 0,
             points: studentData.points || 0,
@@ -209,7 +209,7 @@ export const updateStudent = async (studentId: string, updates: Partial<Student>
         if (updates.name) updateData.name = updates.name;
         if (updates.number !== undefined) updateData.number = updates.number;
         if (updates.honorific) updateData.honorific = updates.honorific;
-        if (updates.iconType) updateData.icon_type = updates.iconType;
+        if (updates.iconType !== undefined) updateData.icon_type = String(updates.iconType);
         if (updates.stats?.level) updateData.level = updates.stats.level;
         if (updates.stats?.exp !== undefined) updateData.exp = updates.stats.exp;
         if (updates.points !== undefined) updateData.points = updates.points;

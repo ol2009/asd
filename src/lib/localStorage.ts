@@ -8,6 +8,7 @@ import {
     PointShopItem,
     PurchaseHistory
 } from './types';
+import { getLocalStorage } from './storage';
 
 // 로그인 상태 관리
 export const getLoginStatus = (): boolean => {
@@ -20,15 +21,9 @@ export const setLoginStatus = (isLoggedIn: boolean): void => {
 };
 
 // 클래스 관련 함수
-export const getClasses = (): ClassInfo[] => {
-    try {
-        const classes = localStorage.getItem('classes');
-        return classes ? JSON.parse(classes) : [];
-    } catch (error) {
-        console.error('클래스 데이터 파싱 오류:', error);
-        return [];
-    }
-};
+export function getClasses(): ClassInfo[] {
+    return getLocalStorage<ClassInfo[]>('classes', []);
+}
 
 export const getClassById = (classId: string): ClassInfo | null => {
     try {
@@ -53,15 +48,9 @@ export const updateClass = (updatedClass: ClassInfo): void => {
 };
 
 // 학생 관련 함수
-export const getStudents = (classId: string): Student[] => {
-    try {
-        const students = localStorage.getItem(`students_${classId}`);
-        return students ? JSON.parse(students) : [];
-    } catch (error) {
-        console.error('학생 데이터 파싱 오류:', error);
-        return [];
-    }
-};
+export function getStudents(classId: string): Student[] {
+    return getLocalStorage<Student[]>(`students_${classId}`, []);
+}
 
 export const saveStudents = (classId: string, students: Student[]): void => {
     localStorage.setItem(`students_${classId}`, JSON.stringify(students));
@@ -114,15 +103,9 @@ export const removeDuplicateStudents = (classId: string): Student[] => {
 };
 
 // 미션 관련 함수
-export const getMissions = (classId: string): Mission[] => {
-    try {
-        const missions = localStorage.getItem(`missions_${classId}`);
-        return missions ? JSON.parse(missions) : [];
-    } catch (error) {
-        console.error('미션 데이터 파싱 오류:', error);
-        return [];
-    }
-};
+export function getMissions(classId: string): Mission[] {
+    return getLocalStorage<Mission[]>(`missions_${classId}`, []);
+}
 
 export const saveMissions = (classId: string, missions: Mission[]): void => {
     localStorage.setItem(`missions_${classId}`, JSON.stringify(missions));
@@ -153,15 +136,9 @@ export const removeMission = (classId: string, missionId: string): void => {
 };
 
 // 미션 달성 관련 함수
-export const getMissionAchievements = (classId: string): MissionAchievement[] => {
-    try {
-        const achievements = localStorage.getItem(`mission_achievements_${classId}`);
-        return achievements ? JSON.parse(achievements) : [];
-    } catch (error) {
-        console.error('미션 달성 내역 데이터 파싱 오류:', error);
-        return [];
-    }
-};
+export function getMissionAchievements(classId: string): MissionAchievement[] {
+    return getLocalStorage<MissionAchievement[]>(`mission_achievements_${classId}`, []);
+}
 
 export const saveMissionAchievements = (classId: string, achievements: MissionAchievement[]): void => {
     localStorage.setItem(`mission_achievements_${classId}`, JSON.stringify(achievements));
@@ -173,15 +150,9 @@ export const addMissionAchievement = (classId: string, newAchievement: MissionAc
 };
 
 // 로드맵 관련 함수
-export const getRoadmaps = (classId: string): Roadmap[] => {
-    try {
-        const roadmaps = localStorage.getItem(`roadmaps_${classId}`);
-        return roadmaps ? JSON.parse(roadmaps) : [];
-    } catch (error) {
-        console.error('로드맵 데이터 파싱 오류:', error);
-        return [];
-    }
-};
+export function getRoadmaps(classId: string): Roadmap[] {
+    return getLocalStorage<Roadmap[]>(`roadmaps_${classId}`, []);
+}
 
 export const saveRoadmaps = (classId: string, roadmaps: Roadmap[]): void => {
     localStorage.setItem(`roadmaps_${classId}`, JSON.stringify(roadmaps));
@@ -212,15 +183,9 @@ export const removeRoadmap = (classId: string, roadmapId: string): void => {
 };
 
 // 칭찬 카드 관련 함수
-export const getPraiseCards = (classId: string): PraiseCard[] => {
-    try {
-        const cards = localStorage.getItem(`praise_cards_${classId}`);
-        return cards ? JSON.parse(cards) : [];
-    } catch (error) {
-        console.error('칭찬 카드 데이터 파싱 오류:', error);
-        return [];
-    }
-};
+export function getPraiseCards(classId: string): PraiseCard[] {
+    return getLocalStorage<PraiseCard[]>(`praise_cards_${classId}`, []);
+}
 
 export const savePraiseCards = (classId: string, cards: PraiseCard[]): void => {
     localStorage.setItem(`praise_cards_${classId}`, JSON.stringify(cards));
@@ -232,15 +197,9 @@ export const addPraiseCard = (classId: string, newCard: PraiseCard): void => {
 };
 
 // 포인트 상점 아이템 관련 함수
-export const getPointShopItems = (classId: string): PointShopItem[] => {
-    try {
-        const items = localStorage.getItem(`pointshop_items_${classId}`);
-        return items ? JSON.parse(items) : [];
-    } catch (error) {
-        console.error('포인트 상점 아이템 데이터 파싱 오류:', error);
-        return [];
-    }
-};
+export function getPointShopItems(classId: string): PointShopItem[] {
+    return getLocalStorage<PointShopItem[]>(`point_shop_items_${classId}`, []);
+}
 
 export const savePointShopItems = (classId: string, items: PointShopItem[]): void => {
     localStorage.setItem(`pointshop_items_${classId}`, JSON.stringify(items));
@@ -266,15 +225,9 @@ export const removePointShopItem = (classId: string, itemId: string): void => {
 };
 
 // 구매 내역 관련 함수
-export const getPurchaseHistory = (classId: string): PurchaseHistory[] => {
-    try {
-        const history = localStorage.getItem(`purchase_history_${classId}`);
-        return history ? JSON.parse(history) : [];
-    } catch (error) {
-        console.error('구매 내역 데이터 파싱 오류:', error);
-        return [];
-    }
-};
+export function getPurchaseHistory(classId: string): PurchaseHistory[] {
+    return getLocalStorage<PurchaseHistory[]>(`purchase_history_${classId}`, []);
+}
 
 export const savePurchaseHistory = (classId: string, history: PurchaseHistory[]): void => {
     localStorage.setItem(`purchase_history_${classId}`, JSON.stringify(history));

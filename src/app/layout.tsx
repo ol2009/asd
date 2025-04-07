@@ -1,17 +1,8 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter } from 'next/font/google';
 import "./globals.css";
-import { Toaster } from 'sonner'
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: "상태창",
@@ -20,44 +11,12 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <html lang="ko">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-        style={{
-          backgroundImage: "url('/images/backgrounds/sky-bg.jpg')",
-          backgroundSize: "cover",
-          backgroundAttachment: "fixed",
-          backgroundPosition: "center",
-          minHeight: "100vh"
-        }}
-      >
-        <div className="min-h-screen bg-sky-50/80">
-          {children}
-          <Toaster
-            position="top-center"
-            richColors
-            offset={100}
-            gap={20}
-            visibleToasts={10}
-            expand={true}
-            closeButton={true}
-            hotkey={["altKey", "KeyT"]}
-            toastOptions={{
-              duration: 4000,
-              className: "my-toast-class",
-              style: {
-                marginBottom: '30px',
-                marginTop: '10px',
-                opacity: 1
-              }
-            }}
-          />
-        </div>
-      </body>
+      <body className={inter.className}>{children}</body>
     </html>
   );
 }

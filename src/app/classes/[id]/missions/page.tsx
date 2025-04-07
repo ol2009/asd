@@ -742,7 +742,7 @@ export default function MissionsPage() {
 
                                         return (
                                             <div
-                                                key={`${achievement.studentId}-${achievement.missionId}-${idx}`}
+                                                key={`${achievement.studentId}-${achievement.missionId}-${achievement.timestamp}`}
                                                 className="bg-white/60 border border-blue-100/50 rounded-lg p-3 shadow-sm flex items-center"
                                             >
                                                 <div className="w-10 h-10 rounded-full overflow-hidden relative bg-blue-50/60 flex-shrink-0">
@@ -894,7 +894,7 @@ export default function MissionsPage() {
                                             const student = students.find(s => s.id === achieverId)
                                             return student ? (
                                                 <div
-                                                    key={student.id}
+                                                    key={`${selectedMission?.id}-${student.id}-${achieverId}`}
                                                     className="bg-white/60 border border-blue-100/50 rounded-lg p-2 flex items-center shadow-sm"
                                                 >
                                                     <div className="flex items-center gap-2">
@@ -944,6 +944,7 @@ export default function MissionsPage() {
                             <AddAchieverForm
                                 students={students}
                                 existingAchieverIds={selectedMission.achievers}
+                                missionId={selectedMission.id}
                                 onSubmit={(studentIds) => {
                                     studentIds.forEach(studentId => handleAddAchiever(selectedMission.id, studentId))
                                 }}
@@ -991,9 +992,10 @@ interface AddAchieverFormProps {
     existingAchieverIds: string[]
     onSubmit: (studentIds: string[]) => void
     onCancel: () => void
+    missionId: string
 }
 
-function AddAchieverForm({ students, existingAchieverIds, onSubmit, onCancel }: AddAchieverFormProps) {
+function AddAchieverForm({ students, existingAchieverIds, onSubmit, onCancel, missionId }: AddAchieverFormProps) {
     const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([])
 
     // 이미 달성자인 학생들 제외
@@ -1024,8 +1026,8 @@ function AddAchieverForm({ students, existingAchieverIds, onSubmit, onCancel }: 
                     <div className="mb-4">
                         <p className="mb-2 text-sm text-slate-600">미션을 달성한 학생을 선택하세요</p>
                         <div className="max-h-64 overflow-y-auto p-2 border rounded-md">
-                            {eligibleStudents.map(student => (
-                                <div key={student.id} className="mb-2 last:mb-0">
+                            {eligibleStudents.map((student, index) => (
+                                <div key={`${missionId}-${student.id}-${index}`} className="mb-2 last:mb-0">
                                     <label className="flex items-center space-x-2 p-2 hover:bg-slate-50 rounded cursor-pointer">
                                         <input
                                             type="checkbox"
