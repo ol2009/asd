@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { X } from 'lucide-react'
 import { toast } from 'sonner'
 import Image from 'next/image'
+import { createRandomNewbyAvatar, stringifyAvatar } from '@/lib/avatar'
 
 interface Student {
     id: string
@@ -16,25 +17,15 @@ interface Student {
     }
     iconType: string
     points?: number
+    avatar: string
 }
 
-// 이미지 아이콘 경로
-const gradeIcons = {
-    d: [
-        '/images/icons/grade_d/Gemini_Generated_Image_t4umtlt4umtlt4um.jpg',
-        '/images/icons/grade_d/Gemini_Generated_Image_t3iddit3iddit3id.jpg',
-        '/images/icons/grade_d/Gemini_Generated_Image_jzqdr4jzqdr4jzqd.jpg',
-        '/images/icons/grade_d/Gemini_Generated_Image_6thu0u6thu0u6thu.jpg',
-        '/images/icons/grade_d/Gemini_Generated_Image_3zghrv3zghrv3zgh.jpg',
-    ]
-}
-
-// 알 이미지 경로
-const eggImages = [
-    '/images/icons/growmon/egg/egg1.jpg',
-    '/images/icons/growmon/egg/egg2.jpg',
-    '/images/icons/growmon/egg/egg3.jpg',
-    '/images/icons/growmon/egg/egg4.jpg'
+// 학생 아이콘 목록
+const studentIcons = [
+    '/images/icons/student_icon_1.png',
+    '/images/icons/student_icon_2.png',
+    '/images/icons/student_icon_3.png',
+    '/images/icons/student_icon_4.png'
 ]
 
 // 랜덤 칭호 가져오기
@@ -101,16 +92,23 @@ export default function AddStudentModal({ classId, isOpen, onClose, onStudentAdd
                 const uniqueId = Date.now().toString() + Math.random().toString(36).substring(2, 10) + nextNumber.toString();
 
                 // 새 학생 데이터 생성
+                const randomIconIndex = Math.floor(Math.random() * studentIcons.length);
+                const randomIcon = studentIcons[randomIconIndex];
+
+                // 랜덤 아바타 생성
+                const randomAvatar = createRandomNewbyAvatar();
+
                 const newStudent: Student = {
                     id: uniqueId,
                     number: nextNumber++,
                     name,
                     honorific: '', // 빈 칭호로 시작
                     stats: {
-                        level: 0, // 레벨 0으로 시작
+                        level: 1,
                         exp: 0 // 경험치는 0으로 시작
                     },
-                    iconType: eggImages[Math.floor(Math.random() * eggImages.length)], // 랜덤 알 이미지 선택
+                    iconType: randomIcon,
+                    avatar: stringifyAvatar(randomAvatar), // 아바타 정보 저장
                     points: 0 // 포인트도 0으로 시작
                 }
 

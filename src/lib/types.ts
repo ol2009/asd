@@ -19,6 +19,7 @@ export interface Student {
     classId: string;
     honorific?: string;
     iconType: number;
+    avatar?: string;
     stats: {
         level: number;
         exp: number;

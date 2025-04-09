@@ -39,32 +39,6 @@ const iconTypes = [
     '/images/icons/Gemini_Generated_Image_el7avsel7avsel7a.jpg',
 ]
 
-// 성장 몬스터 이미지 경로
-const growMonImages = {
-    egg: [
-        '/images/icons/growmon/egg/egg1.jpg',
-        '/images/icons/growmon/egg/egg2.jpg',
-        '/images/icons/growmon/egg/egg3.jpg',
-        '/images/icons/growmon/egg/egg4.jpg',
-    ],
-    sogymon: [
-        '/images/icons/growmon/sogymon/sogy1.jpg',
-        '/images/icons/growmon/sogymon/sogy2_sorogon.jpg',
-    ],
-    fistmon: [
-        '/images/icons/growmon/fistmon/fist1_firefist.jpg',
-        '/images/icons/growmon/fistmon/fist2_orafist.jpg',
-    ],
-    dakomon: [
-        '/images/icons/growmon/dakomon/dako1.jpg?v=2',
-        '/images/icons/growmon/dakomon/dako2_magicion.jpg',
-    ],
-    cloudmon: [
-        '/images/icons/growmon/cloudmon/cloud1.jpg',
-        '/images/icons/growmon/cloudmon/cloud2.jpg',
-    ],
-}
-
 // 학생 아바타 아이콘 렌더링
 const renderStudentIcon = (iconType: string) => {
     // iconType이 기존 Lucide 아이콘 이름인 경우 (이전 데이터 호환성 유지)
@@ -111,69 +85,6 @@ interface PraiseCardHistory {
 const EXP_PER_LEVEL = 100 // 레벨업에 필요한 경험치
 const EXP_FOR_PRAISE_CARD = 50 // 칭찬 카드 획득 시 획득 경험치
 const POINTS_PER_LEVEL = 100 // 레벨업 시 획득 포인트
-
-// 레벨에 따른 진화 단계 결정
-const getEvolutionStage = (level: number): 'egg' | 'stage1' | 'stage2' => {
-    if (level < 1) return 'egg';
-    if (level < 5) return 'stage1';
-    return 'stage2';
-}
-
-// 이미지 경로에서 몬스터 타입 추출
-const getMonsterTypeFromPath = (imagePath: string): 'sogymon' | 'fistmon' | 'dakomon' | 'cloudmon' | null => {
-    if (imagePath.includes('sogymon')) return 'sogymon';
-    if (imagePath.includes('fistmon')) return 'fistmon';
-    if (imagePath.includes('dakomon')) return 'dakomon';
-    if (imagePath.includes('cloudmon')) return 'cloudmon';
-    return null;
-}
-
-// 알 이미지에서 랜덤 몬스터 선택
-const getRandomMonsterType = (): 'sogymon' | 'fistmon' | 'dakomon' | 'cloudmon' => {
-    const types: ('sogymon' | 'fistmon' | 'dakomon' | 'cloudmon')[] = ['sogymon', 'fistmon', 'dakomon', 'cloudmon'];
-    return types[Math.floor(Math.random() * types.length)];
-}
-
-// 몬스터 진화 처리 함수
-const evolveMonster = (student: any, currentLevel: number, newLevel: number): string => {
-    const currentIcon = student.iconType || '';
-    console.log(`몬스터 진화 체크 - 현재 아이콘: ${currentIcon}`);
-
-    // 현재 진화 단계와 새 진화 단계 확인
-    const currentStage = getEvolutionStage(currentLevel);
-    const newStage = getEvolutionStage(newLevel);
-
-    console.log(`진화 단계 변화: ${currentStage} -> ${newStage}`);
-
-    // 진화가 필요 없는 경우
-    if (currentStage === newStage) {
-        return currentIcon;
-    }
-
-    // 알에서 1단계 진화 (레벨 0 -> 레벨 1)
-    if (currentStage === 'egg' && newStage === 'stage1') {
-        const monsterType = getRandomMonsterType();
-        const newIcon = growMonImages[monsterType][0]; // 첫 번째 진화 형태
-        console.log(`알에서 진화: ${currentIcon} -> ${newIcon} (${monsterType})`);
-        return newIcon;
-    }
-
-    // 1단계에서 2단계 진화 (레벨 4 -> 레벨 5)
-    if (currentStage === 'stage1' && newStage === 'stage2') {
-        // 현재 몬스터 타입 확인
-        const monsterType = getMonsterTypeFromPath(currentIcon);
-        if (!monsterType) {
-            console.log('몬스터 타입을 식별할 수 없어 진화할 수 없습니다.');
-            return currentIcon;
-        }
-
-        const newIcon = growMonImages[monsterType][1]; // 두 번째 진화 형태
-        console.log(`2단계 진화: ${currentIcon} -> ${newIcon}`);
-        return newIcon;
-    }
-
-    return currentIcon;
-};
 
 export default function PraiseCardsPage() {
     const params = useParams()
@@ -373,38 +284,8 @@ export default function PraiseCardsPage() {
 
             console.log(`레벨업! Lv.${currentLevel} → Lv.${newLevel}, 포인트 +${POINTS_PER_LEVEL}`);
 
-            // 몬스터 진화 처리
-            let evolutionMessage = '';
-            const oldIcon = student.iconType;
-            const newIcon = evolveMonster(student, currentLevel, newLevel);
-
             // 아이콘이 변경되었다면 업데이트
-            if (oldIcon !== newIcon) {
-                student.iconType = newIcon;
-
-                // 진화 메시지 생성
-                if (getEvolutionStage(currentLevel) === 'egg') {
-                    const monsterType = getMonsterTypeFromPath(newIcon);
-                    const monsterNames: Record<string, string> = {
-                        'sogymon': '소기몬',
-                        'fistmon': '파이어피스트',
-                        'dakomon': '다코몬',
-                        'cloudmon': '클라우드몬'
-                    };
-                    evolutionMessage = `${student.name} 학생의 알이 ${monsterNames[monsterType || 'sogymon']}으로 부화했습니다!`;
-                } else {
-                    const monsterType = getMonsterTypeFromPath(newIcon);
-                    const evolvedNames: Record<string, string> = {
-                        'sogymon': '소로곤',
-                        'fistmon': '오라피스트',
-                        'dakomon': '매지션',
-                        'cloudmon': '클라우드몬 2단계'
-                    };
-                    evolutionMessage = `${student.name} 학생의 몬스터가 ${evolvedNames[monsterType || 'sogymon']}으로 진화했습니다!`;
-                }
-                console.log(`몬스터 진화: ${oldIcon} -> ${newIcon}`);
-                console.log(`진화 메시지: ${evolutionMessage}`);
-            }
+            let newIcon = student.iconType;
 
             // 1. students_classId 저장소 업데이트
             students[studentIndex] = student;
@@ -505,16 +386,6 @@ export default function PraiseCardsPage() {
                         duration: 3000
                     });
                 }, 2000);
-
-                // 진화 메시지 표시 (3초 후)
-                if (evolutionMessage) {
-                    setTimeout(() => {
-                        toast.success(evolutionMessage, {
-                            id: `${baseToastId}-evolution`,
-                            duration: 4000
-                        });
-                    }, 3000);
-                }
             } else {
                 // 경험치만 획득한 경우
                 toast.success(`${student.name} 학생이 ${expToAdd} 경험치를 획득했습니다!`, {

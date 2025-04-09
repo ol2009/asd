@@ -5,13 +5,15 @@ import { useParams, useRouter } from 'next/navigation'
 import Image from 'next/image'
 import {
     Plus, ArrowLeft,
-    LogOut, Coins
+    LogOut, Coins, User
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import AddStudentModal from './components/AddStudentModal'
 import StudentDetailModal from './components/StudentDetailModal'
 import { supabase } from '@/lib/supabase'
+import AvatarRenderer, { LargeAvatarRenderer } from '@/components/Avatar'
+import { parseAvatarString } from '@/lib/avatar'
 
 interface ClassInfo {
     id: string
@@ -36,6 +38,7 @@ interface Student {
     }
     iconType: string
     points?: number
+    avatar?: string
 }
 
 // 이미지 아이콘 경로
@@ -246,7 +249,22 @@ export default function ClassDetail() {
         });
     }
 
-    // 아이콘을 렌더링하는 함수
+    // 아바타 렌더링 함수 (기존 renderIcon 대체)
+    const renderAvatar = (avatar?: string, size = 100) => {
+        if (!avatar) {
+            // 아바타 정보가 없으면 기본 아이콘 표시
+            return (
+                <div className="relative w-full h-full flex items-center justify-center bg-gray-100 rounded-full">
+                    <User className="w-1/2 h-1/2 text-gray-400" />
+                </div>
+            );
+        }
+
+        // 아바타 정보가 있으면 아바타 렌더러 사용
+        return <AvatarRenderer avatar={avatar} size={size} />;
+    };
+
+    // 아이콘 렌더링 함수 (유지, 기존 코드와 호환성 위해)
     const renderIcon = (iconType: string) => {
         // iconType이 기존 Lucide 아이콘 이름인 경우 (이전 데이터 호환성 유지)
         if (iconType.startsWith('user') || iconType.startsWith('book') || iconType.startsWith('sparkles') ||
@@ -288,9 +306,11 @@ export default function ClassDetail() {
                 onClick={onClick}
             >
                 <div className="flex items-center">
-                    {/* 학생 아이콘 (왼쪽) - 크기 증가 */}
+                    {/* 학생 아바타 (왼쪽) - 크기 증가 */}
                     <div className="w-24 h-24 bg-white/70 rounded-full overflow-hidden shadow-md mr-3 flex-shrink-0">
-                        {renderIcon(student.iconType)}
+                        {student.avatar
+                            ? renderAvatar(student.avatar, 96)
+                            : renderIcon(student.iconType)}
                     </div>
 
                     {/* 오른쪽 정보 컨테이너 - 너비 확장 */}

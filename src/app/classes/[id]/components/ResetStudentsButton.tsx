@@ -3,12 +3,12 @@
 import { useState } from 'react'
 import { toast } from 'sonner'
 
-// 알 이미지 경로 배열
-const eggImages = [
-    '/images/icons/growmon/egg/egg1.jpg',
-    '/images/icons/growmon/egg/egg2.jpg',
-    '/images/icons/growmon/egg/egg3.jpg',
-    '/images/icons/growmon/egg/egg4.jpg'
+// 학생 아이콘 목록
+const studentIcons = [
+    '/images/icons/student_icon_1.png',
+    '/images/icons/student_icon_2.png',
+    '/images/icons/student_icon_3.png',
+    '/images/icons/student_icon_4.png'
 ]
 
 // 학생 인터페이스
@@ -35,7 +35,7 @@ export default function ResetStudentsButton({ classId, onReset }: ResetStudentsB
 
     // 랜덤 알 이미지 가져오기
     const getRandomEggImage = () => {
-        return eggImages[Math.floor(Math.random() * eggImages.length)]
+        return studentIcons[Math.floor(Math.random() * studentIcons.length)]
     }
 
     // 학생 데이터 초기화 함수

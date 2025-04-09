@@ -4,63 +4,16 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { toast } from 'sonner'
 import Image from 'next/image'
-import { X, Edit, Award, Trash2, User, Target, Gift, ShoppingBag, Coins, ShoppingCart, Loader2 } from 'lucide-react'
+import { X, Edit, Award, Trash2, User, Target, Gift, ShoppingBag, Coins, ShoppingCart, Loader2, ShirtIcon, Cpu, Sword } from 'lucide-react'
+import AvatarRenderer, { AvatarItemRenderer } from '@/components/Avatar'
+import {
+    Avatar, AvatarItem, AvatarLayerType, AVATAR_LAYER_ORDER,
+    NEWBY_HEAD_ITEMS, NEWBY_BODY_ITEMS,
+    parseAvatarString, stringifyAvatar, updateAvatarItem
+} from '@/lib/avatar'
 
 const EXP_PER_LEVEL = 100
 const POINTS_PER_LEVEL = 100
-
-// 성장 몬스터 이미지 경로
-const growMonImages = {
-    egg: [
-        '/images/icons/growmon/egg/egg1.jpg',
-        '/images/icons/growmon/egg/egg2.jpg',
-        '/images/icons/growmon/egg/egg3.jpg',
-        '/images/icons/growmon/egg/egg4.jpg',
-    ],
-    sogymon: [
-        '/images/icons/growmon/sogymon/sogy1.jpg',
-        '/images/icons/growmon/sogymon/sogy2_sorogon.jpg',
-    ],
-    fistmon: [
-        '/images/icons/growmon/fistmon/fist1_firefist.jpg',
-        '/images/icons/growmon/fistmon/fist2_orafist.jpg',
-    ],
-    dakomon: [
-        '/images/icons/growmon/dakomon/dako1.jpg?v=2',
-        '/images/icons/growmon/dakomon/dako2_magicion.jpg',
-    ],
-    cloudmon: [
-        '/images/icons/growmon/cloudmon/cloud1.jpg',
-        '/images/icons/growmon/cloudmon/cloud2.jpg',
-    ],
-}
-
-// 레벨에 따른 진화 단계 확인
-const getEvolutionStage = (level: number): 'egg' | 'stage1' | 'stage2' => {
-    if (level < 5) return 'egg';
-    if (level < 10) return 'stage1';
-    return 'stage2';
-}
-
-// 진화 단계에 따른 이미지 경로 배열 반환
-const getImagesByEvolutionStage = (
-    stage: 'egg' | 'stage1' | 'stage2',
-    monsterType: 'sogymon' | 'fistmon' | 'dakomon' | 'cloudmon'
-): string[] => {
-    if (stage === 'egg') return growMonImages.egg;
-
-    const monsterImages = growMonImages[monsterType];
-    return stage === 'stage1' ? [monsterImages[0]] : [monsterImages[1]];
-}
-
-// 이미지 경로에서 몬스터 타입 추출
-const getMonsterTypeFromImagePath = (imagePath: string): 'sogymon' | 'fistmon' | 'dakomon' | 'cloudmon' | null => {
-    if (imagePath.includes('sogymon')) return 'sogymon';
-    if (imagePath.includes('fistmon')) return 'fistmon';
-    if (imagePath.includes('dakomon')) return 'dakomon';
-    if (imagePath.includes('cloudmon')) return 'cloudmon';
-    return null;
-}
 
 // 칭호 목록
 const honorifics = [
@@ -76,6 +29,22 @@ const honorifics = [
     '긍정적인'
 ]
 
+// 로드맵 달성 칭호 목록
+const roadmapHonorifics = [
+    '미래 탐험가',
+    '지식 수집가',
+    '문제 해결사',
+    '탐구 전문가',
+    '창조적 사고자'
+]
+
+// 사용 가능한 칭호 목록을 반환하는 함수
+const getAvailableHonorifics = () => {
+    // 여기서는 간단히 로드맵 칭호만 반환합니다.
+    // 실제로는 완료한 로드맵에 따라 칭호를 반환해야 합니다.
+    return roadmapHonorifics;
+}
+
 // 학생 타입 정의
 interface Student {
     id: string
@@ -88,6 +57,7 @@ interface Student {
         level: number
         exp: number
     }
+    avatar?: string
 }
 
 interface StudentDetailModalProps {
@@ -95,19 +65,19 @@ interface StudentDetailModalProps {
     onClose: () => void
     studentId: string | null
     classId: string | null
+    initialTab?: 'roadmaps' | 'missions' | 'cards' | 'pointshop' | 'avatar'
 }
 
-const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose, studentId, classId }) => {
+const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose, studentId, classId, initialTab = 'roadmaps' }) => {
     const [student, setStudent] = useState<Student | null>(null)
+    const [isEditingName, setIsEditingName] = useState(false)
+    const [editedName, setEditedName] = useState('')
     const [isEditingIcon, setIsEditingIcon] = useState(false)
     const [isEditingHonorific, setIsEditingHonorific] = useState(false)
-    const [activeTab, setActiveTab] = useState<'roadmaps' | 'missions' | 'cards' | 'pointshop'>('roadmaps')
-    const [selectedMonsterType, setSelectedMonsterType] = useState<'sogymon' | 'fistmon' | 'dakomon' | 'cloudmon'>('sogymon')
+    const [activeTab, setActiveTab] = useState<'roadmaps' | 'missions' | 'cards' | 'pointshop' | 'avatar'>(initialTab)
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
-    const [purchasedItems, setPurchasedItems] = useState<any[]>([])
-    const [pointItems, setPointItems] = useState<any[]>([])
-    const [pointshopLoading, setPointshopLoading] = useState(true)
-    const [activePointShopTab, setActivePointShopTab] = useState<'items' | 'purchases'>('items')
+    const [isHoverCard, setIsHoverCard] = useState<string | null>(null)
+    const { id: paramsClassId } = useParams()
 
     // 학생 완료 항목 데이터
     const [completedRoadmaps, setCompletedRoadmaps] = useState<{
@@ -116,11 +86,13 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
         roadmapName: string
         stepGoal: string
     }[]>([])
+
     const [completedMissions, setCompletedMissions] = useState<{
         id: string
         name: string
         condition: string
     }[]>([])
+
     const [receivedCards, setReceivedCards] = useState<{
         id: string
         cardId: string
@@ -129,186 +101,32 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
         issuedAt: number
     }[]>([])
 
+    // 포인트샵 관련 상태
+    const [purchasedItems, setPurchasedItems] = useState<any[]>([])
+    const [pointItems, setPointItems] = useState<any[]>([])
+    const [pointshopLoading, setPointshopLoading] = useState(true)
+    const [activePointShopTab, setActivePointShopTab] = useState<'items' | 'purchases'>('items')
+
     // 로딩 상태
     const [roadmapsLoading, setRoadmapsLoading] = useState(true)
     const [missionsLoading, setMissionsLoading] = useState(true)
     const [cardsLoading, setCardsLoading] = useState(true)
 
-    // 학생이 완료한 로드맵 보상 칭호를 가져오는 함수
-    const getAvailableHonorifics = () => {
-        console.log('getAvailableHonorifics 실행', { studentId, classId });
-        const completedRoadmapTitles: string[] = [];
+    // 아바타 관련 상태
+    const [currentAvatar, setCurrentAvatar] = useState<Avatar | null>(null)
+    const [selectedAvatarLayer, setSelectedAvatarLayer] = useState<AvatarLayerType>('head')
+    const [availableItems, setAvailableItems] = useState<AvatarItem[]>([])
 
-        try {
-            // 1. classes 스토리지에서 학생의 칭호 확인
-            const classesJson = localStorage.getItem('classes');
-            if (classesJson) {
-                const classes = JSON.parse(classesJson);
-                const currentClass = classes.find((c: any) => c.id === classId);
-                if (currentClass && currentClass.students) {
-                    const studentData = currentClass.students.find((s: any) => s.id === studentId);
-                    if (studentData && studentData.honorific) {
-                        console.log('classes에서 학생 칭호 확인:', studentData.honorific);
-                        // 학생이 이미 칭호를 가지고 있는 경우 (로드맵 완료를 통해 획득했을 수 있음)
-                        completedRoadmapTitles.push(studentData.honorific);
-                    }
-                }
-            }
+    // 학생 아이콘 업데이트 함수
+    const handleIconSelect = (newIconPath: string) => {
+        if (!student) return;
 
-            // 2. students_classId 스토리지에서 학생 확인
-            const studentsJson = localStorage.getItem(`students_${classId}`);
-            if (studentsJson) {
-                const students = JSON.parse(studentsJson);
-                const studentData = students.find((s: any) => s.id === studentId);
-                if (studentData && studentData.honorific) {
-                    console.log('students_classId에서 학생 칭호 확인:', studentData.honorific);
-                    completedRoadmapTitles.push(studentData.honorific);
-                }
-            }
-
-            // 3. 모든 로드맵 확인하여 학생이 완료한 로드맵의 보상 칭호 가져오기
-            const roadmapsJson = localStorage.getItem(`roadmaps_${classId}`);
-            if (roadmapsJson) {
-                const allRoadmaps = JSON.parse(roadmapsJson);
-                console.log('로드맵 목록 확인:', { count: allRoadmaps.length });
-
-                // 모든 로드맵 확인
-                allRoadmaps.forEach((roadmap: any) => {
-                    if (roadmap.steps && roadmap.steps.length > 0 && roadmap.rewardTitle) {
-                        const lastStep = roadmap.steps[roadmap.steps.length - 1];
-
-                        // 마지막 단계에 학생 배열이 있는지 확인
-                        if (lastStep.students && Array.isArray(lastStep.students)) {
-                            console.log('로드맵 마지막 단계 학생 확인:', {
-                                roadmapName: roadmap.name,
-                                rewardTitle: roadmap.rewardTitle,
-                                studentsCount: lastStep.students.length,
-                                hasCurrentStudent: lastStep.students.includes(studentId)
-                            });
-
-                            // 학생이 마지막 단계에 있는지 확인
-                            if (lastStep.students.includes(studentId)) {
-                                completedRoadmapTitles.push(roadmap.rewardTitle);
-                                console.log('로드맵 보상 칭호 추가:', roadmap.rewardTitle);
-                            }
-                        }
-                    }
-                });
-            }
-
-            // 4. 로드맵_클래스ID_스텝_스텝ID_스튜던츠 스토리지에서 확인
-            if (roadmapsJson) {
-                const allRoadmaps = JSON.parse(roadmapsJson);
-
-                allRoadmaps.forEach((roadmap: any) => {
-                    if (roadmap.steps && roadmap.steps.length > 0 && roadmap.rewardTitle) {
-                        const lastStep = roadmap.steps[roadmap.steps.length - 1];
-
-                        // 로컬 스토리지에서 해당 단계의 학생 목록 확인
-                        const stepStudentsJson = localStorage.getItem(`roadmap_${classId}_step_${lastStep.id}_students`);
-                        if (stepStudentsJson) {
-                            const stepStudents = JSON.parse(stepStudentsJson);
-                            console.log('단계별 학생 목록 확인:', {
-                                roadmapName: roadmap.name,
-                                stepId: lastStep.id,
-                                studentsCount: stepStudents.length,
-                                hasCurrentStudent: stepStudents.includes(studentId)
-                            });
-
-                            // 학생이 마지막 단계에 있는지 확인
-                            if (stepStudents.includes(studentId)) {
-                                completedRoadmapTitles.push(roadmap.rewardTitle);
-                                console.log('로드맵 보상 칭호 추가 (단계별 학생 목록):', roadmap.rewardTitle);
-                            }
-                        }
-                    }
-                });
-            }
-
-            // 5. completedRoadmaps 상태 변수 확인
-            console.log('completedRoadmaps 상태 확인:', { count: completedRoadmaps.length });
-
-            if (completedRoadmaps.length > 0) {
-                const roadmapsJson = localStorage.getItem(`roadmaps_${classId}`);
-                if (roadmapsJson) {
-                    const allRoadmaps = JSON.parse(roadmapsJson);
-
-                    // 완료된 로드맵 찾기
-                    completedRoadmaps.forEach(completedStep => {
-                        const roadmap = allRoadmaps.find((r: any) => r.id === completedStep.roadmapId);
-
-                        if (roadmap && roadmap.steps && roadmap.steps.length > 0 && roadmap.rewardTitle) {
-                            const lastStepId = roadmap.steps[roadmap.steps.length - 1].id;
-
-                            console.log('완료된 로드맵 단계 확인:', {
-                                roadmapName: roadmap.name,
-                                completedStepId: completedStep.stepId,
-                                lastStepId: lastStepId,
-                                isLastStep: completedStep.stepId === lastStepId
-                            });
-
-                            // 완료한 단계가 마지막 단계인 경우 칭호 추가
-                            if (completedStep.stepId === lastStepId) {
-                                completedRoadmapTitles.push(roadmap.rewardTitle);
-                                console.log('로드맵 보상 칭호 추가 (completedRoadmaps):', roadmap.rewardTitle);
-                            }
-                        }
-                    });
-                }
-            }
-        } catch (error) {
-            console.error('로드맵 데이터 파싱 오류:', error);
-        }
-
-        // 중복 제거
-        const uniqueTitles = [...new Set(completedRoadmapTitles)];
-        console.log('최종 사용 가능한 칭호 목록:', uniqueTitles);
-        return uniqueTitles;
-    };
-
-    // 아이콘이 진화할 수 있는지 확인하고 필요시 업데이트하는 함수
-    const checkAndUpdateEvolution = (studentObj: Student) => {
-        // 이미지 경로에서 몬스터 타입 및 진화 단계 추출
-        const currentIconPath = studentObj.iconType || '';
-        const currentLevel = studentObj.stats.level;
-        const currentEvolutionStage = getEvolutionStage(currentLevel);
-
-        // 아이콘 경로가 없으면 종료
-        if (!currentIconPath) return;
-
-        // 알 단계이면 자동으로 다음 단계로 진화 (소기몬으로 기본 진화)
-        if (currentIconPath.includes('/egg/')) {
-            if (currentEvolutionStage !== 'egg') {
-                // 알에서 소기몬 단계 1로 진화
-                const newIconPath = growMonImages.sogymon[0];
-                updateStudentIcon(studentObj, newIconPath);
-                return;
-            }
-            return; // 아직 진화 조건 미달성
-        }
-
-        // 몬스터 타입 확인
-        const monsterType = getMonsterTypeFromImagePath(currentIconPath);
-        if (!monsterType) return; // 몬스터 타입을 식별할 수 없으면 종료
-
-        // 현재 이미지가 1단계 진화인지 확인 (파일명에 따라 구분)
-        const isFirstStage = !currentIconPath.includes('2_');
-
-        // 레벨 10 이상이고 1단계 진화 상태라면 2단계로 진화
-        if (currentEvolutionStage === 'stage2' && isFirstStage) {
-            const newIconPath = growMonImages[monsterType][1]; // 2단계 진화 이미지
-            updateStudentIcon(studentObj, newIconPath);
-        }
-    }
-
-    // 학생 아이콘 업데이트 및 메시지 표시 함수
-    const updateStudentIcon = (studentObj: Student, newIconPath: string) => {
         // 로컬 스토리지에서 클래스 정보 가져오기
         const storedClass = localStorage.getItem(`class_${classId}`);
         if (!storedClass) return;
 
         const updatedClass = JSON.parse(storedClass);
-        const studentIndex = updatedClass.students.findIndex((s: Student) => s.id === studentObj.id);
+        const studentIndex = updatedClass.students.findIndex((s: Student) => s.id === student.id);
 
         if (studentIndex !== -1) {
             // 학생 아이콘 업데이트
@@ -316,33 +134,12 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
             localStorage.setItem(`class_${classId}`, JSON.stringify(updatedClass));
 
             // 상태 업데이트
-            setStudent({ ...studentObj, iconType: newIconPath });
+            setStudent({ ...student, iconType: newIconPath });
+            setIsEditingIcon(false);
 
-            // 진화 메시지 표시
-            toast.success(getEvolutionMessage(newIconPath));
+            // 성공 메시지 표시
+            toast.success("학생 아이콘이 변경되었습니다.");
         }
-    };
-
-    // 진화 메시지 생성 함수
-    const getEvolutionMessage = (newIconPath: string) => {
-        if (newIconPath.includes('sogy1')) {
-            return '축하합니다! 알이 부화하여 소기몬이 되었습니다!';
-        } else if (newIconPath.includes('sogy2')) {
-            return '축하합니다! 소기몬이 소로곤으로 진화했습니다!';
-        } else if (newIconPath.includes('fist1')) {
-            return '축하합니다! 알이 부화하여 파이어피스트가 되었습니다!';
-        } else if (newIconPath.includes('fist2')) {
-            return '축하합니다! 파이어피스트가 오라피스트로 진화했습니다!';
-        } else if (newIconPath.includes('dako1')) {
-            return '축하합니다! 알이 부화하여 다코몬이 되었습니다!';
-        } else if (newIconPath.includes('dako2')) {
-            return '축하합니다! 다코몬이 매지션으로 진화했습니다!';
-        } else if (newIconPath.includes('cloud1')) {
-            return '축하합니다! 알이 부화하여 클라우드몬이 되었습니다!';
-        } else if (newIconPath.includes('cloud2')) {
-            return '축하합니다! 클라우드몬이 진화했습니다!';
-        }
-        return '축하합니다! 몬스터가 진화했습니다!';
     };
 
     useEffect(() => {
@@ -354,13 +151,6 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
         loadReceivedCards()
         loadPointShopItems()
     }, [isOpen, studentId, classId])
-
-    // 학생 정보 로드 시 진화 확인
-    useEffect(() => {
-        if (student) {
-            checkAndUpdateEvolution(student);
-        }
-    }, [student?.stats.level])
 
     const loadStudentInfo = () => {
         try {
@@ -386,6 +176,17 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
 
                         console.log('학생 정보 설정 완료', foundStudent);
                         setStudent(foundStudent);
+
+                        // 아바타 정보 로드
+                        if (foundStudent.avatar) {
+                            setCurrentAvatar(parseAvatarString(foundStudent.avatar));
+                        } else {
+                            setCurrentAvatar(null);
+                        }
+
+                        // 기본적으로 모든 newby 아이템을 사용 가능하게 설정
+                        setAvailableItems([...NEWBY_HEAD_ITEMS]);
+
                         return;
                     }
                 } catch (error) {
@@ -439,6 +240,16 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
 
             console.log('최종 학생 정보 설정:', foundStudent);
             setStudent(foundStudent);
+
+            // 아바타 정보 로드
+            if (foundStudent.avatar) {
+                setCurrentAvatar(parseAvatarString(foundStudent.avatar));
+            } else {
+                setCurrentAvatar(null);
+            }
+
+            // 기본적으로 모든 newby 아이템을 사용 가능하게 설정
+            setAvailableItems([...NEWBY_HEAD_ITEMS]);
 
         } catch (error) {
             console.error('학생 정보 로드 중 오류 발생:', error);
@@ -855,6 +666,181 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
         }
     }
 
+    // 아바타 아이템 선택 핸들러
+    const handleAvatarItemSelect = (item: AvatarItem) => {
+        if (!student || !currentAvatar) return;
+
+        // 새 아바타 생성
+        const newAvatar = updateAvatarItem(currentAvatar, item);
+        setCurrentAvatar(newAvatar);
+
+        // 학생 데이터 업데이트
+        const updatedStudent = {
+            ...student,
+            avatar: stringifyAvatar(newAvatar)
+        };
+
+        // 학생 상태 업데이트
+        setStudent(updatedStudent);
+
+        try {
+            // class_${classId} 데이터 업데이트
+            const storedClass = localStorage.getItem(`class_${classId}`);
+            if (storedClass) {
+                const updatedClass = JSON.parse(storedClass);
+                const studentIndex = updatedClass.students.findIndex((s: Student) => s.id === student.id);
+
+                if (studentIndex !== -1) {
+                    // 학생 아바타 업데이트
+                    updatedClass.students[studentIndex].avatar = stringifyAvatar(newAvatar);
+                    localStorage.setItem(`class_${classId}`, JSON.stringify(updatedClass));
+                }
+            }
+
+            // students_${classId} 데이터 업데이트
+            const savedStudents = localStorage.getItem(`students_${classId}`);
+            if (savedStudents) {
+                const students = JSON.parse(savedStudents);
+                const updatedStudents = students.map((s: Student) =>
+                    s.id === student.id ? { ...s, avatar: stringifyAvatar(newAvatar) } : s
+                );
+                localStorage.setItem(`students_${classId}`, JSON.stringify(updatedStudents));
+            }
+
+            // 변경 메시지 표시
+            toast.success("아바타가 변경되었습니다.");
+        } catch (error) {
+            console.error('아바타 변경 중 오류 발생:', error);
+            toast.error('아바타를 변경하는 중 오류가 발생했습니다.');
+        }
+    };
+
+    // 아바타 레이어 선택 핸들러
+    const handleAvatarLayerSelect = (layer: AvatarLayerType) => {
+        setSelectedAvatarLayer(layer);
+
+        // 선택된 레이어에 따라 사용 가능한 아이템 목록 업데이트
+        if (layer === 'head') {
+            setAvailableItems(NEWBY_HEAD_ITEMS);
+        } else if (layer === 'body') {
+            setAvailableItems(NEWBY_BODY_ITEMS);
+        } else {
+            setAvailableItems([]);
+        }
+    };
+
+    // 아바타 탭 렌더링
+    const renderAvatarTab = () => {
+        if (!student) return null;
+
+        return (
+            <div className="space-y-6">
+                <div className="bg-blue-50 p-4 rounded-lg">
+                    <h3 className="text-lg font-bold text-blue-700 mb-2">학생 아바타</h3>
+                    <p className="text-sm text-blue-600 mb-4">
+                        학생의 아바타를 커스터마이징할 수 있습니다.
+                    </p>
+
+                    {/* 아바타 미리보기 */}
+                    <div className="flex justify-center mb-6">
+                        <div className="w-40 h-40 bg-white rounded-lg shadow-md p-4 flex items-center justify-center">
+                            {currentAvatar ? (
+                                <AvatarRenderer avatar={currentAvatar} size={140} />
+                            ) : (
+                                <div className="flex flex-col items-center text-gray-400">
+                                    <User className="w-16 h-16 mb-2" />
+                                    <p className="text-xs">아바타 없음</p>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* 아바타 레이어 선택 탭 */}
+                    <div className="flex border-b border-gray-200 mb-4">
+                        <button
+                            onClick={() => handleAvatarLayerSelect('body')}
+                            className={`px-4 py-2 font-medium ${selectedAvatarLayer === 'body'
+                                ? 'text-blue-600 border-b-2 border-blue-600'
+                                : 'text-gray-500 hover:text-gray-700'
+                                }`}
+                        >
+                            <div className="flex items-center">
+                                <ShirtIcon className="w-4 h-4 mr-1" />
+                                <span>몸</span>
+                            </div>
+                        </button>
+                        <button
+                            onClick={() => handleAvatarLayerSelect('head')}
+                            className={`px-4 py-2 font-medium ${selectedAvatarLayer === 'head'
+                                ? 'text-blue-600 border-b-2 border-blue-600'
+                                : 'text-gray-500 hover:text-gray-700'
+                                }`}
+                        >
+                            <div className="flex items-center">
+                                <User className="w-4 h-4 mr-1" />
+                                <span>머리</span>
+                            </div>
+                        </button>
+                        <button
+                            onClick={() => handleAvatarLayerSelect('hat')}
+                            className={`px-4 py-2 font-medium ${selectedAvatarLayer === 'hat'
+                                ? 'text-blue-600 border-b-2 border-blue-600'
+                                : 'text-gray-500 hover:text-gray-700'
+                                }`}
+                        >
+                            <div className="flex items-center">
+                                <Award className="w-4 h-4 mr-1" />
+                                <span>모자</span>
+                            </div>
+                        </button>
+                        <button
+                            onClick={() => handleAvatarLayerSelect('weapon')}
+                            className={`px-4 py-2 font-medium ${selectedAvatarLayer === 'weapon'
+                                ? 'text-blue-600 border-b-2 border-blue-600'
+                                : 'text-gray-500 hover:text-gray-700'
+                                }`}
+                        >
+                            <div className="flex items-center">
+                                <Sword className="w-4 h-4 mr-1" />
+                                <span>무기</span>
+                            </div>
+                        </button>
+                    </div>
+
+                    {/* 아이템 선택 그리드 */}
+                    <div className="grid grid-cols-4 gap-3">
+                        {availableItems.length > 0 ? (
+                            availableItems.map((item) => {
+                                // 현재 착용 중인 아이템인지 확인
+                                const isSelected = currentAvatar &&
+                                    currentAvatar[item.type] &&
+                                    currentAvatar[item.type]?.id === item.id;
+
+                                return (
+                                    <div key={item.id} className="flex flex-col items-center">
+                                        <AvatarItemRenderer
+                                            key={item.id}
+                                            imagePath={item.inventoryImagePath || item.imagePath}
+                                            name={item.name}
+                                            size={60}
+                                            isSelected={isSelected ? true : false}
+                                            onClick={() => handleAvatarItemSelect(item)}
+                                        />
+                                        <p className="text-xs text-gray-600 mt-1 text-center">{item.name}</p>
+                                    </div>
+                                );
+                            })
+                        ) : (
+                            <div className="col-span-4 py-8 text-center text-gray-500">
+                                <p>사용 가능한 아이템이 없습니다.</p>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     // 아이콘 렌더링 헬퍼 함수
     const renderIcon = (iconType: string | undefined, size: number = 24) => {
         if (!iconType) {
@@ -874,84 +860,33 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
     }
 
     // 아이콘 선택 모달
-    const renderIconSelectionModal = () => {
+    const renderIconSelector = () => {
         if (!isEditingIcon) return null;
 
         return (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
-                <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-3xl">
-                    <div className="flex justify-between items-center mb-4">
-                        <h3 className="text-xl font-bold text-blue-700">성장 몬스터 변경</h3>
-                        <button
-                            onClick={() => setIsEditingIcon(false)}
-                            className="p-1 rounded-full hover:bg-slate-100"
-                        >
-                            <X className="w-5 h-5 text-slate-500" />
-                        </button>
-                    </div>
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                <div className="bg-white p-6 rounded-lg w-full max-w-md">
+                    <h3 className="text-lg font-medium mb-4">학생 아이콘 선택</h3>
 
-                    {/* 몬스터 타입 선택 탭 */}
-                    <div className="flex border-b border-gray-200 mb-4">
-                        {['sogymon', 'fistmon', 'dakomon', 'cloudmon'].map((type, idx) => (
+                    <div className="grid grid-cols-3 gap-4 mb-4">
+                        {Array.from({ length: 12 }).map((_, index) => (
                             <button
-                                key={type}
-                                onClick={() => setSelectedMonsterType(type as "sogymon" | "fistmon" | "dakomon" | "cloudmon")}
-                                className={`px-4 py-2 font-medium ${selectedMonsterType === type
-                                    ? 'text-blue-600 border-b-2 border-blue-600'
-                                    : 'text-gray-500 hover:text-gray-700'
-                                    }`}
+                                key={index}
+                                onClick={() => handleIconSelect(`/images/icons/student_icon_${index + 1}.png`)}
+                                className="border p-2 rounded-md hover:bg-gray-100 flex flex-col items-center"
                             >
-                                {type === 'sogymon' ? '소기몬' :
-                                    type === 'fistmon' ? '주먹몬' :
-                                        type === 'dakomon' ? '다코몬' : '구름몬'}
+                                <div className="w-16 h-16 relative">
+                                    <Image
+                                        src={`/images/icons/student_icon_${index + 1}.png`}
+                                        alt={`학생 아이콘 ${index + 1}`}
+                                        width={64}
+                                        height={64}
+                                        className="rounded-full object-cover"
+                                    />
+                                </div>
+                                <p className="text-center">학생 {index + 1}</p>
                             </button>
                         ))}
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                        {student && student.stats && growMonImages[selectedMonsterType].map((imagePath, index) => {
-                            // 학생 레벨에 맞는 진화 단계만 표시
-                            const evolutionStage = getEvolutionStage(student.stats.level);
-                            const imageEvolutionStage = index === 0 ? "stage1" : "stage2";
-
-                            // 레벨에 맞지 않는 진화 단계면 표시하지 않음
-                            if ((evolutionStage === "egg") ||
-                                (evolutionStage === "stage1" && imageEvolutionStage === "stage2")) {
-                                return null;
-                            }
-
-                            return (
-                                <button
-                                    key={imagePath}
-                                    onClick={() => {
-                                        if (student) {
-                                            updateStudentIcon(student, imagePath);
-                                            setIsEditingIcon(false);
-                                        }
-                                    }}
-                                    className={`p-2 border rounded-lg cursor-pointer ${student?.iconType === imagePath ? 'border-2 border-blue-500' : 'border-gray-200 hover:border-blue-300'
-                                        }`}
-                                >
-                                    <div className="relative w-full aspect-square mb-2">
-                                        <Image
-                                            src={imagePath}
-                                            alt={`${selectedMonsterType} ${index + 1}`}
-                                            fill
-                                            className="object-cover"
-                                        />
-                                    </div>
-                                    <p className="text-center">
-                                        {index === 0
-                                            ? (selectedMonsterType === 'sogymon' ? '소기몬' :
-                                                selectedMonsterType === 'fistmon' ? '파이어피스트' :
-                                                    selectedMonsterType === 'dakomon' ? '다코몬' : '클라우드몬')
-                                            : (selectedMonsterType === 'sogymon' ? '소로곤' :
-                                                selectedMonsterType === 'fistmon' ? '오라피스트' :
-                                                    selectedMonsterType === 'dakomon' ? '매지션' : '구름몬 2단계')}
-                                    </p>
-                                </button>
-                            );
-                        })}
                     </div>
 
                     <div className="flex justify-end mt-2">
@@ -1063,10 +998,14 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                         <div className="bg-gradient-to-b from-blue-50 to-white rounded-xl border border-blue-100 shadow-sm p-6">
                             {/* 프로필 섹션 */}
                             <div className="flex flex-col items-center">
-                                {/* 프로필 아이콘 */}
+                                {/* 프로필 아이콘 - 아바타 사용 */}
                                 <div className="relative w-32 h-32 mb-4">
                                     <div className="w-full h-full rounded-full overflow-hidden border-4 border-white shadow-lg">
-                                        {renderIcon(student.iconType, 32)}
+                                        {student.avatar ? (
+                                            <AvatarRenderer avatar={student.avatar} size={128} />
+                                        ) : (
+                                            renderIcon(student.iconType, 32)
+                                        )}
                                     </div>
                                 </div>
 
@@ -1158,6 +1097,18 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                                 onClick={() => setActiveTab('pointshop')}
                             >
                                 포인트 상점
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('avatar')}
+                                className={`px-4 py-2 font-medium border-b-2 ${activeTab === 'avatar'
+                                    ? 'border-blue-500 text-blue-600'
+                                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                                    }`}
+                            >
+                                <div className="flex items-center">
+                                    <User className="w-4 h-4 mr-1" />
+                                    <span>아바타</span>
+                                </div>
                             </button>
                         </div>
 
@@ -1410,6 +1361,9 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                                     )}
                                 </div>
                             )}
+
+                            {/* 아바타 탭 */}
+                            {activeTab === 'avatar' && renderAvatarTab()}
                         </div>
                     </div>
                 </div>

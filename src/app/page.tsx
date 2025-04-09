@@ -71,7 +71,7 @@ export default function Home() {
     {
       icon: <TrendingUp className="w-12 h-12 text-green-600" />,
       title: "레벨 시스템",
-      description: "레벨업을 통해 그로몬을 키우며 학생들의 성장 과정을 시각적으로 확인할 수 있습니다."
+      description: "레벨업을 통해 학생들의 성장 과정을 시각적으로 확인할 수 있습니다."
     },
     {
       icon: <Gift className="w-12 h-12 text-pink-600" />,
@@ -160,9 +160,9 @@ export default function Home() {
         {/* 세 번째 섹션 - 레벨업과 포인트 시스템 */}
         <div className="w-full max-w-5xl bg-gradient-to-r from-blue-500/70 to-purple-500/70 backdrop-blur-sm rounded-xl p-8 shadow-xl mb-10">
           <div className="text-center text-white">
-            <h3 className="text-3xl font-bold mb-6">레벨업을 해 그로몬을 키우고<br />포인트로 쿠폰을 구매할 수 있게 하세요!</h3>
+            <h3 className="text-3xl font-bold mb-6">레벨업과 포인트 시스템으로<br />학습 동기부여를 제공하세요!</h3>
             <p className="text-lg mb-8">
-              미션을 달성하고 로드맵을 완료하면서 레벨업! 자신만의 그로몬을 성장시키고,<br />
+              미션을 달성하고 로드맵을 완료하면서 레벨업! 성장 시스템을 통해 성취감을 얻고,<br />
               획득한 포인트로 다양한 보상을 구매해보세요.
             </p>
             <Button

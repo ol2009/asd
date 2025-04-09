@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useUser } from '../hooks/useUser';
-import { Button } from './ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
-import { Alert, AlertDescription, AlertTitle } from './ui/alert';
+import { useUser } from '@/hooks/useUser';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Loader2 } from 'lucide-react';
+import { migrateDataToSupabase, checkMigrationStatus } from '@/lib/migration';
 
 export function MigrationStatus() {
     const { user } = useUser();
@@ -17,14 +18,24 @@ export function MigrationStatus() {
         supabaseCount: number;
     } | null>(null);
 
+    const checkStatus = async () => {
+        if (!user?.id) return;
+
+        try {
+            const result = await checkMigrationStatus(user.id);
+            if ('error' in result) {
+                setError('상태 확인 중 오류가 발생했습니다.');
+                return;
+            }
+            setStatus(result);
+        } catch (err) {
+            setError('상태 확인 중 오류가 발생했습니다.');
+        }
+    };
+
     useEffect(() => {
-        // 여기서 마이그레이션 상태를 체크할 수 있습니다
         if (user?.id) {
-            setStatus({
-                isComplete: false,
-                localCount: 0,
-                supabaseCount: 0
-            });
+            checkStatus();
         }
     }, [user?.id]);
 
@@ -35,14 +46,12 @@ export function MigrationStatus() {
         setError(null);
 
         try {
-            // 실제 마이그레이션 로직은 여기서 구현합니다
-            await new Promise(resolve => setTimeout(resolve, 1000));
-
-            setStatus({
-                isComplete: true,
-                localCount: 0,
-                supabaseCount: 0
-            });
+            const result = await migrateDataToSupabase(user.id);
+            if (!result.success) {
+                setError('마이그레이션 중 오류가 발생했습니다.');
+                return;
+            }
+            await checkStatus();
         } catch (err) {
             setError('마이그레이션 중 오류가 발생했습니다.');
         } finally {

@@ -4,6 +4,9 @@ import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { ArrowLeft, User, BookOpen, Sparkles, Award, Brain, Star, PenTool, Code, Coffee, Zap, Heart, Globe, Compass, Edit } from 'lucide-react'
 import { toast } from 'sonner'
+import AvatarRenderer from '@/components/Avatar'
+import { parseAvatarString, createRandomNewbyAvatar, stringifyAvatar } from '@/lib/avatar'
+import StudentDetailModal from '../../components/StudentDetailModal'
 
 interface Student {
     id: string
@@ -15,6 +18,7 @@ interface Student {
         level: number
     }
     iconType: string
+    avatar?: string
     completedQuests?: string[] // 완료된 퀘스트 ID 목록
     rewardCards?: string[] // 획득한 칭찬 카드 ID 목록
 }
@@ -67,6 +71,7 @@ export default function StudentDetailPage() {
     const [isEditingIcon, setIsEditingIcon] = useState(false)
     const [isEditingHonorific, setIsEditingHonorific] = useState(false)
     const [user, setUser] = useState<any>(null)
+    const [isDetailModalOpen, setIsDetailModalOpen] = useState(false)
 
     useEffect(() => {
         // 로그인 상태 확인
@@ -91,6 +96,11 @@ export default function StudentDetailPage() {
                     }
                     if (!foundStudent.rewardCards) {
                         foundStudent.rewardCards = ['r2', 'r5'] // 데모 데이터
+                    }
+
+                    // 아바타가 없는 경우 초기 아바타 생성
+                    if (!foundStudent.avatar) {
+                        foundStudent.avatar = stringifyAvatar(createRandomNewbyAvatar())
                     }
 
                     setStudent(foundStudent)
@@ -242,13 +252,17 @@ export default function StudentDetailPage() {
                 {/* 학생 기본 정보 카드 */}
                 <div className="bg-slate-800/60 backdrop-blur-sm rounded-lg p-6 mb-6">
                     <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
-                        {/* 아이콘 영역 */}
+                        {/* 아이콘 영역 - 아바타로 교체 */}
                         <div className="relative">
-                            <div className="w-24 h-24 bg-slate-700 rounded-full flex items-center justify-center text-white">
-                                {renderIcon(student.iconType, 10)}
+                            <div className="w-24 h-24 bg-slate-700 rounded-full flex items-center justify-center overflow-hidden">
+                                {student.avatar ? (
+                                    <AvatarRenderer avatar={student.avatar} size={96} />
+                                ) : (
+                                    renderIcon(student.iconType, 10)
+                                )}
                             </div>
                             <button
-                                onClick={() => setIsEditingIcon(true)}
+                                onClick={() => setIsDetailModalOpen(true)}
                                 className="absolute bottom-0 right-0 p-1 bg-pink-500 rounded-full"
                                 title="아이콘 변경"
                             >
@@ -281,28 +295,40 @@ export default function StudentDetailPage() {
                     </div>
                 </div>
 
+                {/* 학생 상세 모달 - 아바타 수정 기능 제공 */}
+                <StudentDetailModal
+                    isOpen={isDetailModalOpen}
+                    onClose={() => setIsDetailModalOpen(false)}
+                    studentId={studentId}
+                    classId={id}
+                    initialTab="avatar"
+                />
+
                 {/* 아이콘 변경 모달 */}
                 {isEditingIcon && (
                     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
                         <div className="bg-slate-800 rounded-lg p-6 w-full max-w-md">
-                            <h3 className="text-xl font-bold text-white mb-4">아이콘 변경</h3>
-                            <div className="grid grid-cols-4 gap-4 mb-4">
-                                {iconTypes.map(iconType => (
-                                    <button
-                                        key={iconType}
-                                        onClick={() => handleIconChange(iconType)}
-                                        className={`w-full h-14 rounded-lg flex items-center justify-center ${student.iconType === iconType ? 'bg-pink-500' : 'bg-slate-700'} hover:bg-pink-600 transition`}
-                                    >
-                                        {renderIcon(iconType)}
-                                    </button>
-                                ))}
+                            <h3 className="text-xl font-bold text-white mb-4">아바타 수정</h3>
+                            <p className="text-gray-300 mb-6">
+                                학생의 아바타를 수정하려면 학생 상세 모달에서 변경해주세요.
+                            </p>
+                            <div className="flex justify-end gap-2">
+                                <button
+                                    onClick={() => {
+                                        setIsEditingIcon(false);
+                                        setIsDetailModalOpen(true);
+                                    }}
+                                    className="px-4 py-2 bg-pink-500 hover:bg-pink-600 text-white rounded-md"
+                                >
+                                    아바타 수정하기
+                                </button>
+                                <button
+                                    onClick={() => setIsEditingIcon(false)}
+                                    className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-md"
+                                >
+                                    취소
+                                </button>
                             </div>
-                            <button
-                                onClick={() => setIsEditingIcon(false)}
-                                className="w-full px-4 py-2 rounded-md bg-slate-700 text-white hover:bg-slate-600 transition"
-                            >
-                                취소
-                            </button>
                         </div>
                     </div>
                 )}

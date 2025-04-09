@@ -228,124 +228,49 @@ export default function MissionsPage() {
     // 학생의 경험치와 레벨을 업데이트하는 함수
     const updateStudentExpAndLevel = (studentId: string, expToAdd: number) => {
         try {
-            console.log(`미션 달성: 학생 ID ${studentId}에게 ${expToAdd} 경험치 부여 시작`);
-
-            // 1. students_classId에서 학생 정보 가져오기
-            const savedStudents = localStorage.getItem(`students_${classId}`);
-            if (!savedStudents) {
+            // 학생 정보 가져오기
+            const studentsJson = localStorage.getItem(`students_${classId}`);
+            if (!studentsJson) {
                 console.error('학생 데이터를 찾을 수 없습니다.');
                 return;
             }
 
-            const students = JSON.parse(savedStudents);
+            const students = JSON.parse(studentsJson);
             const studentIndex = students.findIndex((s: Student) => s.id === studentId);
 
             if (studentIndex === -1) {
-                console.error('학생을 찾을 수 없습니다.');
+                console.error('해당 학생을 찾을 수 없습니다.');
                 return;
             }
 
-            // 학생 데이터 업데이트
             const student = students[studentIndex];
 
-            // 경험치, 레벨, 포인트가 없으면 초기화
-            if (!student.stats) {
-                student.stats = { level: 0, exp: 0 };
-            }
-            if (!student.stats.exp) {
-                student.stats.exp = 0;
-            }
-            if (student.stats.level === undefined) {
-                student.stats.level = 0;
-            }
-            if (!student.points) {
-                student.points = 0;
-            }
-
-            // 현재 레벨과 경험치 기록
+            // 현재 레벨과 경험치 기록 (변화 감지용)
             const currentLevel = student.stats.level;
             const currentExp = student.stats.exp;
-            console.log(`현재 상태: Lv.${currentLevel}, Exp ${currentExp}, 포인트 ${student.points}`);
 
-            // 요구사항에 맞게 직접 레벨 1 증가
-            const newLevel = currentLevel + 1;
+            // 새로운 경험치 계산
+            const newExp = currentExp + expToAdd;
 
-            // 경험치 추가 (로직 유지를 위해)
-            student.stats.exp += expToAdd;
+            // 새로운 레벨 계산
+            const newLevel = Math.floor(newExp / EXP_PER_LEVEL) + 1;
 
-            // 레벨 설정
+            // 경험치 업데이트
+            student.stats.exp = newExp;
             student.stats.level = newLevel;
 
-            // 포인트 지급 (레벨 1당 100포인트)
-            student.points += POINTS_PER_LEVEL;
+            // 레벨업 시 포인트 지급
+            if (newLevel > currentLevel) {
+                const levelsGained = newLevel - currentLevel;
+                const pointsToAdd = levelsGained * POINTS_PER_LEVEL;
 
-            console.log(`레벨업! Lv.${currentLevel} → Lv.${newLevel}, 포인트 +${POINTS_PER_LEVEL}`);
+                student.points = (student.points || 0) + pointsToAdd;
+                console.log(`레벨업! Lv.${currentLevel} -> Lv.${newLevel} (${pointsToAdd} 포인트 지급)`);
+            }
 
-            // 몬스터 진화 처리 - 성장 몬스터 진화 로직 적용
-            let evolutionMessage = '';
-            if (student.iconType) {
-                // 현재 진화 단계 확인
-                const currentStage = currentLevel < 1 ? 'egg' : (currentLevel < 5 ? 'stage1' : 'stage2');
-                const newStage = newLevel < 1 ? 'egg' : (newLevel < 5 ? 'stage1' : 'stage2');
-
-                // 진화 단계 변화가 있는 경우만 처리
-                if (currentStage !== newStage) {
-                    const currentIcon = student.iconType;
-
-                    // 알에서 1단계 진화 (레벨 0 -> 레벨 1)
-                    if (currentStage === 'egg' && newStage === 'stage1' && currentIcon.includes('/egg/')) {
-                        const monsterTypes = ['sogymon', 'fistmon', 'dakomon', 'cloudmon'];
-                        const randomType = monsterTypes[Math.floor(Math.random() * monsterTypes.length)];
-                        const growMonImages: Record<string, string[]> = {
-                            sogymon: ['/images/icons/growmon/sogymon/sogy1.jpg', '/images/icons/growmon/sogymon/sogy2_sorogon.jpg'],
-                            fistmon: ['/images/icons/growmon/fistmon/fist1_firefist.jpg', '/images/icons/growmon/fistmon/fist2_orafist.jpg'],
-                            dakomon: ['/images/icons/growmon/dakomon/dako1.jpg?v=2', '/images/icons/growmon/dakomon/dako2_magicion.jpg'],
-                            cloudmon: ['/images/icons/growmon/cloudmon/cloud1.jpg', '/images/icons/growmon/cloudmon/cloud2.jpg']
-                        };
-
-                        const newIcon = growMonImages[randomType][0];
-                        student.iconType = newIcon;
-
-                        const monsterNames: Record<string, string> = {
-                            'sogymon': '소기몬',
-                            'fistmon': '파이어피스트',
-                            'dakomon': '다코몬',
-                            'cloudmon': '클라우드몬'
-                        };
-                        evolutionMessage = `${student.name} 학생의 알이 ${monsterNames[randomType]}으로 부화했습니다!`;
-                        console.log(`몬스터 진화: ${currentIcon} -> ${newIcon}`);
-                    }
-
-                    // 1단계에서 2단계 진화 (레벨 4 -> 레벨 5)
-                    else if (currentStage === 'stage1' && newStage === 'stage2') {
-                        let monsterType = null;
-                        if (currentIcon.includes('sogymon')) monsterType = 'sogymon';
-                        else if (currentIcon.includes('fistmon')) monsterType = 'fistmon';
-                        else if (currentIcon.includes('dakomon')) monsterType = 'dakomon';
-                        else if (currentIcon.includes('cloudmon')) monsterType = 'cloudmon';
-
-                        if (monsterType) {
-                            const growMonImages: Record<string, string[]> = {
-                                sogymon: ['/images/icons/growmon/sogymon/sogy1.jpg', '/images/icons/growmon/sogymon/sogy2_sorogon.jpg'],
-                                fistmon: ['/images/icons/growmon/fistmon/fist1_firefist.jpg', '/images/icons/growmon/fistmon/fist2_orafist.jpg'],
-                                dakomon: ['/images/icons/growmon/dakomon/dako1.jpg?v=2', '/images/icons/growmon/dakomon/dako2_magicion.jpg'],
-                                cloudmon: ['/images/icons/growmon/cloudmon/cloud1.jpg', '/images/icons/growmon/cloudmon/cloud2.jpg']
-                            };
-
-                            const newIcon = growMonImages[monsterType][1];
-                            student.iconType = newIcon;
-
-                            const evolvedNames: Record<string, string> = {
-                                'sogymon': '소로곤',
-                                'fistmon': '오라피스트',
-                                'dakomon': '매지션',
-                                'cloudmon': '클라우드몬 2단계'
-                            };
-                            evolutionMessage = `${student.name} 학생의 몬스터가 ${evolvedNames[monsterType]}으로 진화했습니다!`;
-                            console.log(`몬스터 진화: ${currentIcon} -> ${newIcon}`);
-                        }
-                    }
-                }
+            // 학생 아이콘이 없는 경우 기본 아이콘 설정
+            if (!student.iconType) {
+                student.iconType = '/images/icons/student_icon_1.png';
             }
 
             // 1. students_classId 저장소 업데이트
@@ -426,7 +351,7 @@ export default function MissionsPage() {
             const baseId = `${student.id}-${Date.now()}`;
             const newNotifications: {
                 id: string;
-                type: 'exp' | 'levelup' | 'evolution' | 'points';
+                type: 'exp' | 'levelup' | 'points';
                 message: string;
                 studentId: string;
                 expanded: boolean;
@@ -465,18 +390,6 @@ export default function MissionsPage() {
                     expanded: false,
                     timestamp: Date.now() + 200
                 });
-
-                // 진화 알림
-                if (evolutionMessage) {
-                    newNotifications.push({
-                        id: `${baseId}-evolution`,
-                        type: 'evolution',
-                        message: evolutionMessage,
-                        studentId: student.id,
-                        expanded: false,
-                        timestamp: Date.now() + 300
-                    });
-                }
             }
 
             // 알림 추가 및 자동 제거 (60초 후)
@@ -487,8 +400,7 @@ export default function MissionsPage() {
 
             console.log(`학생 업데이트 완료: Lv.${student.stats.level}, Exp ${student.stats.exp}, 포인트 ${student.points}`);
         } catch (error) {
-            console.error('학생 데이터 업데이트 오류:', error);
-            toast.error('학생 데이터를 업데이트하는 중 오류가 발생했습니다.');
+            console.error('학생 경험치 및 레벨 업데이트 중 오류 발생:', error);
         }
     }
 
