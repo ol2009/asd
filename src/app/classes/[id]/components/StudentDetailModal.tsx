@@ -958,86 +958,86 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
 
         return (
             <div>
-                <div className="flex flex-col gap-3">
+                <div className="flex flex-col gap-4">
                     {/* 아바타 커스터마이징 영역 */}
-                    <div className="bg-blue-50 p-3 rounded-lg">
-                        <div className="flex justify-between items-center mb-2">
-                            <h3 className="text-sm font-bold text-gray-800">아바타 커스터마이징</h3>
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                        <div className="flex justify-between items-center mb-3">
+                            <h3 className="text-base font-bold text-gray-800">아바타 커스터마이징</h3>
                             <button
                                 onClick={() => setActiveTab('pointshop')}
-                                className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded flex items-center"
+                                className="text-sm bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1.5 rounded flex items-center"
                             >
-                                <ShoppingCart className="w-3 h-3 mr-1" />
+                                <ShoppingCart className="w-4 h-4 mr-1" />
                                 상점 방문
                             </button>
                         </div>
 
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-4">
                             {/* 아바타 미리보기 */}
-                            <div className="w-16 h-16 bg-white rounded-lg shadow-sm p-2 flex items-center justify-center">
+                            <div className="w-24 h-24 bg-white rounded-lg shadow-sm p-2 flex items-center justify-center">
                                 {currentAvatar ? (
-                                    <AvatarRenderer avatar={currentAvatar} size={50} className="mx-auto" />
+                                    <AvatarRenderer avatar={currentAvatar} size={75} className="mx-auto" />
                                 ) : (
                                     <div className="flex flex-col items-center text-gray-400">
-                                        <User className="w-6 h-6 mb-1" />
-                                        <p className="text-xs">아바타 없음</p>
+                                        <User className="w-8 h-8 mb-1" />
+                                        <p className="text-sm">아바타 없음</p>
                                     </div>
                                 )}
                             </div>
 
                             {/* 아바타 레이어 선택 탭 */}
                             <div className="flex-1">
-                                <div className="flex flex-wrap gap-1 mb-2">
+                                <div className="flex flex-wrap gap-2 mb-3">
                                     <button
                                         onClick={() => handleAvatarLayerSelect('body')}
-                                        className={`px-2 py-1 text-xs font-medium rounded-full ${selectedAvatarLayer === 'body'
+                                        className={`px-3 py-1.5 text-sm font-medium rounded-full ${selectedAvatarLayer === 'body'
                                             ? 'bg-blue-600 text-white'
                                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                             }`}
                                     >
                                         <div className="flex items-center">
-                                            <ShirtIcon className="w-3 h-3 mr-1" />
+                                            <ShirtIcon className="w-4 h-4 mr-1" />
                                             <span>몸</span>
                                         </div>
                                     </button>
                                     <button
                                         onClick={() => handleAvatarLayerSelect('head')}
-                                        className={`px-2 py-1 text-xs font-medium rounded-full ${selectedAvatarLayer === 'head'
+                                        className={`px-3 py-1.5 text-sm font-medium rounded-full ${selectedAvatarLayer === 'head'
                                             ? 'bg-blue-600 text-white'
                                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                             }`}
                                     >
                                         <div className="flex items-center">
-                                            <User className="w-3 h-3 mr-1" />
+                                            <User className="w-4 h-4 mr-1" />
                                             <span>머리</span>
                                         </div>
                                     </button>
                                     <button
                                         onClick={() => handleAvatarLayerSelect('hat')}
-                                        className={`px-2 py-1 text-xs font-medium rounded-full ${selectedAvatarLayer === 'hat'
+                                        className={`px-3 py-1.5 text-sm font-medium rounded-full ${selectedAvatarLayer === 'hat'
                                             ? 'bg-blue-600 text-white'
                                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                             }`}
                                     >
                                         <div className="flex items-center">
-                                            <Award className="w-3 h-3 mr-1" />
+                                            <Award className="w-4 h-4 mr-1" />
                                             <span>모자</span>
                                         </div>
                                     </button>
                                     <button
                                         onClick={() => handleAvatarLayerSelect('weapon')}
-                                        className={`px-2 py-1 text-xs font-medium rounded-full ${selectedAvatarLayer === 'weapon'
+                                        className={`px-3 py-1.5 text-sm font-medium rounded-full ${selectedAvatarLayer === 'weapon'
                                             ? 'bg-blue-600 text-white'
                                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                             }`}
                                     >
                                         <div className="flex items-center">
-                                            <Sword className="w-3 h-3 mr-1" />
+                                            <Sword className="w-4 h-4 mr-1" />
                                             <span>무기</span>
                                         </div>
                                     </button>
                                 </div>
-                                <p className="text-xs text-gray-500">
+                                <p className="text-sm text-gray-500">
                                     {selectedAvatarLayer === 'head' ? '머리 아이템 선택' :
                                         selectedAvatarLayer === 'body' ? '몸통 아이템 선택' :
                                             selectedAvatarLayer === 'hat' ? '모자 아이템 선택' : '무기 아이템 선택'}
@@ -1047,8 +1047,8 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                     </div>
 
                     {/* 아이템 선택 그리드 */}
-                    <div className="bg-white p-2 rounded-lg border border-gray-100">
-                        <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 place-items-center mx-auto">
+                    <div className="bg-white p-4 rounded-lg border border-gray-100">
+                        <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 place-items-center mx-auto">
                             {availableItems.length > 0 ? (
                                 availableItems.map((item) => {
                                     // 현재 착용 중인 아이템인지 확인
@@ -1058,28 +1058,28 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
 
                                     return (
                                         <div key={item.id} className="flex flex-col items-center w-full">
-                                            <div className={`flex justify-center w-full p-1 rounded-lg transition-all ${isSelected ? 'bg-blue-100' : 'hover:bg-blue-50'}`}>
+                                            <div className={`flex justify-center w-full p-2 rounded-lg transition-all ${isSelected ? 'bg-blue-100' : 'hover:bg-blue-50'}`}>
                                                 <AvatarItemRenderer
                                                     key={item.id}
                                                     imagePath={item.inventoryImagePath || item.imagePath}
                                                     name={item.name}
-                                                    size={32}
+                                                    size={48}
                                                     isSelected={isSelected ? true : false}
                                                     onClick={() => handleAvatarItemSelect(item)}
                                                     rarity={item.rarity}
                                                     showRarityBadge={true}
                                                 />
                                             </div>
-                                            <p className="text-xs text-gray-600 mt-0.5 text-center truncate w-full">
+                                            <p className="text-sm text-gray-600 mt-1 text-center truncate w-full">
                                                 {item.name}
                                             </p>
                                         </div>
                                     );
                                 })
                             ) : (
-                                <div className="col-span-6 py-3 text-center text-gray-500">
+                                <div className="col-span-5 py-4 text-center text-gray-500">
                                     <p>사용 가능한 아이템이 없습니다.</p>
-                                    <p className="text-xs mt-1">골드 상점에서 아이템을 구매해보세요!</p>
+                                    <p className="text-sm mt-1">골드 상점에서 아이템을 구매해보세요!</p>
                                 </div>
                             )}
                         </div>
