@@ -959,95 +959,90 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
         return (
             <div>
                 <div className="flex flex-col gap-3">
-                    {/* 아바타 미리보기와 설정 영역 */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        {/* 아바타 미리보기 */}
-                        <div className="bg-blue-50 p-3 rounded-lg flex flex-col items-center">
-                            <div className="w-20 h-20 bg-white rounded-lg shadow-sm p-2 flex items-center justify-center">
-                                {currentAvatar ? (
-                                    <AvatarRenderer avatar={currentAvatar} size={70} className="mx-auto" />
-                                ) : (
-                                    <div className="flex flex-col items-center text-gray-400">
-                                        <User className="w-8 h-8 mb-1" />
-                                        <p className="text-xs">아바타 없음</p>
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="mt-2 text-center w-full">
-                                <h4 className="text-xs font-semibold text-blue-700">착용 중인 아바타</h4>
-                            </div>
-
+                    {/* 아바타 커스터마이징 영역 */}
+                    <div className="bg-blue-50 p-3 rounded-lg">
+                        <div className="flex justify-between items-center mb-2">
+                            <h3 className="text-sm font-bold text-gray-800">아바타 커스터마이징</h3>
                             <button
                                 onClick={() => setActiveTab('pointshop')}
-                                className="mt-2 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded flex items-center"
+                                className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded flex items-center"
                             >
                                 <ShoppingCart className="w-3 h-3 mr-1" />
                                 상점 방문
                             </button>
                         </div>
 
-                        {/* 아바타 레이어 선택 */}
-                        <div className="col-span-3">
-                            <h3 className="text-sm font-bold text-gray-800 mb-2">아바타 커스터마이징</h3>
-
-                            {/* 아바타 레이어 선택 탭 */}
-                            <div className="flex flex-wrap gap-1 mb-2">
-                                <button
-                                    onClick={() => handleAvatarLayerSelect('body')}
-                                    className={`px-2 py-1 text-xs font-medium rounded-full ${selectedAvatarLayer === 'body'
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                        }`}
-                                >
-                                    <div className="flex items-center">
-                                        <ShirtIcon className="w-3 h-3 mr-1" />
-                                        <span>몸</span>
+                        <div className="flex items-center gap-3">
+                            {/* 아바타 미리보기 */}
+                            <div className="w-16 h-16 bg-white rounded-lg shadow-sm p-2 flex items-center justify-center">
+                                {currentAvatar ? (
+                                    <AvatarRenderer avatar={currentAvatar} size={50} className="mx-auto" />
+                                ) : (
+                                    <div className="flex flex-col items-center text-gray-400">
+                                        <User className="w-6 h-6 mb-1" />
+                                        <p className="text-xs">아바타 없음</p>
                                     </div>
-                                </button>
-                                <button
-                                    onClick={() => handleAvatarLayerSelect('head')}
-                                    className={`px-2 py-1 text-xs font-medium rounded-full ${selectedAvatarLayer === 'head'
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                        }`}
-                                >
-                                    <div className="flex items-center">
-                                        <User className="w-3 h-3 mr-1" />
-                                        <span>머리</span>
-                                    </div>
-                                </button>
-                                <button
-                                    onClick={() => handleAvatarLayerSelect('hat')}
-                                    className={`px-2 py-1 text-xs font-medium rounded-full ${selectedAvatarLayer === 'hat'
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                        }`}
-                                >
-                                    <div className="flex items-center">
-                                        <Award className="w-3 h-3 mr-1" />
-                                        <span>모자</span>
-                                    </div>
-                                </button>
-                                <button
-                                    onClick={() => handleAvatarLayerSelect('weapon')}
-                                    className={`px-2 py-1 text-xs font-medium rounded-full ${selectedAvatarLayer === 'weapon'
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                        }`}
-                                >
-                                    <div className="flex items-center">
-                                        <Sword className="w-3 h-3 mr-1" />
-                                        <span>무기</span>
-                                    </div>
-                                </button>
+                                )}
                             </div>
 
-                            <p className="text-xs text-gray-500 mb-1">
-                                {selectedAvatarLayer === 'head' ? '머리 아이템 선택' :
-                                    selectedAvatarLayer === 'body' ? '몸통 아이템 선택' :
-                                        selectedAvatarLayer === 'hat' ? '모자 아이템 선택' : '무기 아이템 선택'}
-                            </p>
+                            {/* 아바타 레이어 선택 탭 */}
+                            <div className="flex-1">
+                                <div className="flex flex-wrap gap-1 mb-2">
+                                    <button
+                                        onClick={() => handleAvatarLayerSelect('body')}
+                                        className={`px-2 py-1 text-xs font-medium rounded-full ${selectedAvatarLayer === 'body'
+                                            ? 'bg-blue-600 text-white'
+                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                            }`}
+                                    >
+                                        <div className="flex items-center">
+                                            <ShirtIcon className="w-3 h-3 mr-1" />
+                                            <span>몸</span>
+                                        </div>
+                                    </button>
+                                    <button
+                                        onClick={() => handleAvatarLayerSelect('head')}
+                                        className={`px-2 py-1 text-xs font-medium rounded-full ${selectedAvatarLayer === 'head'
+                                            ? 'bg-blue-600 text-white'
+                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                            }`}
+                                    >
+                                        <div className="flex items-center">
+                                            <User className="w-3 h-3 mr-1" />
+                                            <span>머리</span>
+                                        </div>
+                                    </button>
+                                    <button
+                                        onClick={() => handleAvatarLayerSelect('hat')}
+                                        className={`px-2 py-1 text-xs font-medium rounded-full ${selectedAvatarLayer === 'hat'
+                                            ? 'bg-blue-600 text-white'
+                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                            }`}
+                                    >
+                                        <div className="flex items-center">
+                                            <Award className="w-3 h-3 mr-1" />
+                                            <span>모자</span>
+                                        </div>
+                                    </button>
+                                    <button
+                                        onClick={() => handleAvatarLayerSelect('weapon')}
+                                        className={`px-2 py-1 text-xs font-medium rounded-full ${selectedAvatarLayer === 'weapon'
+                                            ? 'bg-blue-600 text-white'
+                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                            }`}
+                                    >
+                                        <div className="flex items-center">
+                                            <Sword className="w-3 h-3 mr-1" />
+                                            <span>무기</span>
+                                        </div>
+                                    </button>
+                                </div>
+                                <p className="text-xs text-gray-500">
+                                    {selectedAvatarLayer === 'head' ? '머리 아이템 선택' :
+                                        selectedAvatarLayer === 'body' ? '몸통 아이템 선택' :
+                                            selectedAvatarLayer === 'hat' ? '모자 아이템 선택' : '무기 아이템 선택'}
+                                </p>
+                            </div>
                         </div>
                     </div>
 
@@ -1798,46 +1793,31 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                                     )}
                                 </div>
                             )}
+
+                            {/* 아바타 탭 */}
+                            {activeTab === 'avatar' && renderAvatarTab()}
                         </div>
                     </div>
                 </div>
 
-                {/* 칭호 변경 모달 */}
+                {/* 아이콘 선택 모달 */}
+                {isEditingIcon && renderIconSelector()}
+
+                {/* 칭호 선택 모달 */}
                 {isEditingHonorific && (
-                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]">
+                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
                         <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-xl font-bold text-blue-700">칭호 변경</h3>
-                                <button
-                                    onClick={() => setIsEditingHonorific(false)}
-                                    className="p-1 rounded-full hover:bg-slate-100"
-                                >
-                                    <X className="w-5 h-5 text-slate-500" />
-                                </button>
-                            </div>
+                            <h3 className="text-lg font-medium mb-4">학생 칭호 변경</h3>
 
-                            {/* 기본 칭호 목록 */}
-                            <div className="mb-6">
-                                <h4 className="text-sm font-medium text-slate-500 mb-2">기본 칭호</h4>
-                                <div className="grid grid-cols-2 gap-3">
-                                    {/* 칭호 없음 버튼 */}
-                                    <button
-                                        onClick={() => handleHonorificChange('')}
-                                        className={`py-2 px-3 rounded-lg transition-colors ${!student.honorific
-                                            ? 'bg-blue-600 text-white font-medium'
-                                            : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
-                                            }`}
-                                    >
-                                        칭호 없음
-                                    </button>
-
-                                    {/* 기본 칭호 목록 */}
+                            <div className="space-y-2">
+                                <div className="font-medium text-sm mb-2">기본 칭호</div>
+                                <div className="grid grid-cols-2 gap-2 mb-4">
                                     {honorifics.map((honorific) => (
                                         <button
                                             key={honorific}
                                             onClick={() => handleHonorificChange(honorific)}
-                                            className={`py-2 px-3 rounded-lg transition-colors ${student.honorific === honorific
-                                                ? 'bg-blue-600 text-white font-medium'
+                                            className={`py-2 px-3 rounded-lg transition-colors ${student?.honorific === honorific
+                                                ? 'bg-blue-500 text-white'
                                                 : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
                                                 }`}
                                         >
@@ -1845,37 +1825,22 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                                         </button>
                                     ))}
                                 </div>
-                            </div>
 
-                            {/* 로드맵 달성 칭호 목록 */}
-                            <div>
-                                <h4 className="text-sm font-medium text-slate-500 mb-2">
-                                    <span className="flex items-center gap-1">
-                                        <Award className="w-4 h-4 text-yellow-500" />
-                                        로드맵 달성 칭호
-                                    </span>
-                                </h4>
-
-                                {getAvailableHonorifics().length === 0 ? (
-                                    <div className="text-center py-4 bg-gray-50 rounded-lg text-slate-500 mb-3">
-                                        <p>성장 로드맵을 완료하면 새로운 칭호를 획득할 수 있습니다.</p>
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-2 gap-3 mb-3">
-                                        {getAvailableHonorifics().map((honorific) => (
-                                            <button
-                                                key={honorific}
-                                                onClick={() => handleHonorificChange(honorific)}
-                                                className={`py-2 px-3 rounded-lg transition-colors ${student.honorific === honorific
-                                                    ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-white font-medium shadow-sm'
-                                                    : 'bg-gradient-to-r from-yellow-50 to-amber-50 text-amber-700 hover:from-yellow-100 hover:to-amber-100 border border-amber-200'
-                                                    }`}
-                                            >
-                                                {honorific}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
+                                <div className="font-medium text-sm mb-2">로드맵 달성 칭호</div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {getAvailableHonorifics().map((honorific) => (
+                                        <button
+                                            key={honorific}
+                                            onClick={() => handleHonorificChange(honorific)}
+                                            className={`py-2 px-3 rounded-lg transition-colors ${student.honorific === honorific
+                                                ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-white font-medium shadow-sm'
+                                                : 'bg-gradient-to-r from-yellow-50 to-amber-50 text-amber-700 hover:from-yellow-100 hover:to-amber-100 border border-amber-200'
+                                                }`}
+                                        >
+                                            {honorific}
+                                        </button>
+                                    ))}
+                                </div>
                             </div>
 
                             <div className="flex justify-end mt-4">
@@ -1916,9 +1881,6 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                         </div>
                     </div>
                 )}
-
-                {/* 아바타 탭 - 모달이 열려있는 경우에만 표시 */}
-                {activeTab === 'avatar' && isOpen && renderAvatarTab()}
             </div>
         </div>
     )
