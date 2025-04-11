@@ -8,8 +8,9 @@ import { X, Edit, Award, Trash2, User, Target, Gift, ShoppingBag, Coins, Shoppin
 import AvatarRenderer, { AvatarItemRenderer } from '@/components/Avatar'
 import {
     Avatar, AvatarItem, AvatarLayerType, AVATAR_LAYER_ORDER,
-    NEWBY_HEAD_ITEMS, NEWBY_BODY_ITEMS,
-    parseAvatarString, stringifyAvatar, updateAvatarItem
+    NEWBY_HEAD_ITEMS, NEWBY_BODY_ITEMS, AvatarRarity,
+    parseAvatarString, stringifyAvatar, updateAvatarItem, getRandomPremiumAvatarItem,
+    PREMIUM_HEAD_ITEMS, PREMIUM_BODY_ITEMS, HAT_ITEMS, WEAPON_ITEMS
 } from '@/lib/avatar'
 
 const EXP_PER_LEVEL = 100
@@ -68,6 +69,25 @@ interface StudentDetailModalProps {
     initialTab?: 'roadmaps' | 'missions' | 'cards' | 'pointshop' | 'avatar'
 }
 
+// AvatarData 타입 정의
+interface AvatarData {
+    head?: AvatarItem;
+    body?: AvatarItem;
+    hat?: AvatarItem;
+    weapon?: AvatarItem;
+    [key: string]: AvatarItem | undefined;
+}
+
+const avatarStringToData = (avatarString?: string): AvatarData | null => {
+    if (!avatarString) return null;
+    try {
+        return JSON.parse(avatarString);
+    } catch (e) {
+        console.error('Avatar parse error:', e);
+        return null;
+    }
+};
+
 const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose, studentId, classId, initialTab = 'roadmaps' }) => {
     const [student, setStudent] = useState<Student | null>(null)
     const [isEditingName, setIsEditingName] = useState(false)
@@ -75,9 +95,13 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
     const [isEditingIcon, setIsEditingIcon] = useState(false)
     const [isEditingHonorific, setIsEditingHonorific] = useState(false)
     const [activeTab, setActiveTab] = useState<'roadmaps' | 'missions' | 'cards' | 'pointshop' | 'avatar'>(initialTab)
+    const [expandedRoadmapId, setExpandedRoadmapId] = useState<string | null>(null)
+    const [expandedMissionId, setExpandedMissionId] = useState<string | null>(null)
+    const [honorifics, setHonorifics] = useState<string[]>(['모험가', '마법사', '기사', '궁수', '현자', '용사'])
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
     const [isHoverCard, setIsHoverCard] = useState<string | null>(null)
-    const { id: paramsClassId } = useParams()
+    const params = useParams()
+    const paramsClassId = params?.id as string || null
 
     // 학생 완료 항목 데이터
     const [completedRoadmaps, setCompletedRoadmaps] = useState<{
@@ -105,7 +129,7 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
     const [purchasedItems, setPurchasedItems] = useState<any[]>([])
     const [pointItems, setPointItems] = useState<any[]>([])
     const [pointshopLoading, setPointshopLoading] = useState(true)
-    const [activePointShopTab, setActivePointShopTab] = useState<'items' | 'purchases'>('items')
+    const [activePointShopTab, setActivePointShopTab] = useState<'avatar_items' | 'class_items' | 'purchases'>('avatar_items')
 
     // 로딩 상태
     const [roadmapsLoading, setRoadmapsLoading] = useState(true)
@@ -117,31 +141,6 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
     const [selectedAvatarLayer, setSelectedAvatarLayer] = useState<AvatarLayerType>('head')
     const [availableItems, setAvailableItems] = useState<AvatarItem[]>([])
 
-    // 학생 아이콘 업데이트 함수
-    const handleIconSelect = (newIconPath: string) => {
-        if (!student) return;
-
-        // 로컬 스토리지에서 클래스 정보 가져오기
-        const storedClass = localStorage.getItem(`class_${classId}`);
-        if (!storedClass) return;
-
-        const updatedClass = JSON.parse(storedClass);
-        const studentIndex = updatedClass.students.findIndex((s: Student) => s.id === student.id);
-
-        if (studentIndex !== -1) {
-            // 학생 아이콘 업데이트
-            updatedClass.students[studentIndex].iconType = newIconPath;
-            localStorage.setItem(`class_${classId}`, JSON.stringify(updatedClass));
-
-            // 상태 업데이트
-            setStudent({ ...student, iconType: newIconPath });
-            setIsEditingIcon(false);
-
-            // 성공 메시지 표시
-            toast.success("학생 아이콘이 변경되었습니다.");
-        }
-    };
-
     useEffect(() => {
         if (!isOpen || !studentId || !classId) return
 
@@ -150,6 +149,7 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
         loadCompletedMissions()
         loadReceivedCards()
         loadPointShopItems()
+        loadAvatarInventory()
     }, [isOpen, studentId, classId])
 
     const loadStudentInfo = () => {
@@ -380,16 +380,89 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
         }
     }
 
-    // 포인트 상점 아이템 불러오기
+    // 골드 상점 아이템 불러오기
     const loadPointShopItems = () => {
         setPointshopLoading(true);
         try {
-            // 로컬 스토리지에서 포인트 상점 아이템 가져오기
+            // 로컬 스토리지에서 골드 상점 아이템 가져오기
             const savedItems = localStorage.getItem(`pointshop_items_${classId}`);
             if (savedItems) {
-                setPointItems(JSON.parse(savedItems));
+                const items = JSON.parse(savedItems);
+
+                // 랜덤 아바타 아이템이 없으면 추가
+                const hasRandomAvatarItem = items.some((item: any) => item.id === 'random_avatar');
+                if (!hasRandomAvatarItem) {
+                    const randomAvatarItem = {
+                        id: 'random_avatar',
+                        name: '랜덤 아바타',
+                        description: '랜덤으로 아바타 아이템 하나가 인벤토리에 추가됩니다. (머리, 몸, 모자, 무기 중 하나)',
+                        price: 300,
+                        createdAt: new Date().toISOString(),
+                        isSystem: true, // 시스템 아이템 표시
+                        itemType: 'avatar' // 아바타 타입 아이템으로 분류
+                    };
+                    items.push(randomAvatarItem);
+                }
+
+                // 특정 부위별 아바타 아이템 추가
+                const avatarTypeItems = [
+                    {
+                        id: 'avatar_head',
+                        name: '머리 부위 아바타',
+                        description: '랜덤으로 머리 부위 아바타 아이템 하나가 인벤토리에 추가됩니다.',
+                        price: 300,
+                        createdAt: new Date().toISOString(),
+                        isSystem: true,
+                        itemType: 'avatar',
+                        avatarPart: 'head'
+                    },
+                    {
+                        id: 'avatar_body',
+                        name: '몸통 부위 아바타',
+                        description: '랜덤으로 몸통 부위 아바타 아이템 하나가 인벤토리에 추가됩니다.',
+                        price: 300,
+                        createdAt: new Date().toISOString(),
+                        isSystem: true,
+                        itemType: 'avatar',
+                        avatarPart: 'body'
+                    },
+                    {
+                        id: 'avatar_hat',
+                        name: '모자 부위 아바타',
+                        description: '랜덤으로 모자 부위 아바타 아이템 하나가 인벤토리에 추가됩니다.',
+                        price: 300,
+                        createdAt: new Date().toISOString(),
+                        isSystem: true,
+                        itemType: 'avatar',
+                        avatarPart: 'hat'
+                    },
+                    {
+                        id: 'avatar_weapon',
+                        name: '무기 아바타',
+                        description: '랜덤으로 무기 아바타 아이템 하나가 인벤토리에 추가됩니다.',
+                        price: 300,
+                        createdAt: new Date().toISOString(),
+                        isSystem: true,
+                        itemType: 'avatar',
+                        avatarPart: 'weapon'
+                    }
+                ];
+
+                // 각 타입별 아바타 아이템이 없는 경우 추가
+                avatarTypeItems.forEach(newItem => {
+                    const hasItem = items.some((item: any) => item.id === newItem.id);
+                    if (!hasItem) {
+                        items.push(newItem);
+                    }
+                });
+
+                localStorage.setItem(`pointshop_items_${classId}`, JSON.stringify(items));
+                setPointItems(items);
             } else {
-                setPointItems([]);
+                // 골드샵 아이템이 없는 경우, 기본 아이템들 추가
+                const defaultItems: { id: string, name: string, description: string, price: number, createdAt: string }[] = [];
+                localStorage.setItem(`pointshop_items_${classId}`, JSON.stringify(defaultItems));
+                setPointItems(defaultItems);
             }
 
             // 구매 내역 가져오기
@@ -400,29 +473,142 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                 setPurchasedItems([]);
             }
         } catch (error) {
-            console.error('포인트 상점 데이터 로드 중 오류:', error);
+            console.error('골드 상점 데이터 로드 중 오류:', error);
         } finally {
             setPointshopLoading(false);
         }
-    }
+    };
 
-    // 포인트 상점 탭 변경 함수
-    const handlePointShopTabChange = (tab: 'items' | 'purchases') => {
+    // 아바타 인벤토리 로드
+    const loadAvatarInventory = () => {
+        if (!studentId) return;
+
+        try {
+            // 학생의 아바타 아이템 인벤토리 가져오기
+            const inventoryKey = `avatar_inventory_${studentId}`;
+            const savedInventory = localStorage.getItem(inventoryKey);
+
+            let allAvailableItems: AvatarItem[] = [...NEWBY_HEAD_ITEMS, ...NEWBY_BODY_ITEMS];
+
+            if (savedInventory) {
+                const inventory: AvatarItem[] = JSON.parse(savedInventory);
+
+                // 중복 아이템 제거하며 병합
+                inventory.forEach(item => {
+                    if (!allAvailableItems.some(existingItem => existingItem.id === item.id)) {
+                        allAvailableItems.push(item);
+                    }
+                });
+            }
+
+            // 현재 선택된 레이어에 맞는's 아이템만 필터링
+            updateAvailableItemsByLayer(selectedAvatarLayer, allAvailableItems);
+        } catch (error) {
+            console.error('아바타 인벤토리 로드 중 오류:', error);
+        }
+    };
+
+    // 아바타 레이어 선택 핸들러 - 사용 가능한 아이템 목록 업데이트
+    const handleAvatarLayerSelect = (layer: AvatarLayerType) => {
+        setSelectedAvatarLayer(layer);
+
+        // 학생의 아바타 인벤토리 가져오기
+        const inventoryKey = `avatar_inventory_${studentId}`;
+        let allItems: AvatarItem[] = [...NEWBY_HEAD_ITEMS, ...NEWBY_BODY_ITEMS];
+
+        try {
+            const savedInventory = localStorage.getItem(inventoryKey);
+            if (savedInventory) {
+                const inventory: AvatarItem[] = JSON.parse(savedInventory);
+
+                // 중복 아이템 제거하며 병합
+                inventory.forEach(item => {
+                    if (!allItems.some(existingItem => existingItem.id === item.id)) {
+                        allItems.push(item);
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('아바타 인벤토리 로드 중 오류:', error);
+        }
+
+        // 선택된 레이어에 맞는 아이템으로 필터링
+        updateAvailableItemsByLayer(layer, allItems);
+    };
+
+    // 레이어와 아이템 목록을 기반으로 사용 가능한 아이템 업데이트
+    const updateAvailableItemsByLayer = (layer: AvatarLayerType, allItems: AvatarItem[]) => {
+        // 선택된 레이어에 맞는 아이템으로 필터링
+        const filteredItems = allItems.filter(item => item.type === layer);
+        setAvailableItems(filteredItems);
+    };
+
+    // 아바타 아이템 선택 핸들러
+    const handleAvatarItemSelect = (item: AvatarItem) => {
+        if (!student || !currentAvatar) return;
+
+        // 새 아바타 생성
+        const newAvatar = updateAvatarItem(currentAvatar, item);
+        setCurrentAvatar(newAvatar);
+
+        // 학생 데이터 업데이트
+        const updatedStudent = {
+            ...student,
+            avatar: stringifyAvatar(newAvatar)
+        };
+
+        // 학생 상태 업데이트
+        setStudent(updatedStudent);
+
+        try {
+            // class_${classId} 데이터 업데이트
+            const storedClass = localStorage.getItem(`class_${classId}`);
+            if (storedClass) {
+                const updatedClass = JSON.parse(storedClass);
+                const studentIndex = updatedClass.students.findIndex((s: Student) => s.id === student.id);
+
+                if (studentIndex !== -1) {
+                    // 학생 아바타 업데이트
+                    updatedClass.students[studentIndex].avatar = stringifyAvatar(newAvatar);
+                    localStorage.setItem(`class_${classId}`, JSON.stringify(updatedClass));
+                }
+            }
+
+            // students_${classId} 데이터 업데이트
+            const savedStudents = localStorage.getItem(`students_${classId}`);
+            if (savedStudents) {
+                const students = JSON.parse(savedStudents);
+                const updatedStudents = students.map((s: Student) =>
+                    s.id === student.id ? { ...s, avatar: stringifyAvatar(newAvatar) } : s
+                );
+                localStorage.setItem(`students_${classId}`, JSON.stringify(updatedStudents));
+            }
+
+            // 변경 메시지 표시
+            toast.success("아바타가 변경되었습니다.");
+        } catch (error) {
+            console.error('아바타 변경 중 오류 발생:', error);
+            toast.error('아바타를 변경하는 중 오류가 발생했습니다.');
+        }
+    };
+
+    // 골드 상점 탭 변경 함수
+    const handlePointShopTabChange = (tab: 'avatar_items' | 'class_items' | 'purchases') => {
         setActivePointShopTab(tab);
     }
 
-    // 포인트 상품 구매 함수
+    // 골드 상품 구매 함수
     const handlePurchaseItem = (item: any) => {
         if (!student) return;
 
-        // 포인트가 충분한지 확인
-        if ((student.points || 0) < item.price) {
-            toast.error('포인트가 부족합니다.');
-            return;
-        }
-
         try {
-            // 새 구매 아이템 생성
+            // 골드가 부족한 경우
+            if ((student.points || 0) < item.price) {
+                toast.error('골드가 부족합니다.');
+                return;
+            }
+
+            // 상품 구매 처리
             const purchase = {
                 id: Date.now().toString(),
                 itemId: item.id,
@@ -437,12 +623,12 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
             setPurchasedItems(updatedPurchases);
             localStorage.setItem(`pointshop_purchases_${classId}_${studentId}`, JSON.stringify(updatedPurchases));
 
-            // 학생 포인트 차감
+            // 학생 골드 차감
             const updatedPoints = (student.points || 0) - item.price;
             const updatedStudent = { ...student, points: updatedPoints };
             setStudent(updatedStudent);
 
-            // localStorage에 학생 포인트 업데이트
+            // localStorage에 학생 골드 업데이트
             updateStudentPoints(updatedPoints);
 
             toast.success(`${item.name}을(를) 구매했습니다.`);
@@ -450,21 +636,121 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
             console.error('상품 구매 중 오류:', error);
             toast.error('상품 구매 중 오류가 발생했습니다.');
         }
-    }
+    };
 
-    // 포인트 상품 사용 함수
-    const handleUseItem = (purchaseId: string) => {
-        const updatedPurchases = purchasedItems.map(item =>
-            item.id === purchaseId ? { ...item, used: true } : item
-        );
+    // 아바타 아이템 구매 함수
+    const handlePurchaseAvatarItem = (avatarPart: 'head' | 'body' | 'hat' | 'weapon') => {
+        if (!student) return;
 
-        setPurchasedItems(updatedPurchases);
-        localStorage.setItem(`pointshop_purchases_${classId}_${studentId}`, JSON.stringify(updatedPurchases));
+        try {
+            // 골드가 부족한 경우
+            if ((student.points || 0) < 300) {
+                toast.error('골드가 부족합니다.');
+                return;
+            }
 
-        toast.success('상품을 사용했습니다.');
-    }
+            // 아바타 부위별 랜덤 아이템 선택
+            const randomAvatarItem = getRandomAvatarItemByType(avatarPart);
 
-    // 학생 포인트 업데이트 함수
+            // 학생의 아바타 아이템 인벤토리 가져오기
+            const inventoryKey = `avatar_inventory_${studentId}`;
+            let inventory: AvatarItem[] = [];
+
+            const savedInventory = localStorage.getItem(inventoryKey);
+            if (savedInventory) {
+                inventory = JSON.parse(savedInventory);
+            }
+
+            // 새 아이템 인벤토리에 추가
+            inventory.push(randomAvatarItem);
+            localStorage.setItem(inventoryKey, JSON.stringify(inventory));
+
+            // 구매 내역에 추가 (아이템 정보 포함)
+            const purchase = {
+                id: Date.now().toString(),
+                itemId: `avatar_${avatarPart}`,
+                itemName: `${avatarPart === 'head' ? '머리' : avatarPart === 'body' ? '몸통' : avatarPart === 'hat' ? '모자' : '무기'} 부위 아바타 (${randomAvatarItem.name})`,
+                avatarItem: randomAvatarItem, // 아바타 아이템 정보 저장
+                price: 300,
+                purchaseDate: new Date().toISOString(),
+                used: true // 바로 사용됨으로 표시
+            };
+
+            // 인벤토리 탭에서 사용할 수 있도록 아이템을 사용 가능한 아이템 목록에 추가
+            if (randomAvatarItem.type === selectedAvatarLayer) {
+                // 현재 선택된 레이어와 같은 타입인 경우 즉시 목록에 추가
+                setAvailableItems(prev => [...prev, randomAvatarItem]);
+            }
+
+            // 구매 내역 업데이트
+            const updatedPurchases = [...purchasedItems, purchase];
+            setPurchasedItems(updatedPurchases);
+            localStorage.setItem(`pointshop_purchases_${classId}_${studentId}`, JSON.stringify(updatedPurchases));
+
+            // 학생 골드 차감
+            const updatedPoints = (student.points || 0) - 300;
+            const updatedStudent = { ...student, points: updatedPoints };
+            setStudent(updatedStudent);
+
+            // localStorage에 학생 골드 업데이트
+            updateStudentPoints(updatedPoints);
+
+            // 구매 성공 메시지 및 아바타 탭으로 이동 옵션
+            toast.success(
+                <div>
+                    <p>{`${avatarPart === 'head' ? '머리' : avatarPart === 'body' ? '몸통' : avatarPart === 'hat' ? '모자' : '무기'} 부위 아바타를 구매했습니다. ${randomAvatarItem.name} 아이템이 추가되었습니다.`}</p>
+                    <button
+                        onClick={() => {
+                            setActiveTab('avatar');
+                            handleAvatarLayerSelect(randomAvatarItem.type);
+                        }}
+                        className="mt-2 text-sm text-white bg-blue-500 hover:bg-blue-600 px-2 py-1 rounded"
+                    >
+                        아바타 탭으로 이동
+                    </button>
+                </div>,
+                {
+                    duration: 5000
+                }
+            );
+        } catch (error) {
+            console.error('아바타 상품 구매 중 오류:', error);
+            toast.error('상품 구매 중 오류가 발생했습니다.');
+        }
+    };
+
+    // 특정 타입의 랜덤 아바타 아이템 선택 함수
+    const getRandomAvatarItemByType = (type: AvatarLayerType): AvatarItem => {
+        let availableItems: AvatarItem[] = [];
+
+        switch (type) {
+            case 'head':
+                availableItems = PREMIUM_HEAD_ITEMS.filter(item => item.rarity > AvatarRarity.COMMON);
+                break;
+            case 'body':
+                availableItems = PREMIUM_BODY_ITEMS.filter(item => item.rarity > AvatarRarity.COMMON);
+                break;
+            case 'hat':
+                availableItems = HAT_ITEMS.filter(item => item.rarity > AvatarRarity.COMMON);
+                break;
+            case 'weapon':
+                availableItems = WEAPON_ITEMS.filter(item => item.rarity > AvatarRarity.COMMON);
+                break;
+            default:
+                availableItems = PREMIUM_HEAD_ITEMS.filter(item => item.rarity > AvatarRarity.COMMON);
+        }
+
+        // 아이템이 없는 경우 예외 처리
+        if (availableItems.length === 0) {
+            // 기본 아이템 반환
+            return NEWBY_HEAD_ITEMS[0];
+        }
+
+        const randomIndex = Math.floor(Math.random() * availableItems.length);
+        return availableItems[randomIndex];
+    };
+
+    // 학생 골드 업데이트 함수
     const updateStudentPoints = (newPoints: number) => {
         try {
             // 1. students_classId 업데이트
@@ -514,7 +800,7 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                 }
             }
         } catch (error) {
-            console.error('포인트 업데이트 중 오류:', error);
+            console.error('골드 업데이트 중 오류:', error);
         }
     }
 
@@ -666,175 +952,142 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
         }
     }
 
-    // 아바타 아이템 선택 핸들러
-    const handleAvatarItemSelect = (item: AvatarItem) => {
-        if (!student || !currentAvatar) return;
-
-        // 새 아바타 생성
-        const newAvatar = updateAvatarItem(currentAvatar, item);
-        setCurrentAvatar(newAvatar);
-
-        // 학생 데이터 업데이트
-        const updatedStudent = {
-            ...student,
-            avatar: stringifyAvatar(newAvatar)
-        };
-
-        // 학생 상태 업데이트
-        setStudent(updatedStudent);
-
-        try {
-            // class_${classId} 데이터 업데이트
-            const storedClass = localStorage.getItem(`class_${classId}`);
-            if (storedClass) {
-                const updatedClass = JSON.parse(storedClass);
-                const studentIndex = updatedClass.students.findIndex((s: Student) => s.id === student.id);
-
-                if (studentIndex !== -1) {
-                    // 학생 아바타 업데이트
-                    updatedClass.students[studentIndex].avatar = stringifyAvatar(newAvatar);
-                    localStorage.setItem(`class_${classId}`, JSON.stringify(updatedClass));
-                }
-            }
-
-            // students_${classId} 데이터 업데이트
-            const savedStudents = localStorage.getItem(`students_${classId}`);
-            if (savedStudents) {
-                const students = JSON.parse(savedStudents);
-                const updatedStudents = students.map((s: Student) =>
-                    s.id === student.id ? { ...s, avatar: stringifyAvatar(newAvatar) } : s
-                );
-                localStorage.setItem(`students_${classId}`, JSON.stringify(updatedStudents));
-            }
-
-            // 변경 메시지 표시
-            toast.success("아바타가 변경되었습니다.");
-        } catch (error) {
-            console.error('아바타 변경 중 오류 발생:', error);
-            toast.error('아바타를 변경하는 중 오류가 발생했습니다.');
-        }
-    };
-
-    // 아바타 레이어 선택 핸들러
-    const handleAvatarLayerSelect = (layer: AvatarLayerType) => {
-        setSelectedAvatarLayer(layer);
-
-        // 선택된 레이어에 따라 사용 가능한 아이템 목록 업데이트
-        if (layer === 'head') {
-            setAvailableItems(NEWBY_HEAD_ITEMS);
-        } else if (layer === 'body') {
-            setAvailableItems(NEWBY_BODY_ITEMS);
-        } else {
-            setAvailableItems([]);
-        }
-    };
-
     // 아바타 탭 렌더링
     const renderAvatarTab = () => {
         if (!student) return null;
 
         return (
-            <div className="space-y-6">
-                <div className="bg-blue-50 p-4 rounded-lg">
-                    <h3 className="text-lg font-bold text-blue-700 mb-2">학생 아바타</h3>
-                    <p className="text-sm text-blue-600 mb-4">
-                        학생의 아바타를 커스터마이징할 수 있습니다.
-                    </p>
+            <div>
+                <div className="flex flex-col gap-3">
+                    {/* 아바타 미리보기와 설정 영역 */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {/* 아바타 미리보기 */}
+                        <div className="bg-blue-50 p-3 rounded-lg flex flex-col items-center">
+                            <div className="w-20 h-20 bg-white rounded-lg shadow-sm p-2 flex items-center justify-center">
+                                {currentAvatar ? (
+                                    <AvatarRenderer avatar={currentAvatar} size={70} className="mx-auto" />
+                                ) : (
+                                    <div className="flex flex-col items-center text-gray-400">
+                                        <User className="w-8 h-8 mb-1" />
+                                        <p className="text-xs">아바타 없음</p>
+                                    </div>
+                                )}
+                            </div>
 
-                    {/* 아바타 미리보기 */}
-                    <div className="flex justify-center mb-6">
-                        <div className="w-40 h-40 bg-white rounded-lg shadow-md p-4 flex items-center justify-center">
-                            {currentAvatar ? (
-                                <AvatarRenderer avatar={currentAvatar} size={140} />
-                            ) : (
-                                <div className="flex flex-col items-center text-gray-400">
-                                    <User className="w-16 h-16 mb-2" />
-                                    <p className="text-xs">아바타 없음</p>
-                                </div>
-                            )}
+                            <div className="mt-2 text-center w-full">
+                                <h4 className="text-xs font-semibold text-blue-700">착용 중인 아바타</h4>
+                            </div>
+
+                            <button
+                                onClick={() => setActiveTab('pointshop')}
+                                className="mt-2 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded flex items-center"
+                            >
+                                <ShoppingCart className="w-3 h-3 mr-1" />
+                                상점 방문
+                            </button>
+                        </div>
+
+                        {/* 아바타 레이어 선택 */}
+                        <div className="col-span-3">
+                            <h3 className="text-sm font-bold text-gray-800 mb-2">아바타 커스터마이징</h3>
+
+                            {/* 아바타 레이어 선택 탭 */}
+                            <div className="flex flex-wrap gap-1 mb-2">
+                                <button
+                                    onClick={() => handleAvatarLayerSelect('body')}
+                                    className={`px-2 py-1 text-xs font-medium rounded-full ${selectedAvatarLayer === 'body'
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                        }`}
+                                >
+                                    <div className="flex items-center">
+                                        <ShirtIcon className="w-3 h-3 mr-1" />
+                                        <span>몸</span>
+                                    </div>
+                                </button>
+                                <button
+                                    onClick={() => handleAvatarLayerSelect('head')}
+                                    className={`px-2 py-1 text-xs font-medium rounded-full ${selectedAvatarLayer === 'head'
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                        }`}
+                                >
+                                    <div className="flex items-center">
+                                        <User className="w-3 h-3 mr-1" />
+                                        <span>머리</span>
+                                    </div>
+                                </button>
+                                <button
+                                    onClick={() => handleAvatarLayerSelect('hat')}
+                                    className={`px-2 py-1 text-xs font-medium rounded-full ${selectedAvatarLayer === 'hat'
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                        }`}
+                                >
+                                    <div className="flex items-center">
+                                        <Award className="w-3 h-3 mr-1" />
+                                        <span>모자</span>
+                                    </div>
+                                </button>
+                                <button
+                                    onClick={() => handleAvatarLayerSelect('weapon')}
+                                    className={`px-2 py-1 text-xs font-medium rounded-full ${selectedAvatarLayer === 'weapon'
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                        }`}
+                                >
+                                    <div className="flex items-center">
+                                        <Sword className="w-3 h-3 mr-1" />
+                                        <span>무기</span>
+                                    </div>
+                                </button>
+                            </div>
+
+                            <p className="text-xs text-gray-500 mb-1">
+                                {selectedAvatarLayer === 'head' ? '머리 아이템 선택' :
+                                    selectedAvatarLayer === 'body' ? '몸통 아이템 선택' :
+                                        selectedAvatarLayer === 'hat' ? '모자 아이템 선택' : '무기 아이템 선택'}
+                            </p>
                         </div>
                     </div>
 
-                    {/* 아바타 레이어 선택 탭 */}
-                    <div className="flex border-b border-gray-200 mb-4">
-                        <button
-                            onClick={() => handleAvatarLayerSelect('body')}
-                            className={`px-4 py-2 font-medium ${selectedAvatarLayer === 'body'
-                                ? 'text-blue-600 border-b-2 border-blue-600'
-                                : 'text-gray-500 hover:text-gray-700'
-                                }`}
-                        >
-                            <div className="flex items-center">
-                                <ShirtIcon className="w-4 h-4 mr-1" />
-                                <span>몸</span>
-                            </div>
-                        </button>
-                        <button
-                            onClick={() => handleAvatarLayerSelect('head')}
-                            className={`px-4 py-2 font-medium ${selectedAvatarLayer === 'head'
-                                ? 'text-blue-600 border-b-2 border-blue-600'
-                                : 'text-gray-500 hover:text-gray-700'
-                                }`}
-                        >
-                            <div className="flex items-center">
-                                <User className="w-4 h-4 mr-1" />
-                                <span>머리</span>
-                            </div>
-                        </button>
-                        <button
-                            onClick={() => handleAvatarLayerSelect('hat')}
-                            className={`px-4 py-2 font-medium ${selectedAvatarLayer === 'hat'
-                                ? 'text-blue-600 border-b-2 border-blue-600'
-                                : 'text-gray-500 hover:text-gray-700'
-                                }`}
-                        >
-                            <div className="flex items-center">
-                                <Award className="w-4 h-4 mr-1" />
-                                <span>모자</span>
-                            </div>
-                        </button>
-                        <button
-                            onClick={() => handleAvatarLayerSelect('weapon')}
-                            className={`px-4 py-2 font-medium ${selectedAvatarLayer === 'weapon'
-                                ? 'text-blue-600 border-b-2 border-blue-600'
-                                : 'text-gray-500 hover:text-gray-700'
-                                }`}
-                        >
-                            <div className="flex items-center">
-                                <Sword className="w-4 h-4 mr-1" />
-                                <span>무기</span>
-                            </div>
-                        </button>
-                    </div>
-
                     {/* 아이템 선택 그리드 */}
-                    <div className="grid grid-cols-4 gap-3">
-                        {availableItems.length > 0 ? (
-                            availableItems.map((item) => {
-                                // 현재 착용 중인 아이템인지 확인
-                                const isSelected = currentAvatar &&
-                                    currentAvatar[item.type] &&
-                                    currentAvatar[item.type]?.id === item.id;
+                    <div className="bg-white p-2 rounded-lg border border-gray-100">
+                        <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 place-items-center mx-auto">
+                            {availableItems.length > 0 ? (
+                                availableItems.map((item) => {
+                                    // 현재 착용 중인 아이템인지 확인
+                                    const isSelected = currentAvatar &&
+                                        currentAvatar[item.type] &&
+                                        currentAvatar[item.type]?.id === item.id;
 
-                                return (
-                                    <div key={item.id} className="flex flex-col items-center">
-                                        <AvatarItemRenderer
-                                            key={item.id}
-                                            imagePath={item.inventoryImagePath || item.imagePath}
-                                            name={item.name}
-                                            size={60}
-                                            isSelected={isSelected ? true : false}
-                                            onClick={() => handleAvatarItemSelect(item)}
-                                        />
-                                        <p className="text-xs text-gray-600 mt-1 text-center">{item.name}</p>
-                                    </div>
-                                );
-                            })
-                        ) : (
-                            <div className="col-span-4 py-8 text-center text-gray-500">
-                                <p>사용 가능한 아이템이 없습니다.</p>
-                            </div>
-                        )}
+                                    return (
+                                        <div key={item.id} className="flex flex-col items-center w-full">
+                                            <div className={`flex justify-center w-full p-1 rounded-lg transition-all ${isSelected ? 'bg-blue-100' : 'hover:bg-blue-50'}`}>
+                                                <AvatarItemRenderer
+                                                    key={item.id}
+                                                    imagePath={item.inventoryImagePath || item.imagePath}
+                                                    name={item.name}
+                                                    size={32}
+                                                    isSelected={isSelected ? true : false}
+                                                    onClick={() => handleAvatarItemSelect(item)}
+                                                    rarity={item.rarity}
+                                                    showRarityBadge={true}
+                                                />
+                                            </div>
+                                            <p className="text-xs text-gray-600 mt-0.5 text-center truncate w-full">
+                                                {item.name}
+                                            </p>
+                                        </div>
+                                    );
+                                })
+                            ) : (
+                                <div className="col-span-6 py-3 text-center text-gray-500">
+                                    <p>사용 가능한 아이템이 없습니다.</p>
+                                    <p className="text-xs mt-1">골드 상점에서 아이템을 구매해보세요!</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -858,6 +1111,31 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
             </div>
         )
     }
+
+    // 아이콘 업데이트 함수
+    const handleIconSelect = (newIconPath: string) => {
+        if (!student) return;
+
+        // 로컬 스토리지에서 클래스 정보 가져오기
+        const storedClass = localStorage.getItem(`class_${classId}`);
+        if (!storedClass) return;
+
+        const updatedClass = JSON.parse(storedClass);
+        const studentIndex = updatedClass.students.findIndex((s: Student) => s.id === student.id);
+
+        if (studentIndex !== -1) {
+            // 학생 아이콘 업데이트
+            updatedClass.students[studentIndex].iconType = newIconPath;
+            localStorage.setItem(`class_${classId}`, JSON.stringify(updatedClass));
+
+            // 상태 업데이트
+            setStudent({ ...student, iconType: newIconPath });
+            setIsEditingIcon(false);
+
+            // 성공 메시지 표시
+            toast.success("학생 아이콘이 변경되었습니다.");
+        }
+    };
 
     // 아이콘 선택 모달
     const renderIconSelector = () => {
@@ -952,6 +1230,18 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
         }
     }
 
+    // 누락된 handleUseItem 함수 추가
+    const handleUseItem = (purchaseId: string) => {
+        const updatedPurchases = purchasedItems.map(item =>
+            item.id === purchaseId ? { ...item, used: true } : item
+        );
+
+        setPurchasedItems(updatedPurchases);
+        localStorage.setItem(`pointshop_purchases_${classId}_${studentId}`, JSON.stringify(updatedPurchases));
+
+        toast.success('상품을 사용했습니다.');
+    }
+
     if (!isOpen) return null
 
     if (!student) {
@@ -971,10 +1261,10 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
 
     return (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-2xl p-6 w-full max-w-5xl max-h-[90vh] overflow-auto">
+            <div className="bg-white rounded-lg shadow-2xl p-4 w-full max-w-5xl h-[90vh] max-h-[800px] flex flex-col">
                 {/* 상단 헤더 및 닫기 버튼 */}
-                <div className="flex justify-between items-center mb-6">
-                    <h2 className="text-2xl font-bold text-blue-700">학생 상세 정보</h2>
+                <div className="flex justify-between items-center mb-3">
+                    <h2 className="text-xl font-bold text-blue-700">학생 상세 정보</h2>
                     <div className="flex items-center gap-2">
                         <button
                             onClick={() => setIsDeleteConfirmOpen(true)}
@@ -992,17 +1282,17 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 flex-grow overflow-hidden">
                     {/* 좌측: 학생 프로필 정보 */}
-                    <div className="md:col-span-1">
-                        <div className="bg-gradient-to-b from-blue-50 to-white rounded-xl border border-blue-100 shadow-sm p-6">
+                    <div className="md:col-span-1 overflow-y-auto pr-2">
+                        <div className="bg-gradient-to-b from-blue-50 to-white rounded-xl border border-blue-100 shadow-sm p-4">
                             {/* 프로필 섹션 */}
                             <div className="flex flex-col items-center">
                                 {/* 프로필 아이콘 - 아바타 사용 */}
-                                <div className="relative w-32 h-32 mb-4">
-                                    <div className="w-full h-full rounded-full overflow-hidden border-4 border-white shadow-lg">
+                                <div className="relative w-28 h-28 mb-3 mx-auto">
+                                    <div className="w-full h-full rounded-full overflow-hidden border-4 border-white shadow-lg flex items-center justify-center">
                                         {student.avatar ? (
-                                            <AvatarRenderer avatar={student.avatar} size={128} />
+                                            <AvatarRenderer avatar={student.avatar} size={112} className="mx-auto" />
                                         ) : (
                                             renderIcon(student.iconType, 32)
                                         )}
@@ -1013,21 +1303,39 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                                 <h3 className="text-xl font-bold text-blue-800 mb-1">{student.name}</h3>
                                 <p className="text-slate-500 mb-2">{student.number}번</p>
 
-                                {/* 칭호 표시 및 수정 버튼 */}
-                                <div className="flex items-center justify-center bg-blue-100 text-blue-700 px-3 py-1.5 rounded-full mb-6">
-                                    <span className="font-medium">{student.honorific || '칭호 없음'}</span>
-                                    <button
-                                        onClick={() => setIsEditingHonorific(true)}
-                                        className="p-1 rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-700"
-                                        title="칭호 변경"
-                                    >
-                                        <Edit className="w-3.5 h-3.5" />
-                                    </button>
-                                </div>
+                                {/* 칭호 표시 및 수정 버튼 - 칭호가 있을 때만 표시 */}
+                                {student.honorific && (
+                                    <div className="flex items-center justify-center bg-blue-100 text-blue-700 px-3 py-1.5 rounded-full mb-4">
+                                        <span className="font-medium">{student.honorific}</span>
+                                        <button
+                                            onClick={() => setIsEditingHonorific(true)}
+                                            className="p-1 rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-700"
+                                            title="칭호 변경"
+                                        >
+                                            <Edit className="w-3.5 h-3.5" />
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* 칭호가 없을 때는 칭호 변경 버튼만 표시 */}
+                                {!student.honorific && (
+                                    <div className="flex items-center justify-center mb-4">
+                                        <button
+                                            onClick={() => setIsEditingHonorific(true)}
+                                            className="p-1.5 rounded-md text-blue-500 hover:bg-blue-50 hover:text-blue-700 border border-blue-200"
+                                            title="칭호 추가"
+                                        >
+                                            <div className="flex items-center">
+                                                <Edit className="w-3.5 h-3.5 mr-1" />
+                                                <span className="text-xs">칭호 추가</span>
+                                            </div>
+                                        </button>
+                                    </div>
+                                )}
 
                                 {/* 레벨 및 경험치 정보 */}
-                                <div className="w-full mb-6">
-                                    <div className="flex justify-between items-center mb-2">
+                                <div className="w-full mb-4">
+                                    <div className="flex justify-between items-center mb-1">
                                         <div className="flex items-center">
                                             <div className="bg-yellow-100 text-yellow-700 px-2 py-1 rounded-md font-bold">
                                                 Lv. {student.stats.level}
@@ -1039,7 +1347,7 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                                     </div>
 
                                     {/* 경험치 진행 바 */}
-                                    <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                                    <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
                                         <div
                                             className="h-full bg-gradient-to-r from-blue-500 to-blue-600 rounded-full"
                                             style={{ width: `${expPercentage}%` }}
@@ -1051,11 +1359,11 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                                     </div>
                                 </div>
 
-                                {/* 포인트 표시 */}
-                                <div className="w-full bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                                {/* 골드 표시 */}
+                                <div className="w-full bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-2">
                                     <div className="flex justify-between items-center">
-                                        <span className="font-medium text-yellow-800">보유 포인트</span>
-                                        <span className="text-xl font-bold text-yellow-600">{student.points || 0} P</span>
+                                        <span className="font-medium text-yellow-800">보유 골드</span>
+                                        <span className="text-xl font-bold text-yellow-600">{student.points || 0} G</span>
                                     </div>
                                 </div>
                             </div>
@@ -1063,11 +1371,11 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                     </div>
 
                     {/* 우측: 탭으로 구분된 로드맵, 미션, 칭찬카드 정보 */}
-                    <div className="md:col-span-2">
+                    <div className="md:col-span-2 flex flex-col overflow-hidden">
                         {/* 탭 선택 버튼 */}
-                        <div className="flex border-b border-gray-200 mb-4">
+                        <div className="flex border-b border-gray-200 mb-2 flex-wrap">
                             <button
-                                className={`py-2 px-4 font-medium ${activeTab === 'roadmaps'
+                                className={`py-1.5 px-3 text-sm font-medium ${activeTab === 'roadmaps'
                                     ? 'text-blue-600 border-b-2 border-blue-600'
                                     : 'text-gray-500 hover:text-gray-700'}`}
                                 onClick={() => setActiveTab('roadmaps')}
@@ -1075,7 +1383,7 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                                 성장 로드맵
                             </button>
                             <button
-                                className={`py-2 px-4 font-medium ${activeTab === 'missions'
+                                className={`py-1.5 px-3 text-sm font-medium ${activeTab === 'missions'
                                     ? 'text-blue-600 border-b-2 border-blue-600'
                                     : 'text-gray-500 hover:text-gray-700'}`}
                                 onClick={() => setActiveTab('missions')}
@@ -1083,7 +1391,7 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                                 완료한 미션
                             </button>
                             <button
-                                className={`py-2 px-4 font-medium ${activeTab === 'cards'
+                                className={`py-1.5 px-3 text-sm font-medium ${activeTab === 'cards'
                                     ? 'text-blue-600 border-b-2 border-blue-600'
                                     : 'text-gray-500 hover:text-gray-700'}`}
                                 onClick={() => setActiveTab('cards')}
@@ -1091,50 +1399,50 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                                 받은 칭찬카드
                             </button>
                             <button
-                                className={`py-2 px-4 font-medium ${activeTab === 'pointshop'
+                                className={`py-1.5 px-3 text-sm font-medium ${activeTab === 'pointshop'
                                     ? 'text-blue-600 border-b-2 border-blue-600'
                                     : 'text-gray-500 hover:text-gray-700'}`}
                                 onClick={() => setActiveTab('pointshop')}
                             >
-                                포인트 상점
+                                골드 상점
                             </button>
                             <button
                                 onClick={() => setActiveTab('avatar')}
-                                className={`px-4 py-2 font-medium border-b-2 ${activeTab === 'avatar'
+                                className={`py-1.5 px-3 text-sm font-medium border-b-2 ${activeTab === 'avatar'
                                     ? 'border-blue-500 text-blue-600'
                                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                                     }`}
                             >
                                 <div className="flex items-center">
-                                    <User className="w-4 h-4 mr-1" />
+                                    <User className="w-3.5 h-3.5 mr-1" />
                                     <span>아바타</span>
                                 </div>
                             </button>
                         </div>
 
                         {/* 탭 콘텐츠 영역 */}
-                        <div className="bg-white rounded-lg border border-gray-200 p-4 h-[500px] overflow-y-auto">
+                        <div className="flex-grow bg-white rounded-lg border border-gray-200 p-3 overflow-y-auto">
                             {/* 로드맵 탭 */}
                             {activeTab === 'roadmaps' && (
                                 <div>
-                                    <h3 className="text-lg font-bold text-gray-800 mb-4">완료한 성장 로드맵</h3>
+                                    <h3 className="text-base font-bold text-gray-800 mb-3">완료한 성장 로드맵</h3>
 
                                     {roadmapsLoading ? (
                                         <div className="flex justify-center items-center h-32">
                                             <p className="text-gray-500">로드맵 데이터 로딩 중...</p>
                                         </div>
                                     ) : completedRoadmaps.length === 0 ? (
-                                        <div className="text-center py-8 bg-gray-50 rounded-lg">
+                                        <div className="text-center py-6 bg-gray-50 rounded-lg">
                                             <p className="text-gray-500">완료한 로드맵 단계가 없습니다.</p>
                                         </div>
                                     ) : (
-                                        <div className="grid grid-cols-1 gap-3">
+                                        <div className="grid grid-cols-1 gap-2">
                                             {completedRoadmaps.map((item, index) => (
                                                 <div
                                                     key={`${item.roadmapId}-${item.stepId}`}
-                                                    className="bg-green-50 border border-green-100 rounded-lg p-4 flex items-start"
+                                                    className="bg-green-50 border border-green-100 rounded-lg p-3 flex items-start"
                                                 >
-                                                    <div className="bg-green-200 text-green-800 rounded-full w-8 h-8 flex items-center justify-center mr-3 flex-shrink-0">
+                                                    <div className="bg-green-200 text-green-800 rounded-full w-7 h-7 flex items-center justify-center mr-2 flex-shrink-0">
                                                         {index + 1}
                                                     </div>
                                                     <div>
@@ -1151,22 +1459,22 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                             {/* 미션 탭 */}
                             {activeTab === 'missions' && (
                                 <div>
-                                    <h3 className="text-lg font-bold text-gray-800 mb-4">완료한 미션</h3>
+                                    <h3 className="text-base font-bold text-gray-800 mb-3">완료한 미션</h3>
 
                                     {missionsLoading ? (
                                         <div className="flex justify-center items-center h-32">
                                             <p className="text-gray-500">미션 데이터 로딩 중...</p>
                                         </div>
                                     ) : completedMissions.length === 0 ? (
-                                        <div className="text-center py-8 bg-gray-50 rounded-lg">
+                                        <div className="text-center py-6 bg-gray-50 rounded-lg">
                                             <p className="text-gray-500">완료한 미션이 없습니다.</p>
                                         </div>
                                     ) : (
-                                        <div className="grid grid-cols-1 gap-3">
+                                        <div className="grid grid-cols-1 gap-2">
                                             {completedMissions.map((mission) => (
                                                 <div
                                                     key={mission.id}
-                                                    className="bg-blue-50 border border-blue-100 rounded-lg p-4"
+                                                    className="bg-blue-50 border border-blue-100 rounded-lg p-3"
                                                 >
                                                     <h4 className="font-medium text-blue-800">{mission.name}</h4>
                                                     <p className="text-sm text-blue-600 mt-1">{mission.condition}</p>
@@ -1180,31 +1488,31 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                             {/* 칭찬카드 탭 */}
                             {activeTab === 'cards' && (
                                 <div>
-                                    <h3 className="text-lg font-bold text-gray-800 mb-4">받은 칭찬카드</h3>
+                                    <h3 className="text-base font-bold text-gray-800 mb-3">받은 칭찬카드</h3>
 
                                     {cardsLoading ? (
                                         <div className="flex justify-center items-center h-32">
                                             <p className="text-gray-500">칭찬카드 데이터 로딩 중...</p>
                                         </div>
                                     ) : receivedCards.length === 0 ? (
-                                        <div className="text-center py-8 bg-gray-50 rounded-lg">
+                                        <div className="text-center py-6 bg-gray-50 rounded-lg">
                                             <p className="text-gray-500">받은 칭찬카드가 없습니다.</p>
                                         </div>
                                     ) : (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                             {receivedCards.map((card) => (
                                                 <div
                                                     key={card.id}
-                                                    className="bg-purple-50 border border-purple-100 rounded-lg p-4"
+                                                    className="bg-purple-50 border border-purple-100 rounded-lg p-3"
                                                 >
                                                     <div className="flex items-start">
-                                                        <div className="bg-purple-200 text-purple-700 p-2 rounded-full mr-3">
-                                                            <Award className="w-5 h-5" />
+                                                        <div className="bg-purple-200 text-purple-700 p-1.5 rounded-full mr-2">
+                                                            <Award className="w-4 h-4" />
                                                         </div>
                                                         <div>
                                                             <h4 className="font-medium text-purple-800">{card.cardName}</h4>
                                                             <p className="text-sm text-purple-600 mt-1">{card.cardDescription}</p>
-                                                            <p className="text-xs text-gray-500 mt-2">
+                                                            <p className="text-xs text-gray-500 mt-1">
                                                                 {new Date(card.issuedAt).toLocaleDateString()}
                                                             </p>
                                                         </div>
@@ -1216,29 +1524,38 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                                 </div>
                             )}
 
-                            {/* 포인트 상점 탭 */}
+                            {/* 골드 상점 탭 */}
                             {activeTab === 'pointshop' && (
                                 <div>
-                                    <div className="flex justify-between items-center mb-4">
-                                        <h3 className="text-lg font-bold text-gray-800">포인트 상점</h3>
+                                    <div className="flex justify-between items-center mb-3">
+                                        <h3 className="text-base font-bold text-gray-800">골드 상점</h3>
                                         <div className="text-yellow-600 font-medium">
-                                            보유 포인트: {student.points || 0} P
+                                            보유 골드: {student.points || 0} G
                                         </div>
                                     </div>
 
-                                    {/* 탭 내 서브탭 (상품 목록/구매 내역) */}
-                                    <div className="flex border-b border-gray-200 mb-4">
+                                    {/* 탭 내 서브탭 (아바타 상품 목록/학급 상품 목록/구매 내역) */}
+                                    <div className="flex border-b border-gray-200 mb-3">
                                         <button
-                                            className={`py-1.5 px-3 text-sm font-medium ${activePointShopTab === 'items'
+                                            className={`py-1 px-2 text-xs font-medium ${activePointShopTab === 'avatar_items'
                                                 ? 'text-blue-600 border-b-2 border-blue-600'
                                                 : 'text-gray-500 hover:text-gray-700'
                                                 }`}
-                                            onClick={() => handlePointShopTabChange('items')}
+                                            onClick={() => handlePointShopTabChange('avatar_items')}
                                         >
-                                            상품 목록
+                                            아바타 상품 목록
                                         </button>
                                         <button
-                                            className={`py-1.5 px-3 text-sm font-medium relative ${activePointShopTab === 'purchases'
+                                            className={`py-1 px-2 text-xs font-medium ${activePointShopTab === 'class_items'
+                                                ? 'text-blue-600 border-b-2 border-blue-600'
+                                                : 'text-gray-500 hover:text-gray-700'
+                                                }`}
+                                            onClick={() => handlePointShopTabChange('class_items')}
+                                        >
+                                            학급 상품 목록
+                                        </button>
+                                        <button
+                                            className={`py-1 px-2 text-xs font-medium relative ${activePointShopTab === 'purchases'
                                                 ? 'text-blue-600 border-b-2 border-blue-600'
                                                 : 'text-gray-500 hover:text-gray-700'
                                                 }`}
@@ -1246,7 +1563,7 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                                         >
                                             구매 내역
                                             {purchasedItems.some(item => !item.used) && (
-                                                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-full">
+                                                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-3 h-3 flex items-center justify-center rounded-full text-[10px]">
                                                     {purchasedItems.filter(item => !item.used).length}
                                                 </span>
                                             )}
@@ -1262,35 +1579,35 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                                             {/* 구매 내역 섹션 */}
                                             {activePointShopTab === 'purchases' && (
                                                 <div>
-                                                    <h4 className="font-medium text-blue-700 mb-3">구매 내역</h4>
+                                                    <h4 className="font-medium text-blue-700 mb-2 text-sm">구매 내역</h4>
                                                     {purchasedItems.length === 0 ? (
-                                                        <div className="text-center py-8 bg-gray-50 rounded-lg">
-                                                            <ShoppingBag className="w-10 h-10 mx-auto text-slate-400 mb-2" />
+                                                        <div className="text-center py-6 bg-gray-50 rounded-lg">
+                                                            <ShoppingBag className="w-8 h-8 mx-auto text-slate-400 mb-2" />
                                                             <p className="text-gray-500">구매한 상품이 없습니다.</p>
                                                             <button
-                                                                className="mt-4 text-blue-500 hover:text-blue-700"
-                                                                onClick={() => handlePointShopTabChange('items')}
+                                                                className="mt-3 text-sm text-blue-500 hover:text-blue-700"
+                                                                onClick={() => handlePointShopTabChange('class_items')}
                                                             >
                                                                 상품 목록 보기
                                                             </button>
                                                         </div>
                                                     ) : (
-                                                        <div className="grid grid-cols-1 gap-3">
+                                                        <div className="grid grid-cols-1 gap-2">
                                                             {purchasedItems.map((purchase) => (
                                                                 <div
                                                                     key={purchase.id}
-                                                                    className={`border rounded-lg p-4 relative ${purchase.used
+                                                                    className={`border rounded-lg p-3 relative ${purchase.used
                                                                         ? 'bg-gray-100 border-gray-200'
                                                                         : 'bg-yellow-50 border-yellow-200'
                                                                         }`}
                                                                 >
                                                                     <div className="flex justify-between items-start">
                                                                         <div>
-                                                                            <h5 className={`font-medium ${purchase.used ? 'text-gray-500' : 'text-yellow-700'}`}>
+                                                                            <h5 className={`font-medium text-sm ${purchase.used ? 'text-gray-500' : 'text-yellow-700'}`}>
                                                                                 {purchase.itemName}
                                                                             </h5>
-                                                                            <p className={`text-sm mt-1 ${purchase.used ? 'text-gray-500' : 'text-yellow-600'}`}>
-                                                                                {purchase.price} 포인트
+                                                                            <p className={`text-xs mt-1 ${purchase.used ? 'text-gray-500' : 'text-yellow-600'}`}>
+                                                                                {purchase.price} 골드
                                                                             </p>
                                                                             <p className="text-xs text-gray-500 mt-1">
                                                                                 구매일: {new Date(purchase.purchaseDate).toLocaleDateString()}
@@ -1304,7 +1621,7 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                                                                         ) : (
                                                                             <button
                                                                                 onClick={() => handleUseItem(purchase.id)}
-                                                                                className="px-3 py-1.5 bg-yellow-500 text-white rounded-md text-sm hover:bg-yellow-600 transition"
+                                                                                className="px-2 py-1 bg-yellow-500 text-white rounded-md text-xs hover:bg-yellow-600 transition"
                                                                             >
                                                                                 사용하기
                                                                             </button>
@@ -1317,42 +1634,162 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                                                 </div>
                                             )}
 
-                                            {/* 상품 목록 섹션 */}
-                                            {activePointShopTab === 'items' && (
+                                            {/* 아바타 상품 목록 섹션 */}
+                                            {activePointShopTab === 'avatar_items' && (
                                                 <div>
-                                                    <h4 className="font-medium text-blue-700 mb-3">상품 목록</h4>
-                                                    {pointItems.length === 0 ? (
-                                                        <div className="text-center py-8 bg-gray-50 rounded-lg">
-                                                            <p className="text-gray-500">등록된 상품이 없습니다.</p>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="grid grid-cols-1 gap-3">
-                                                            {pointItems.map((item) => (
-                                                                <div
-                                                                    key={item.id}
-                                                                    className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition"
-                                                                >
-                                                                    <div className="flex justify-between items-center">
-                                                                        <div>
-                                                                            <h5 className="font-medium text-gray-800">{item.name}</h5>
-                                                                            <p className="text-sm text-gray-600 mt-1">{item.description}</p>
-                                                                        </div>
-                                                                        <div className="flex flex-col items-end">
-                                                                            <span className="font-bold text-yellow-600 mb-2">{item.price} P</span>
-                                                                            <button
-                                                                                onClick={() => handlePurchaseItem(item)}
-                                                                                disabled={(student.points || 0) < item.price}
-                                                                                className={`px-3 py-1.5 rounded-md text-sm ${(student.points || 0) >= item.price
-                                                                                    ? 'bg-blue-500 text-white hover:bg-blue-600'
-                                                                                    : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                                                                                    } transition`}
-                                                                            >
-                                                                                구매하기
-                                                                            </button>
-                                                                        </div>
+                                                    <h4 className="font-medium text-blue-700 mb-2 text-sm">아바타 상품 목록</h4>
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                                        <div className="bg-white border border-blue-100 rounded-lg p-3 hover:shadow-md transition group">
+                                                            <div className="flex items-start space-x-2">
+                                                                <div className="bg-blue-50 p-1.5 rounded-lg">
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                                                                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                                                                    </svg>
+                                                                </div>
+                                                                <div className="flex-1">
+                                                                    <h5 className="font-medium text-blue-700 text-sm">머리 부위 아바타</h5>
+                                                                    <p className="text-gray-600 mt-1 mb-2 text-xs">랜덤으로 머리 부위 아바타 아이템 하나가 인벤토리에 추가됩니다.</p>
+                                                                    <div className="flex items-center justify-between mt-1">
+                                                                        <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-xs font-bold">300 G</span>
+                                                                        <button
+                                                                            onClick={() => handlePurchaseAvatarItem('head')}
+                                                                            disabled={(student.points || 0) < 300}
+                                                                            className={`px-2 py-1 rounded-md text-xs font-medium ${(student.points || 0) >= 300
+                                                                                ? 'bg-blue-500 text-white hover:bg-blue-600'
+                                                                                : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                                                                } transition`}
+                                                                        >
+                                                                            구매하기
+                                                                        </button>
                                                                     </div>
                                                                 </div>
-                                                            ))}
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="bg-white border border-blue-100 rounded-lg p-3 hover:shadow-md transition group">
+                                                            <div className="flex items-start space-x-2">
+                                                                <div className="bg-blue-50 p-1.5 rounded-lg">
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                                                                        <path fillRule="evenodd" d="M10 2a4 4 0 00-4 4v1H5a1 1 0 00-.994.89l-1 9A1 1 0 004 18h12a1 1 0 00.994-1.11l-1-9A1 1 0 0015 7h-1V6a4 4 0 00-4-4zm2 5V6a2 2 0 10-4 0v1h4zm-6 3a1 1 0 112 0 1 1 0 01-2 0zm7-1a1 1 0 100 2 1 1 0 000-2z" clipRule="evenodd" />
+                                                                    </svg>
+                                                                </div>
+                                                                <div className="flex-1">
+                                                                    <h5 className="font-medium text-blue-700 text-sm">몸통 부위 아바타</h5>
+                                                                    <p className="text-gray-600 mt-1 mb-2 text-xs">랜덤으로 몸통 부위 아바타 아이템 하나가 인벤토리에 추가됩니다.</p>
+                                                                    <div className="flex items-center justify-between mt-1">
+                                                                        <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-xs font-bold">300 G</span>
+                                                                        <button
+                                                                            onClick={() => handlePurchaseAvatarItem('body')}
+                                                                            disabled={(student.points || 0) < 300}
+                                                                            className={`px-2 py-1 rounded-md text-xs font-medium ${(student.points || 0) >= 300
+                                                                                ? 'bg-blue-500 text-white hover:bg-blue-600'
+                                                                                : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                                                                } transition`}
+                                                                        >
+                                                                            구매하기
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="bg-white border border-blue-100 rounded-lg p-3 hover:shadow-md transition group">
+                                                            <div className="flex items-start space-x-2">
+                                                                <div className="bg-blue-50 p-1.5 rounded-lg">
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                                                                        <path d="M3 12v3c0 1.657 3.134 3 7 3s7-1.343 7-3v-3c0 1.657-3.134 3-7 3s-7-1.343-7-3z" />
+                                                                        <path d="M3 7v3c0 1.657 3.134 3 7 3s7-1.343 7-3V7c0 1.657-3.134 3-7 3S3 8.657 3 7z" />
+                                                                        <path d="M17 5c0 1.657-3.134 3-7 3S3 6.657 3 5s3.134-3 7-3 7 1.343 7 3z" />
+                                                                    </svg>
+                                                                </div>
+                                                                <div className="flex-1">
+                                                                    <h5 className="font-medium text-blue-700 text-sm">모자 부위 아바타</h5>
+                                                                    <p className="text-gray-600 mt-1 mb-2 text-xs">랜덤으로 모자 부위 아바타 아이템 하나가 인벤토리에 추가됩니다.</p>
+                                                                    <div className="flex items-center justify-between mt-1">
+                                                                        <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-xs font-bold">300 G</span>
+                                                                        <button
+                                                                            onClick={() => handlePurchaseAvatarItem('hat')}
+                                                                            disabled={(student.points || 0) < 300}
+                                                                            className={`px-2 py-1 rounded-md text-xs font-medium ${(student.points || 0) >= 300
+                                                                                ? 'bg-blue-500 text-white hover:bg-blue-600'
+                                                                                : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                                                                } transition`}
+                                                                        >
+                                                                            구매하기
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="bg-white border border-blue-100 rounded-lg p-3 hover:shadow-md transition group">
+                                                            <div className="flex items-start space-x-2">
+                                                                <div className="bg-blue-50 p-1.5 rounded-lg">
+                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                                                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                                                    </svg>
+                                                                </div>
+                                                                <div className="flex-1">
+                                                                    <h5 className="font-medium text-blue-700 text-sm">무기 아바타</h5>
+                                                                    <p className="text-gray-600 mt-1 mb-2 text-xs">랜덤으로 무기 아바타 아이템 하나가 인벤토리에 추가됩니다.</p>
+                                                                    <div className="flex items-center justify-between mt-1">
+                                                                        <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-xs font-bold">300 G</span>
+                                                                        <button
+                                                                            onClick={() => handlePurchaseAvatarItem('weapon')}
+                                                                            disabled={(student.points || 0) < 300}
+                                                                            className={`px-2 py-1 rounded-md text-xs font-medium ${(student.points || 0) >= 300
+                                                                                ? 'bg-blue-500 text-white hover:bg-blue-600'
+                                                                                : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                                                                } transition`}
+                                                                        >
+                                                                            구매하기
+                                                                        </button>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* 학급 상품 목록 섹션 */}
+                                            {activePointShopTab === 'class_items' && (
+                                                <div>
+                                                    <h4 className="font-medium text-blue-700 mb-2 text-sm">학급 상품 목록</h4>
+                                                    {pointItems.filter(item => !item.itemType || item.itemType !== 'avatar').length === 0 ? (
+                                                        <div className="text-center py-6 bg-gray-50 rounded-lg">
+                                                            <p className="text-gray-500">등록된 학급 상품이 없습니다.</p>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="grid grid-cols-1 gap-2">
+                                                            {pointItems
+                                                                .filter(item => !item.itemType || item.itemType !== 'avatar')
+                                                                .map((item) => (
+                                                                    <div
+                                                                        key={item.id}
+                                                                        className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-sm transition"
+                                                                    >
+                                                                        <div className="flex justify-between items-center">
+                                                                            <div>
+                                                                                <h5 className="font-medium text-gray-800 text-sm">{item.name}</h5>
+                                                                                <p className="text-xs text-gray-600 mt-1">{item.description}</p>
+                                                                            </div>
+                                                                            <div className="flex flex-col items-end">
+                                                                                <span className="font-bold text-yellow-600 text-sm mb-1.5">{item.price} G</span>
+                                                                                <button
+                                                                                    onClick={() => handlePurchaseItem(item)}
+                                                                                    disabled={(student.points || 0) < item.price}
+                                                                                    className={`px-2 py-1 rounded-md text-xs ${(student.points || 0) >= item.price
+                                                                                        ? 'bg-blue-500 text-white hover:bg-blue-600'
+                                                                                        : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                                                                        } transition`}
+                                                                                >
+                                                                                    구매하기
+                                                                                </button>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
                                                         </div>
                                                     )}
                                                 </div>
@@ -1361,9 +1798,6 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                                     )}
                                 </div>
                             )}
-
-                            {/* 아바타 탭 */}
-                            {activeTab === 'avatar' && renderAvatarTab()}
                         </div>
                     </div>
                 </div>
@@ -1482,6 +1916,9 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                         </div>
                     </div>
                 )}
+
+                {/* 아바타 탭 - 모달이 열려있는 경우에만 표시 */}
+                {activeTab === 'avatar' && isOpen && renderAvatarTab()}
             </div>
         </div>
     )
