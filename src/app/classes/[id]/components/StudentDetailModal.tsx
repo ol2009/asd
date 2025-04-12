@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { toast } from 'sonner'
 import Image from 'next/image'
-import { X, Edit, Award, Trash2, User, Target, Gift, ShoppingBag, Coins, ShoppingCart, Loader2, ShirtIcon, Cpu, Sword } from 'lucide-react'
+import { X, Edit, Award, Trash2, User, Target, Gift, ShoppingBag, Coins, ShoppingCart, Loader2, ShirtIcon, Cpu, Sword, Calendar } from 'lucide-react'
 import AvatarRenderer, { AvatarItemRenderer } from '@/components/Avatar'
 import {
     Avatar, AvatarItem, AvatarLayerType, AVATAR_LAYER_ORDER,
@@ -65,6 +65,7 @@ interface Student {
         }
     }
     avatar?: string
+    purchasedItems?: any[] // 구매한 아이템 목록 추가
 }
 
 interface StudentDetailModalProps {
@@ -167,6 +168,8 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
     const [pointItems, setPointItems] = useState<any[]>([])
     const [pointshopLoading, setPointshopLoading] = useState(true)
     const [activePointShopTab, setActivePointShopTab] = useState<'avatar_items' | 'class_items' | 'purchases'>('avatar_items')
+    const [avatarTab, setAvatarTab] = useState<'customize' | 'title'>('customize')
+    const [historyFilter, setHistoryFilter] = useState<'all' | 'avatar' | 'class'>('all')
 
     // 로딩 상태
     const [roadmapsLoading, setRoadmapsLoading] = useState(true)
@@ -1057,171 +1060,113 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
 
         return (
             <div>
-                <div className="flex flex-col gap-3">
-                    {/* 아바타 커스터마이징 영역 */}
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                        <div className="flex justify-between items-center mb-3">
-                            <h3 className="text-sm font-bold text-gray-800">아바타 커스터마이징</h3>
-                            <button
-                                onClick={() => setActiveTab('pointshop')}
-                                className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded flex items-center"
-                            >
-                                <ShoppingCart className="w-3 h-3 mr-1" />
-                                아이템 구매하기
-                            </button>
-                        </div>
-
-                        <div className="bg-white rounded-lg p-4 grid grid-cols-1 md:grid-cols-3 gap-3">
-                            {/* 아바타 미리보기 */}
-                            <div className="flex flex-col items-center p-3 bg-blue-50 rounded-lg">
-                                <h4 className="text-sm font-semibold text-blue-700 mb-2">내 아바타</h4>
-                                <div className="w-32 h-32 rounded-lg overflow-hidden bg-white p-1 mb-2 border border-blue-200">
-                                    {currentAvatar ? (
-                                        <AvatarRenderer avatar={currentAvatar} size={120} />
-                                    ) : (
-                                        <div className="flex flex-col items-center justify-center h-full bg-blue-50">
-                                            <User className="w-8 h-8 text-blue-300 mb-1" />
-                                            <span className="text-xs text-blue-400">기본 아바타</span>
-                                        </div>
-                                    )}
-                                </div>
-                                <span className="bg-yellow-100 px-2 py-1 rounded-full text-yellow-700 text-xs font-medium">
-                                    {student.honorific || '칭호 없음'}
-                                </span>
-                            </div>
-
-                            {/* 아바타 부위 선택 및 아이템 선택 */}
-                            <div className="md:col-span-2">
-                                {/* 아바타 부위 선택 버튼 */}
-                                <div className="flex mb-3 space-x-1">
-                                    {AVATAR_LAYER_ORDER.map(layer => (
-                                        <button
-                                            key={layer}
-                                            onClick={() => handleAvatarLayerSelect(layer)}
-                                            className={`px-2 py-1 text-xs rounded-md font-medium ${selectedAvatarLayer === layer
-                                                ? 'bg-blue-500 text-white'
-                                                : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                                                }`}
-                                        >
-                                            {layer === 'head' && '머리'}
-                                            {layer === 'body' && '몸통'}
-                                            {layer === 'hat' && '모자'}
-                                            {layer === 'weapon' && '무기'}
-                                        </button>
-                                    ))}
-                                </div>
-
-                                {/* 아바타 아이템 선택 목록 */}
-                                <div className="max-h-64 overflow-y-auto bg-white rounded-lg border border-blue-100 p-2">
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                        {availableItems.length === 0 ? (
-                                            <div className="col-span-2 text-center py-3 text-slate-500 text-sm">
-                                                사용 가능한 아이템이 없습니다.
-                                                <div className="mt-1">
-                                                    <button
-                                                        onClick={() => setActiveTab('pointshop')}
-                                                        className="mt-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded inline-flex items-center"
-                                                    >
-                                                        <ShoppingCart className="w-3 h-3 mr-1" />
-                                                        아이템 구매하기
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            availableItems.map(item => (
-                                                <button
-                                                    key={item.id}
-                                                    onClick={() => handleAvatarItemSelect(item)}
-                                                    className={`p-2 rounded-lg text-left border transition-all ${currentAvatar && currentAvatar[item.type]?.id === item.id
-                                                        ? 'border-blue-400 bg-blue-50 shadow-sm'
-                                                        : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50'
-                                                        }`}
-                                                >
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-10 h-10 bg-white rounded overflow-hidden border border-gray-200">
-                                                            <AvatarItemRenderer
-                                                                imagePath={item.inventoryImagePath || item.imagePath}
-                                                                name={item.name}
-                                                                size={40}
-                                                                rarity={item.rarity}
-                                                                showRarityBadge={false}
-                                                            />
-                                                        </div>
-                                                        <div>
-                                                            <h5 className="text-xs font-semibold text-gray-700">{item.name}</h5>
-                                                            <span className={`text-[10px] ${item.rarity === AvatarRarity.COMMON ? 'text-gray-500' :
-                                                                item.rarity === AvatarRarity.RARE ? 'text-blue-500 font-medium' :
-                                                                    item.rarity === AvatarRarity.EPIC ? 'text-purple-500 font-medium' :
-                                                                        'text-yellow-500 font-medium'}`}>
-                                                                {item.rarity === AvatarRarity.COMMON && '일반'}
-                                                                {item.rarity === AvatarRarity.RARE && '레어'}
-                                                                {item.rarity === AvatarRarity.EPIC && '에픽'}
-                                                                {item.rarity === AvatarRarity.LEGENDARY && '레전더리'}
-                                                            </span>
-                                                        </div>
-                                                    </div>
-                                                </button>
-                                            ))
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                {/* 아바타 커스터마이징 영역 */}
+                <div className="bg-white rounded-lg p-4">
+                    <div className="flex justify-between items-center mb-3">
+                        <h3 className="text-base font-bold text-gray-800">아바타 커스터마이징</h3>
+                        <button
+                            onClick={() => setActiveTab('pointshop')}
+                            className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1.5 rounded flex items-center"
+                        >
+                            <ShoppingCart className="w-3.5 h-3.5 mr-1.5" />
+                            아이템 구매하기
+                        </button>
                     </div>
 
-                    {/* 구매 이력 표시 영역 */}
-                    <div className="bg-blue-50 p-4 rounded-lg">
-                        <div className="flex justify-between items-center mb-3">
-                            <h3 className="text-sm font-bold text-gray-800">아바타 구매 이력</h3>
+                    <div className="flex flex-col md:flex-row gap-4">
+                        {/* 아바타 미리보기 */}
+                        <div className="flex flex-col items-center p-3 bg-blue-50 rounded-lg md:w-1/3">
+                            <h4 className="text-sm font-semibold text-blue-700 mb-2">내 아바타</h4>
+                            <div className="w-28 h-28 rounded-lg overflow-hidden bg-white p-1 mb-2 border border-blue-200">
+                                {currentAvatar ? (
+                                    <AvatarRenderer avatar={currentAvatar} size={104} />
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center h-full bg-blue-50">
+                                        <User className="w-8 h-8 text-blue-300 mb-1" />
+                                        <span className="text-xs text-blue-400">기본 아바타</span>
+                                    </div>
+                                )}
+                            </div>
+                            <span className="bg-yellow-100 px-2.5 py-1 rounded-full text-yellow-700 text-xs font-medium">
+                                {student.honorific || '칭호 없음'}
+                            </span>
                         </div>
 
-                        <div className="bg-white rounded-lg p-4">
-                            {purchasedItems.filter(item => item.avatarItem).length === 0 ? (
-                                <div className="text-center py-4 text-slate-500 text-sm">
-                                    구매한 아바타 아이템이 없습니다.
-                                    <div className="mt-1">
-                                        <button
-                                            onClick={() => setActiveTab('pointshop')}
-                                            className="mt-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded inline-flex items-center"
-                                        >
-                                            <ShoppingCart className="w-3 h-3 mr-1" />
-                                            아이템 구매하기
-                                        </button>
-                                    </div>
-                                </div>
-                            ) : (
-                                <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto">
-                                    {purchasedItems
-                                        .filter(item => item.avatarItem)
-                                        .sort((a, b) => new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime())
-                                        .map((purchase) => (
-                                            <div
-                                                key={purchase.id}
-                                                className="border border-blue-100 rounded-lg p-2 flex items-center justify-between"
+                        {/* 아바타 부위 선택 및 아이템 선택 */}
+                        <div className="md:w-2/3">
+                            {/* 아바타 부위 선택 버튼 */}
+                            <div className="flex mb-2 space-x-2">
+                                {AVATAR_LAYER_ORDER.map(layer => (
+                                    <button
+                                        key={layer}
+                                        onClick={() => handleAvatarLayerSelect(layer)}
+                                        className={`px-2.5 py-1 text-xs rounded-md font-medium flex-1 ${selectedAvatarLayer === layer
+                                            ? 'bg-blue-500 text-white'
+                                            : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                                            }`}
+                                    >
+                                        {layer === 'head' && '머리'}
+                                        {layer === 'body' && '몸통'}
+                                        {layer === 'hat' && '모자'}
+                                        {layer === 'weapon' && '무기'}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* 아바타 아이템 선택 목록 */}
+                            <div className="max-h-64 overflow-y-auto bg-white rounded-lg border border-blue-100 p-2">
+                                <div className="grid grid-cols-2 gap-2">
+                                    {availableItems.length === 0 ? (
+                                        <div className="col-span-2 text-center py-4 text-slate-500 text-xs">
+                                            사용 가능한 아이템이 없습니다.
+                                            <div className="mt-2">
+                                                <button
+                                                    onClick={() => setActiveTab('pointshop')}
+                                                    className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2.5 py-1 rounded inline-flex items-center"
+                                                >
+                                                    <ShoppingCart className="w-3 h-3 mr-1" />
+                                                    아이템 구매하기
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        availableItems.map(item => (
+                                            <button
+                                                key={item.id}
+                                                onClick={() => handleAvatarItemSelect(item)}
+                                                className={`p-2 rounded-lg text-left border transition-all ${currentAvatar && currentAvatar[item.type]?.id === item.id
+                                                    ? 'border-blue-400 bg-blue-50 shadow-sm'
+                                                    : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50'
+                                                    }`}
                                             >
-                                                <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-1.5">
                                                     <div className="w-8 h-8 bg-white rounded overflow-hidden border border-gray-200">
-                                                        {purchase.avatarItem && (
-                                                            <AvatarItemRenderer
-                                                                imagePath={purchase.avatarItem.inventoryImagePath || purchase.avatarItem.imagePath}
-                                                                name={purchase.avatarItem.name}
-                                                                size={32}
-                                                                rarity={purchase.avatarItem.rarity}
-                                                                showRarityBadge={false}
-                                                            />
-                                                        )}
+                                                        <AvatarItemRenderer
+                                                            imagePath={item.inventoryImagePath || item.imagePath}
+                                                            name={item.name}
+                                                            size={32}
+                                                            rarity={item.rarity}
+                                                            showRarityBadge={false}
+                                                        />
                                                     </div>
                                                     <div>
-                                                        <h5 className="text-xs font-medium text-gray-700">{purchase.itemName}</h5>
-                                                        <span className="text-[10px] text-gray-500">
-                                                            {new Date(purchase.purchaseDate).toLocaleDateString()}
+                                                        <h5 className="text-xs font-semibold text-gray-700">{item.name}</h5>
+                                                        <span className={`text-[10px] ${item.rarity === AvatarRarity.COMMON ? 'text-gray-500' :
+                                                            item.rarity === AvatarRarity.RARE ? 'text-blue-500 font-medium' :
+                                                                item.rarity === AvatarRarity.EPIC ? 'text-purple-500 font-medium' :
+                                                                    'text-yellow-500 font-medium'}`}>
+                                                            {item.rarity === AvatarRarity.COMMON && '일반'}
+                                                            {item.rarity === AvatarRarity.RARE && '레어'}
+                                                            {item.rarity === AvatarRarity.EPIC && '에픽'}
+                                                            {item.rarity === AvatarRarity.LEGENDARY && '레전더리'}
                                                         </span>
                                                     </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            </button>
+                                        ))
+                                    )}
                                 </div>
-                            )}
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1376,6 +1321,33 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
 
         toast.success('상품을 사용했습니다.');
     }
+
+    // 아바타 아이템 구매 여부 확인 함수
+    const isPurchasedItem = (itemId: string): boolean => {
+        if (!student || !student.purchasedItems) return false;
+        return student.purchasedItems.some(item => item.id === itemId);
+    };
+
+    // 아바타 착용 함수
+    const handleEquipAvatarItem = (item: AvatarItem) => {
+        if (!student) return;
+
+        const updatedStudent = {
+            ...student,
+            currentAvatar: item
+        };
+
+        setStudent(updatedStudent);
+
+        // 로컬 스토리지 업데이트
+        const studentsData = JSON.parse(localStorage.getItem('students') || '[]');
+        const updatedStudents = studentsData.map((s: Student) =>
+            s.id === student.id ? updatedStudent : s
+        );
+        localStorage.setItem('students', JSON.stringify(updatedStudents));
+
+        toast.success(`${item.name} 아바타를 착용했습니다.`);
+    };
 
     if (!isOpen) return null
 
@@ -1858,273 +1830,234 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                             {/* 골드 상점 탭 */}
                             {activeTab === 'pointshop' && (
                                 <div>
-                                    <div className="flex justify-between items-center mb-3">
+                                    <div className="flex justify-between items-center mb-4">
                                         <h3 className="text-base font-bold text-gray-800">골드 상점</h3>
                                         <div className="text-yellow-600 font-medium">
-                                            보유 골드: {student.points || 0} G
+                                            보유 골드: {student?.points || 0} G
                                         </div>
                                     </div>
 
                                     {/* 탭 내 서브탭 (아바타 상품 목록/학급 상품 목록/구매 내역) */}
-                                    <div className="flex border-b border-gray-200 mb-3">
+                                    <div className="flex border-b border-gray-200 mb-4">
                                         <button
-                                            className={`py-1 px-2 text-xs font-medium ${activePointShopTab === 'avatar_items'
-                                                ? 'text-blue-600 border-b-2 border-blue-600'
-                                                : 'text-gray-500 hover:text-gray-700'
+                                            className={`py-2 px-4 text-sm font-medium border-b-2 ${activePointShopTab === 'avatar_items'
+                                                ? 'border-blue-500 text-blue-600'
+                                                : 'border-transparent text-gray-500 hover:text-gray-700'
                                                 }`}
-                                            onClick={() => handlePointShopTabChange('avatar_items')}
+                                            onClick={() => setActivePointShopTab('avatar_items')}
                                         >
-                                            아바타 상품 목록
+                                            아바타 상품
                                         </button>
                                         <button
-                                            className={`py-1 px-2 text-xs font-medium ${activePointShopTab === 'class_items'
-                                                ? 'text-blue-600 border-b-2 border-blue-600'
-                                                : 'text-gray-500 hover:text-gray-700'
+                                            className={`py-2 px-4 text-sm font-medium border-b-2 ${activePointShopTab === 'class_items'
+                                                ? 'border-blue-500 text-blue-600'
+                                                : 'border-transparent text-gray-500 hover:text-gray-700'
                                                 }`}
-                                            onClick={() => handlePointShopTabChange('class_items')}
+                                            onClick={() => setActivePointShopTab('class_items')}
                                         >
-                                            학급 상품 목록
+                                            학급 상품
                                         </button>
                                         <button
-                                            className={`py-1 px-2 text-xs font-medium relative ${activePointShopTab === 'purchases'
-                                                ? 'text-blue-600 border-b-2 border-blue-600'
-                                                : 'text-gray-500 hover:text-gray-700'
+                                            className={`py-2 px-4 text-sm font-medium border-b-2 ${activePointShopTab === 'purchases'
+                                                ? 'border-blue-500 text-blue-600'
+                                                : 'border-transparent text-gray-500 hover:text-gray-700'
                                                 }`}
-                                            onClick={() => handlePointShopTabChange('purchases')}
+                                            onClick={() => setActivePointShopTab('purchases')}
                                         >
                                             구매 내역
-                                            {purchasedItems.some(item => !item.used) && (
-                                                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-3 h-3 flex items-center justify-center rounded-full text-[10px]">
-                                                    {purchasedItems.filter(item => !item.used).length}
-                                                </span>
-                                            )}
                                         </button>
                                     </div>
 
-                                    {pointshopLoading ? (
-                                        <div className="flex justify-center items-center h-32">
-                                            <p className="text-gray-500">상품 데이터 로딩 중...</p>
-                                        </div>
-                                    ) : (
-                                        <div>
-                                            {/* 구매 내역 섹션 */}
-                                            {activePointShopTab === 'purchases' && (
-                                                <div>
-                                                    <h4 className="font-medium text-blue-700 mb-2 text-sm">구매 내역</h4>
-                                                    {purchasedItems.length === 0 ? (
-                                                        <div className="text-center py-6 bg-gray-50 rounded-lg">
-                                                            <ShoppingBag className="w-8 h-8 mx-auto text-slate-400 mb-2" />
-                                                            <p className="text-gray-500">구매한 상품이 없습니다.</p>
-                                                            <button
-                                                                className="mt-3 text-sm text-blue-500 hover:text-blue-700"
-                                                                onClick={() => handlePointShopTabChange('class_items')}
-                                                            >
-                                                                상품 목록 보기
-                                                            </button>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="grid grid-cols-1 gap-2">
-                                                            {purchasedItems.map((purchase) => (
-                                                                <div
-                                                                    key={purchase.id}
-                                                                    className={`border rounded-lg p-3 relative ${purchase.used
-                                                                        ? 'bg-gray-100 border-gray-200'
-                                                                        : 'bg-yellow-50 border-yellow-200'
-                                                                        }`}
-                                                                >
-                                                                    <div className="flex justify-between items-start">
-                                                                        <div>
-                                                                            <h5 className={`font-medium text-sm ${purchase.used ? 'text-gray-500' : 'text-yellow-700'}`}>
-                                                                                {purchase.itemName}
-                                                                            </h5>
-                                                                            <p className={`text-xs mt-1 ${purchase.used ? 'text-gray-500' : 'text-yellow-600'}`}>
-                                                                                {purchase.price} 골드
-                                                                            </p>
-                                                                            <p className="text-xs text-gray-500 mt-1">
-                                                                                구매일: {new Date(purchase.purchaseDate).toLocaleDateString()}
-                                                                            </p>
-                                                                        </div>
-
-                                                                        {purchase.used ? (
-                                                                            <div className="px-2 py-1 bg-gray-200 text-gray-600 rounded text-xs font-medium">
-                                                                                사용 완료
-                                                                            </div>
+                                    {/* 상품 목록 또는 구매 내역 표시 */}
+                                    {activePointShopTab === 'avatar_items' && (
+                                        <div className="bg-white rounded-lg p-4">
+                                            {/* 아바타 상품 목록 */}
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                                {pointItems
+                                                    .filter((item: any) => item.type === 'avatar')
+                                                    .map((item: any) => (
+                                                        <div
+                                                            key={item.id}
+                                                            className="border border-gray-200 rounded-lg p-3 flex flex-col"
+                                                        >
+                                                            <div className="flex items-center gap-3 mb-3">
+                                                                <div className="w-12 h-12 bg-blue-50 rounded-lg overflow-hidden border border-blue-100 flex items-center justify-center">
+                                                                    {item.avatarItem && (
+                                                                        <AvatarItemRenderer
+                                                                            imagePath={item.avatarItem.inventoryImagePath || item.avatarItem.imagePath}
+                                                                            name={item.avatarItem.name}
+                                                                            size={48}
+                                                                            rarity={item.avatarItem.rarity}
+                                                                            showRarityBadge={true}
+                                                                        />
+                                                                    )}
+                                                                </div>
+                                                                <div>
+                                                                    <h4 className="text-sm font-semibold">{item.name}</h4>
+                                                                    <div className="flex items-center mt-2 space-x-2">
+                                                                        <div className="text-yellow-600 font-semibold">{item.price} G</div>
+                                                                        {isPurchasedItem(item.id) ? (
+                                                                            <button
+                                                                                onClick={() => handleEquipAvatarItem(item)}
+                                                                                className="text-xs bg-green-100 hover:bg-green-200 text-green-700 px-2 py-1 rounded"
+                                                                            >
+                                                                                착용하기
+                                                                            </button>
                                                                         ) : (
                                                                             <button
-                                                                                onClick={() => handleUseItem(purchase.id)}
-                                                                                className="px-2 py-1 bg-yellow-500 text-white rounded-md text-xs hover:bg-yellow-600 transition"
+                                                                                onClick={() => handlePurchaseItem(item)}
+                                                                                disabled={!student || (student?.points || 0) < item.price}
+                                                                                className={`text-xs px-2 py-1 rounded ${!student || (student?.points || 0) < item.price
+                                                                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                                    : 'bg-blue-100 hover:bg-blue-200 text-blue-700'
+                                                                                    }`}
                                                                             >
-                                                                                사용하기
+                                                                                구매하기
                                                                             </button>
                                                                         )}
                                                                     </div>
                                                                 </div>
-                                                            ))}
+                                                            </div>
                                                         </div>
-                                                    )}
+                                                    ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {activePointShopTab === 'class_items' && (
+                                        <div className="bg-white rounded-lg p-4">
+                                            {/* 학급 상품 목록 */}
+                                            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                                {pointItems
+                                                    .filter((item: any) => item.type === 'class')
+                                                    .map((item: any) => (
+                                                        <div
+                                                            key={item.id}
+                                                            className="border border-gray-200 rounded-lg p-3 flex flex-col"
+                                                        >
+                                                            <div className="flex items-center gap-3 mb-3">
+                                                                <div className="w-12 h-12 bg-green-50 rounded-lg overflow-hidden border border-green-100 flex items-center justify-center">
+                                                                    <div className="text-green-500">
+                                                                        <Award className="w-6 h-6" />
+                                                                    </div>
+                                                                </div>
+                                                                <div>
+                                                                    <h4 className="text-sm font-semibold">{item.name}</h4>
+                                                                    <div className="flex items-center">
+                                                                        <span className="text-yellow-600 font-medium">{item.price} G</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => handlePurchaseItem(item)}
+                                                                disabled={!student || (student?.points || 0) < item.price}
+                                                                className={`mt-auto w-full py-1.5 rounded-md text-sm font-medium ${!student || (student?.points || 0) < item.price
+                                                                    ? 'bg-red-100 text-red-500 cursor-not-allowed'
+                                                                    : 'bg-blue-500 text-white hover:bg-blue-600'
+                                                                    }`}
+                                                            >
+                                                                {!student || (student?.points || 0) < item.price ? '골드 부족' : '구매하기'}
+                                                            </button>
+                                                        </div>
+                                                    ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {activePointShopTab === 'purchases' && (
+                                        <div className="bg-white rounded-lg p-4">
+                                            {/* 구매 내역 */}
+                                            <div className="mb-4">
+                                                <div className="inline-flex space-x-2 mb-2">
+                                                    <button
+                                                        className={`px-3 py-1 text-xs rounded-md ${historyFilter === 'all'
+                                                            ? 'bg-blue-500 text-white'
+                                                            : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                                                            }`}
+                                                        onClick={() => setHistoryFilter('all')}
+                                                    >
+                                                        전체
+                                                    </button>
+                                                    <button
+                                                        className={`px-3 py-1 text-xs rounded-md ${historyFilter === 'avatar'
+                                                            ? 'bg-blue-500 text-white'
+                                                            : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                                                            }`}
+                                                        onClick={() => setHistoryFilter('avatar')}
+                                                    >
+                                                        아바타
+                                                    </button>
+                                                    <button
+                                                        className={`px-3 py-1 text-xs rounded-md ${historyFilter === 'class'
+                                                            ? 'bg-blue-500 text-white'
+                                                            : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                                                            }`}
+                                                        onClick={() => setHistoryFilter('class')}
+                                                    >
+                                                        학급
+                                                    </button>
                                                 </div>
-                                            )}
 
-                                            {/* 아바타 상품 목록 섹션 */}
-                                            {activePointShopTab === 'avatar_items' && (
-                                                <div>
-                                                    <h4 className="font-medium text-blue-700 mb-2 text-sm">아바타 상품 목록</h4>
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                                                        <div className="bg-white border border-blue-100 rounded-lg p-3 hover:shadow-md transition group">
-                                                            <div className="flex items-start space-x-2">
-                                                                <div className="bg-blue-50 p-1.5 rounded-lg">
-                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
-                                                                        <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
-                                                                    </svg>
-                                                                </div>
-                                                                <div className="flex-1">
-                                                                    <h5 className="font-medium text-blue-700 text-sm">머리 부위 아바타</h5>
-                                                                    <p className="text-gray-600 mt-1 mb-2 text-xs">랜덤으로 머리 부위 아바타 아이템 하나가 인벤토리에 추가됩니다.</p>
-                                                                    <div className="flex items-center justify-between mt-1">
-                                                                        <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-xs font-bold">300 G</span>
-                                                                        <button
-                                                                            onClick={() => handlePurchaseAvatarItem('head')}
-                                                                            disabled={(student.points || 0) < 300}
-                                                                            className={`px-2 py-1 rounded-md text-xs font-medium ${(student.points || 0) >= 300
-                                                                                ? 'bg-blue-500 text-white hover:bg-blue-600'
-                                                                                : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                                                                                } transition`}
-                                                                        >
-                                                                            구매하기
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="bg-white border border-blue-100 rounded-lg p-3 hover:shadow-md transition group">
-                                                            <div className="flex items-start space-x-2">
-                                                                <div className="bg-blue-50 p-1.5 rounded-lg">
-                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
-                                                                        <path fillRule="evenodd" d="M10 2a4 4 0 00-4 4v1H5a1 1 0 00-.994.89l-1 9A1 1 0 004 18h12a1 1 0 00.994-1.11l-1-9A1 1 0 0015 7h-1V6a4 4 0 00-4-4zm2 5V6a2 2 0 10-4 0v1h4zm-6 3a1 1 0 112 0 1 1 0 01-2 0zm7-1a1 1 0 100 2 1 1 0 000-2z" clipRule="evenodd" />
-                                                                    </svg>
-                                                                </div>
-                                                                <div className="flex-1">
-                                                                    <h5 className="font-medium text-blue-700 text-sm">몸통 부위 아바타</h5>
-                                                                    <p className="text-gray-600 mt-1 mb-2 text-xs">랜덤으로 몸통 부위 아바타 아이템 하나가 인벤토리에 추가됩니다.</p>
-                                                                    <div className="flex items-center justify-between mt-1">
-                                                                        <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-xs font-bold">300 G</span>
-                                                                        <button
-                                                                            onClick={() => handlePurchaseAvatarItem('body')}
-                                                                            disabled={(student.points || 0) < 300}
-                                                                            className={`px-2 py-1 rounded-md text-xs font-medium ${(student.points || 0) >= 300
-                                                                                ? 'bg-blue-500 text-white hover:bg-blue-600'
-                                                                                : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                                                                                } transition`}
-                                                                        >
-                                                                            구매하기
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="bg-white border border-blue-100 rounded-lg p-3 hover:shadow-md transition group">
-                                                            <div className="flex items-start space-x-2">
-                                                                <div className="bg-blue-50 p-1.5 rounded-lg">
-                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
-                                                                        <path d="M3 12v3c0 1.657 3.134 3 7 3s7-1.343 7-3v-3c0 1.657-3.134 3-7 3s-7-1.343-7-3z" />
-                                                                        <path d="M3 7v3c0 1.657 3.134 3 7 3s7-1.343 7-3V7c0 1.657-3.134 3-7 3S3 8.657 3 7z" />
-                                                                        <path d="M17 5c0 1.657-3.134 3-7 3S3 6.657 3 5s3.134-3 7-3 7 1.343 7 3z" />
-                                                                    </svg>
-                                                                </div>
-                                                                <div className="flex-1">
-                                                                    <h5 className="font-medium text-blue-700 text-sm">모자 부위 아바타</h5>
-                                                                    <p className="text-gray-600 mt-1 mb-2 text-xs">랜덤으로 모자 부위 아바타 아이템 하나가 인벤토리에 추가됩니다.</p>
-                                                                    <div className="flex items-center justify-between mt-1">
-                                                                        <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-xs font-bold">300 G</span>
-                                                                        <button
-                                                                            onClick={() => handlePurchaseAvatarItem('hat')}
-                                                                            disabled={(student.points || 0) < 300}
-                                                                            className={`px-2 py-1 rounded-md text-xs font-medium ${(student.points || 0) >= 300
-                                                                                ? 'bg-blue-500 text-white hover:bg-blue-600'
-                                                                                : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                                                                                } transition`}
-                                                                        >
-                                                                            구매하기
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-
-                                                        <div className="bg-white border border-blue-100 rounded-lg p-3 hover:shadow-md transition group">
-                                                            <div className="flex items-start space-x-2">
-                                                                <div className="bg-blue-50 p-1.5 rounded-lg">
-                                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-7 w-7 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
-                                                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                                                                    </svg>
-                                                                </div>
-                                                                <div className="flex-1">
-                                                                    <h5 className="font-medium text-blue-700 text-sm">무기 아바타</h5>
-                                                                    <p className="text-gray-600 mt-1 mb-2 text-xs">랜덤으로 무기 아바타 아이템 하나가 인벤토리에 추가됩니다.</p>
-                                                                    <div className="flex items-center justify-between mt-1">
-                                                                        <span className="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full text-xs font-bold">300 G</span>
-                                                                        <button
-                                                                            onClick={() => handlePurchaseAvatarItem('weapon')}
-                                                                            disabled={(student.points || 0) < 300}
-                                                                            className={`px-2 py-1 rounded-md text-xs font-medium ${(student.points || 0) >= 300
-                                                                                ? 'bg-blue-500 text-white hover:bg-blue-600'
-                                                                                : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                                                                                } transition`}
-                                                                        >
-                                                                            구매하기
-                                                                        </button>
-                                                                    </div>
-                                                                </div>
-                                                            </div>
-                                                        </div>
+                                                {purchasedItems.length === 0 ? (
+                                                    <div className="text-center py-10 text-slate-500 text-sm">
+                                                        구매한 상품이 없습니다.
                                                     </div>
-                                                </div>
-                                            )}
-
-                                            {/* 학급 상품 목록 섹션 */}
-                                            {activePointShopTab === 'class_items' && (
-                                                <div>
-                                                    <h4 className="font-medium text-blue-700 mb-2 text-sm">학급 상품 목록</h4>
-                                                    {pointItems.filter(item => !item.itemType || item.itemType !== 'avatar').length === 0 ? (
-                                                        <div className="text-center py-6 bg-gray-50 rounded-lg">
-                                                            <p className="text-gray-500">등록된 학급 상품이 없습니다.</p>
-                                                        </div>
-                                                    ) : (
-                                                        <div className="grid grid-cols-1 gap-2">
-                                                            {pointItems
-                                                                .filter(item => !item.itemType || item.itemType !== 'avatar')
-                                                                .map((item) => (
-                                                                    <div
-                                                                        key={item.id}
-                                                                        className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-sm transition"
-                                                                    >
-                                                                        <div className="flex justify-between items-center">
-                                                                            <div>
-                                                                                <h5 className="font-medium text-gray-800 text-sm">{item.name}</h5>
-                                                                                <p className="text-xs text-gray-600 mt-1">{item.description}</p>
-                                                                            </div>
-                                                                            <div className="flex flex-col items-end">
-                                                                                <span className="font-bold text-yellow-600 text-sm mb-1.5">{item.price} G</span>
-                                                                                <button
-                                                                                    onClick={() => handlePurchaseItem(item)}
-                                                                                    disabled={(student.points || 0) < item.price}
-                                                                                    className={`px-2 py-1 rounded-md text-xs ${(student.points || 0) >= item.price
-                                                                                        ? 'bg-blue-500 text-white hover:bg-blue-600'
-                                                                                        : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                                                                                        } transition`}
-                                                                                >
-                                                                                    구매하기
-                                                                                </button>
+                                                ) : (
+                                                    <div className="grid grid-cols-1 gap-2 max-h-72 overflow-y-auto">
+                                                        {purchasedItems
+                                                            .filter(item => {
+                                                                if (historyFilter === 'all') return true;
+                                                                if (historyFilter === 'avatar') return item.avatarItem;
+                                                                if (historyFilter === 'class') return item.type === 'class';
+                                                                return true;
+                                                            })
+                                                            .sort((a, b) => new Date(b.purchaseDate).getTime() - new Date(a.purchaseDate).getTime())
+                                                            .map((purchase) => (
+                                                                <div
+                                                                    key={purchase.id}
+                                                                    className="border border-gray-200 rounded-lg p-3 flex items-center justify-between"
+                                                                >
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className={`w-10 h-10 rounded overflow-hidden flex items-center justify-center ${purchase.avatarItem
+                                                                            ? 'bg-blue-50 border border-blue-100'
+                                                                            : 'bg-green-50 border border-green-100'
+                                                                            }`}>
+                                                                            {purchase.avatarItem ? (
+                                                                                <AvatarItemRenderer
+                                                                                    imagePath={purchase.avatarItem.inventoryImagePath || purchase.avatarItem.imagePath}
+                                                                                    name={purchase.avatarItem.name}
+                                                                                    size={40}
+                                                                                    rarity={purchase.avatarItem.rarity}
+                                                                                    showRarityBadge={false}
+                                                                                />
+                                                                            ) : (
+                                                                                <Award className="w-5 h-5 text-green-500" />
+                                                                            )}
+                                                                        </div>
+                                                                        <div>
+                                                                            <h5 className="text-sm font-medium text-gray-700">{purchase.itemName}</h5>
+                                                                            <div className="text-xs text-gray-500 flex items-center">
+                                                                                <Calendar className="w-3 h-3 mr-1" />
+                                                                                {new Date(purchase.purchaseDate).toLocaleDateString()}
+                                                                                <span className="mx-1">•</span>
+                                                                                <Coins className="w-3 h-3 mr-1" />
+                                                                                {purchase.price} G
                                                                             </div>
                                                                         </div>
                                                                     </div>
-                                                                ))}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
+                                                                    {purchase.avatarItem && (
+                                                                        <button
+                                                                            onClick={() => handleEquipAvatarItem(purchase.avatarItem)}
+                                                                            className="px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 rounded"
+                                                                        >
+                                                                            장착하기
+                                                                        </button>
+                                                                    )}
+                                                                </div>
+                                                            ))}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     )}
                                 </div>
