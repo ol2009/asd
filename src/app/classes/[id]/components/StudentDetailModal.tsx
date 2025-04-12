@@ -57,6 +57,12 @@ interface Student {
     stats: {
         level: number
         exp: number
+        abilities?: {
+            intelligence: number // 지력
+            diligence: number    // 성실성
+            creativity: number   // 창의력
+            personality: number  // 인성
+        }
     }
     avatar?: string
 }
@@ -109,12 +115,33 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
         stepId: string
         roadmapName: string
         stepGoal: string
+        abilities?: {
+            intelligence?: boolean
+            diligence?: boolean
+            creativity?: boolean
+            personality?: boolean
+        }
+        rewards?: {
+            exp: number
+            gold: number
+        }
     }[]>([])
 
     const [completedMissions, setCompletedMissions] = useState<{
         id: string
         name: string
         condition: string
+        timestamp?: string
+        abilities?: {
+            intelligence?: boolean
+            diligence?: boolean
+            creativity?: boolean
+            personality?: boolean
+        }
+        rewards?: {
+            exp: number
+            gold: number
+        }
     }[]>([])
 
     const [receivedCards, setReceivedCards] = useState<{
@@ -123,6 +150,16 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
         cardName: string
         cardDescription: string
         issuedAt: number
+        abilities?: {
+            intelligence?: boolean
+            diligence?: boolean
+            creativity?: boolean
+            personality?: boolean
+        }
+        rewards?: {
+            exp: number
+            gold: number
+        }
     }[]>([])
 
     // 포인트샵 관련 상태
@@ -173,8 +210,17 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                         if (!foundStudent.stats) foundStudent.stats = { level: 0, exp: 0 };
                         if (foundStudent.stats.exp === undefined) foundStudent.stats.exp = 0;
                         if (foundStudent.points === undefined) foundStudent.points = 0;
+                        // 능력치 필드가 없을 경우 기본값 설정
+                        if (!foundStudent.stats.abilities) {
+                            foundStudent.stats.abilities = {
+                                intelligence: 1, // 지력
+                                diligence: 1,    // 성실성
+                                creativity: 1,   // 창의력
+                                personality: 1   // 인성
+                            };
+                        }
 
-                        console.log('학생 정보 설정 완료', foundStudent);
+                        console.log('최종 학생 정보 설정:', foundStudent);
                         setStudent(foundStudent);
 
                         // 아바타 정보 로드
@@ -294,7 +340,18 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                                 roadmapId: roadmap.id,
                                 stepId: step.id,
                                 roadmapName: roadmap.name,
-                                stepGoal: step.goal
+                                stepGoal: step.goal,
+                                abilities: step.abilities || {
+                                    // 기본값 설정 (로드맵 단계에 능력치 필드가 없을 경우)
+                                    intelligence: false,
+                                    diligence: false,
+                                    creativity: false,
+                                    personality: false
+                                },
+                                rewards: {
+                                    exp: 100, // 기본 경험치 100
+                                    gold: 100  // 기본 골드 100
+                                }
                             });
                         }
                     })
@@ -321,6 +378,23 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
             }
 
             const missions = JSON.parse(missionsJson)
+
+            // 미션 달성 내역 불러오기
+            const achievementsJson = localStorage.getItem(`mission_achievements_${classId}`)
+            const achievements = achievementsJson ? JSON.parse(achievementsJson) : []
+
+            // 현재 학생이 달성한 미션 필터링
+            const studentAchievements = achievements.filter((achievement: any) =>
+                achievement.studentId === studentId
+            )
+
+            // 미션 ID와 달성 시간을 매핑
+            const missionTimestamps: Record<string, string> = {}
+            studentAchievements.forEach((achievement: any) => {
+                missionTimestamps[achievement.missionId] = achievement.timestamp
+            })
+
+            // 학생이 달성한 미션 목록 생성
             const completed = missions
                 .filter((mission: any) =>
                     mission.achievers && mission.achievers.includes(studentId)
@@ -328,8 +402,22 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                 .map((mission: any) => ({
                     id: mission.id,
                     name: mission.name,
-                    condition: mission.condition
+                    condition: mission.condition,
+                    timestamp: missionTimestamps[mission.id] || mission.createdAt, // 달성 시간이 없으면 미션 생성 시간 사용
+                    abilities: mission.abilities || {
+                        // 기본값 설정 (미션에 능력치 필드가 없을 경우)
+                        intelligence: false,
+                        diligence: false,
+                        creativity: false,
+                        personality: false
+                    },
+                    rewards: {
+                        exp: 100, // 기본 경험치 100
+                        gold: 50  // 기본 골드 50
+                    }
                 }))
+                // 최신순으로 정렬 (timestamp 기준 내림차순)
+                .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
 
             setCompletedMissions(completed)
         } catch (error) {
@@ -367,7 +455,18 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                     cardId: history.cardId,
                     cardName: card ? card.name : '알 수 없는 카드',
                     cardDescription: card ? card.description : '',
-                    issuedAt: history.issuedAt || Date.now()
+                    issuedAt: history.issuedAt || Date.now(),
+                    abilities: card?.abilities || {
+                        // 기본값 설정 (칭찬카드에 능력치 필드가 없을 경우)
+                        intelligence: false,
+                        diligence: false,
+                        creativity: false,
+                        personality: false
+                    },
+                    rewards: {
+                        exp: 50,  // 기본 경험치 50
+                        gold: 30  // 기본 골드 30
+                    }
                 }
             })
 
@@ -1361,6 +1460,76 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                                         <span className="text-xl font-bold text-yellow-600">{student.points || 0} G</span>
                                     </div>
                                 </div>
+
+                                {/* 능력치 표시 */}
+                                <div className="w-full bg-white border border-gray-200 rounded-lg p-3">
+                                    <h3 className="font-medium text-gray-800 mb-2">능력치</h3>
+                                    <div className="space-y-2">
+                                        {/* 지력 */}
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-blue-700">지력</span>
+                                            <div className="flex items-center">
+                                                <div className="w-32 h-2 bg-gray-200 rounded-full mr-2">
+                                                    <div
+                                                        className="h-full bg-blue-500 rounded-full"
+                                                        style={{
+                                                            width: `${Math.min(100, ((student.stats.abilities?.intelligence || 1) / 10) * 100)}%`
+                                                        }}
+                                                    ></div>
+                                                </div>
+                                                <span className="text-sm font-semibold">{student.stats.abilities?.intelligence || 1}</span>
+                                            </div>
+                                        </div>
+
+                                        {/* 성실성 */}
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-green-700">성실성</span>
+                                            <div className="flex items-center">
+                                                <div className="w-32 h-2 bg-gray-200 rounded-full mr-2">
+                                                    <div
+                                                        className="h-full bg-green-500 rounded-full"
+                                                        style={{
+                                                            width: `${Math.min(100, ((student.stats.abilities?.diligence || 1) / 10) * 100)}%`
+                                                        }}
+                                                    ></div>
+                                                </div>
+                                                <span className="text-sm font-semibold">{student.stats.abilities?.diligence || 1}</span>
+                                            </div>
+                                        </div>
+
+                                        {/* 창의력 */}
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-purple-700">창의력</span>
+                                            <div className="flex items-center">
+                                                <div className="w-32 h-2 bg-gray-200 rounded-full mr-2">
+                                                    <div
+                                                        className="h-full bg-purple-500 rounded-full"
+                                                        style={{
+                                                            width: `${Math.min(100, ((student.stats.abilities?.creativity || 1) / 10) * 100)}%`
+                                                        }}
+                                                    ></div>
+                                                </div>
+                                                <span className="text-sm font-semibold">{student.stats.abilities?.creativity || 1}</span>
+                                            </div>
+                                        </div>
+
+                                        {/* 인성 */}
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-sm text-red-700">인성</span>
+                                            <div className="flex items-center">
+                                                <div className="w-32 h-2 bg-gray-200 rounded-full mr-2">
+                                                    <div
+                                                        className="h-full bg-red-500 rounded-full"
+                                                        style={{
+                                                            width: `${Math.min(100, ((student.stats.abilities?.personality || 1) / 10) * 100)}%`
+                                                        }}
+                                                    ></div>
+                                                </div>
+                                                <span className="text-sm font-semibold">{student.stats.abilities?.personality || 1}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1440,9 +1609,55 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                                                     <div className="bg-green-200 text-green-800 rounded-full w-7 h-7 flex items-center justify-center mr-2 flex-shrink-0">
                                                         {index + 1}
                                                     </div>
-                                                    <div>
+                                                    <div className="flex-1">
                                                         <h4 className="font-medium text-green-800">{item.roadmapName}</h4>
                                                         <p className="text-sm text-green-700 mt-1">{item.stepGoal}</p>
+
+                                                        {/* 보상 정보 */}
+                                                        <div className="flex items-center mt-2 text-xs">
+                                                            <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full mr-2">
+                                                                +{item.rewards?.gold || 0} G
+                                                            </span>
+                                                            <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                                                                +{item.rewards?.exp || 0} EXP
+                                                            </span>
+                                                        </div>
+
+                                                        {/* 능력치 정보 */}
+                                                        {(item.abilities?.intelligence ||
+                                                            item.abilities?.diligence ||
+                                                            item.abilities?.creativity ||
+                                                            item.abilities?.personality) && (
+                                                                <div className="mt-2 pt-2 border-t border-green-100">
+                                                                    <p className="text-xs text-gray-500 mb-1">획득한 능력치:</p>
+                                                                    <div className="flex flex-wrap gap-1">
+                                                                        {item.abilities?.intelligence && (
+                                                                            <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full flex items-center">
+                                                                                <span className="w-1.5 h-1.5 bg-blue-700 rounded-full mr-1"></span>
+                                                                                지력 +1
+                                                                            </span>
+                                                                        )}
+                                                                        {item.abilities?.diligence && (
+                                                                            <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full flex items-center">
+                                                                                <span className="w-1.5 h-1.5 bg-green-700 rounded-full mr-1"></span>
+                                                                                성실성 +1
+                                                                            </span>
+                                                                        )}
+                                                                        {item.abilities?.creativity && (
+                                                                            <span className="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full flex items-center">
+                                                                                <span className="w-1.5 h-1.5 bg-purple-700 rounded-full mr-1"></span>
+                                                                                창의력 +1
+                                                                            </span>
+                                                                        )}
+                                                                        {item.abilities?.personality && (
+                                                                            <span className="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full flex items-center">
+                                                                                <span className="w-1.5 h-1.5 bg-red-700 rounded-full mr-1"></span>
+                                                                                인성 +1
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                     </div>
                                                 </div>
                                             ))}
@@ -1473,6 +1688,63 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                                                 >
                                                     <h4 className="font-medium text-blue-800">{mission.name}</h4>
                                                     <p className="text-sm text-blue-600 mt-1">{mission.condition}</p>
+
+                                                    {/* 보상 정보 */}
+                                                    <div className="flex items-center mt-2 text-xs">
+                                                        <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full mr-2">
+                                                            +{mission.rewards?.gold || 0} G
+                                                        </span>
+                                                        <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                                                            +{mission.rewards?.exp || 0} EXP
+                                                        </span>
+                                                    </div>
+
+                                                    {/* 능력치 정보 */}
+                                                    {(mission.abilities?.intelligence ||
+                                                        mission.abilities?.diligence ||
+                                                        mission.abilities?.creativity ||
+                                                        mission.abilities?.personality) && (
+                                                            <div className="mt-2 pt-2 border-t border-blue-100">
+                                                                <p className="text-xs text-gray-500 mb-1">획득한 능력치:</p>
+                                                                <div className="flex flex-wrap gap-1">
+                                                                    {mission.abilities?.intelligence && (
+                                                                        <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full flex items-center">
+                                                                            <span className="w-1.5 h-1.5 bg-blue-700 rounded-full mr-1"></span>
+                                                                            지력 +1
+                                                                        </span>
+                                                                    )}
+                                                                    {mission.abilities?.diligence && (
+                                                                        <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full flex items-center">
+                                                                            <span className="w-1.5 h-1.5 bg-green-700 rounded-full mr-1"></span>
+                                                                            성실성 +1
+                                                                        </span>
+                                                                    )}
+                                                                    {mission.abilities?.creativity && (
+                                                                        <span className="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full flex items-center">
+                                                                            <span className="w-1.5 h-1.5 bg-purple-700 rounded-full mr-1"></span>
+                                                                            창의력 +1
+                                                                        </span>
+                                                                    )}
+                                                                    {mission.abilities?.personality && (
+                                                                        <span className="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full flex items-center">
+                                                                            <span className="w-1.5 h-1.5 bg-red-700 rounded-full mr-1"></span>
+                                                                            인성 +1
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        )}
+
+                                                    {/* 획득 시간 */}
+                                                    <div className="mt-2 text-right">
+                                                        <p className="text-xs text-gray-500">
+                                                            {mission.timestamp && new Date(mission.timestamp).toLocaleDateString('ko-KR', {
+                                                                year: 'numeric',
+                                                                month: 'long',
+                                                                day: 'numeric'
+                                                            })}
+                                                        </p>
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
@@ -1504,10 +1776,57 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                                                         <div className="bg-purple-200 text-purple-700 p-1.5 rounded-full mr-2">
                                                             <Award className="w-4 h-4" />
                                                         </div>
-                                                        <div>
+                                                        <div className="flex-1">
                                                             <h4 className="font-medium text-purple-800">{card.cardName}</h4>
                                                             <p className="text-sm text-purple-600 mt-1">{card.cardDescription}</p>
-                                                            <p className="text-xs text-gray-500 mt-1">
+
+                                                            {/* 보상 정보 */}
+                                                            <div className="flex items-center mt-2 text-xs">
+                                                                <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full mr-2">
+                                                                    +{card.rewards?.gold || 0} G
+                                                                </span>
+                                                                <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                                                                    +{card.rewards?.exp || 0} EXP
+                                                                </span>
+                                                            </div>
+
+                                                            {/* 능력치 정보 */}
+                                                            {(card.abilities?.intelligence ||
+                                                                card.abilities?.diligence ||
+                                                                card.abilities?.creativity ||
+                                                                card.abilities?.personality) && (
+                                                                    <div className="mt-2 pt-2 border-t border-purple-100">
+                                                                        <p className="text-xs text-gray-500 mb-1">획득한 능력치:</p>
+                                                                        <div className="flex flex-wrap gap-1">
+                                                                            {card.abilities?.intelligence && (
+                                                                                <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full flex items-center">
+                                                                                    <span className="w-1.5 h-1.5 bg-blue-700 rounded-full mr-1"></span>
+                                                                                    지력 +1
+                                                                                </span>
+                                                                            )}
+                                                                            {card.abilities?.diligence && (
+                                                                                <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full flex items-center">
+                                                                                    <span className="w-1.5 h-1.5 bg-green-700 rounded-full mr-1"></span>
+                                                                                    성실성 +1
+                                                                                </span>
+                                                                            )}
+                                                                            {card.abilities?.creativity && (
+                                                                                <span className="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full flex items-center">
+                                                                                    <span className="w-1.5 h-1.5 bg-purple-700 rounded-full mr-1"></span>
+                                                                                    창의력 +1
+                                                                                </span>
+                                                                            )}
+                                                                            {card.abilities?.personality && (
+                                                                                <span className="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full flex items-center">
+                                                                                    <span className="w-1.5 h-1.5 bg-red-700 rounded-full mr-1"></span>
+                                                                                    인성 +1
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+
+                                                            <p className="text-xs text-gray-500 mt-2 text-right">
                                                                 {new Date(card.issuedAt).toLocaleDateString()}
                                                             </p>
                                                         </div>
