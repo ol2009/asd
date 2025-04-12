@@ -10,11 +10,18 @@ import { PlusCircle, Award, X, Check, Search, ArrowLeft, LogOut } from 'lucide-r
 import Link from 'next/link'
 import Image from 'next/image'
 import { toast } from 'sonner'
+import AvatarRenderer from '@/components/Avatar'
 
 interface PraiseCard {
     id: number
     name: string
     description: string
+    abilities?: {
+        intelligence?: boolean // 지력
+        diligence?: boolean    // 성실성
+        creativity?: boolean   // 창의력
+        personality?: boolean  // 인성
+    }
 }
 
 interface Student {
@@ -39,35 +46,28 @@ const iconTypes = [
     '/images/icons/Gemini_Generated_Image_el7avsel7avsel7a.jpg',
 ]
 
-// 학생 아바타 아이콘 렌더링
-const renderStudentIcon = (iconType: string) => {
-    // iconType이 기존 Lucide 아이콘 이름인 경우 (이전 데이터 호환성 유지)
-    if (iconType.startsWith('user') || iconType.startsWith('book') || iconType.startsWith('sparkles') ||
-        iconType.startsWith('award') || iconType.startsWith('brain') || iconType.startsWith('star') ||
-        iconType.startsWith('pen') || iconType.startsWith('code') || iconType.startsWith('coffee') ||
-        iconType.startsWith('zap') || iconType.startsWith('heart') || iconType.startsWith('globe') ||
-        iconType.startsWith('compass')) {
-        // 기존 아이콘 대신 기본 이미지 사용
+// 학생 아바타 렌더링 함수 추가
+const renderStudentAvatar = (student: any) => {
+    if (student.avatar) {
+        return <AvatarRenderer avatar={student.avatar} size={40} />
+    } else if (student.iconType) {
         return (
             <div className="relative w-full h-full overflow-hidden rounded-full">
                 <Image
-                    src={iconTypes[0]} // 기본 이미지
-                    alt="Student avatar"
-                    fill
+                    src={student.iconType.startsWith('/') ? student.iconType : '/images/icons/Gemini_Generated_Image_3zghrv3zghrv3zgh.jpg'}
+                    alt={student.name}
+                    width={40}
+                    height={40}
                     className="object-cover"
                 />
             </div>
         )
     } else {
-        // 이미지 경로인 경우
         return (
-            <div className="relative w-full h-full overflow-hidden rounded-full">
-                <Image
-                    src={iconType}
-                    alt="Student avatar"
-                    fill
-                    className="object-cover"
-                />
+            <div className="relative w-full h-full overflow-hidden rounded-full bg-blue-100">
+                <span className="absolute inset-0 flex items-center justify-center text-blue-500 font-bold">
+                    {student.name?.charAt(0) || "?"}
+                </span>
             </div>
         )
     }
@@ -529,7 +529,7 @@ export default function PraiseCardsPage() {
                                                     <div className="flex items-center justify-between">
                                                         <div className="flex items-center">
                                                             <div className="w-10 h-10 bg-blue-50/60 rounded-full mr-3 overflow-hidden relative">
-                                                                {renderStudentIcon(student.iconType)}
+                                                                {renderStudentAvatar(student)}
                                                             </div>
                                                             <div>
                                                                 <div className="font-medium text-blue-800">{student.name}</div>
@@ -691,7 +691,7 @@ export default function PraiseCardsPage() {
                                         >
                                             <div className="flex items-center">
                                                 <div className="w-10 h-10 bg-blue-50/60 rounded-full mr-3 overflow-hidden relative">
-                                                    {renderStudentIcon(student.iconType)}
+                                                    {renderStudentAvatar(student)}
                                                 </div>
                                                 <div>
                                                     <div className="font-medium text-blue-800">{student.name}</div>

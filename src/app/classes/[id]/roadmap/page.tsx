@@ -6,6 +6,7 @@ import { Plus, ArrowLeft, X, Save, Trash2, Image as ImageIcon, Check } from 'luc
 import Link from 'next/link'
 import { toast } from 'sonner'
 import Image from 'next/image'
+import AvatarRenderer from '@/components/Avatar'
 
 interface ClassInfo {
     id: string
@@ -44,6 +45,12 @@ interface Roadmap {
     rewardTitle: string
     icon: string
     createdAt: string
+    abilities?: {
+        intelligence?: boolean // 지력
+        diligence?: boolean    // 성실성
+        creativity?: boolean   // 창의력
+        personality?: boolean  // 인성
+    }
 }
 
 // 상수 값을 추가
@@ -62,11 +69,23 @@ export default function RoadmapPage() {
     const [formData, setFormData] = useState({
         name: '',
         steps: [
-            { id: '1', goal: '' },
-            { id: '2', goal: '' }
+            {
+                id: '1',
+                goal: ''
+            },
+            {
+                id: '2',
+                goal: ''
+            }
         ],
         rewardTitle: '',
-        icon: '/images/icons/roadmap/basicbook.jpg'
+        icon: '/images/icons/roadmap/basicbook.jpg',
+        abilities: {
+            intelligence: false,
+            diligence: false,
+            creativity: false,
+            personality: false
+        }
     })
     const [selectedRoadmap, setSelectedRoadmap] = useState<Roadmap | null>(null)
     const [isRoadmapDetailModalOpen, setIsRoadmapDetailModalOpen] = useState(false)
@@ -133,11 +152,23 @@ export default function RoadmapPage() {
         setFormData({
             name: '',
             steps: [
-                { id: '1', goal: '' },
-                { id: '2', goal: '' }
+                {
+                    id: '1',
+                    goal: ''
+                },
+                {
+                    id: '2',
+                    goal: ''
+                }
             ],
             rewardTitle: '',
-            icon: '/images/icons/roadmap/basicbook.jpg'
+            icon: '/images/icons/roadmap/basicbook.jpg',
+            abilities: {
+                intelligence: false,
+                diligence: false,
+                creativity: false,
+                personality: false
+            }
         })
         setIsAddModalOpen(true)
     }
@@ -177,6 +208,7 @@ export default function RoadmapPage() {
             })),
             rewardTitle: formData.rewardTitle,
             icon: formData.icon,
+            abilities: formData.abilities,
             createdAt: new Date().toISOString()
         }
 
@@ -216,6 +248,17 @@ export default function RoadmapPage() {
             })
         }));
     }
+
+    // 로드맵 능력치 변경 핸들러
+    const handleAbilityChange = (ability: string, checked: boolean) => {
+        setFormData(prev => ({
+            ...prev,
+            abilities: {
+                ...prev.abilities,
+                [ability]: checked
+            }
+        }));
+    };
 
     // 단계 삭제 핸들러
     const handleRemoveStep = (index: number) => {
@@ -349,7 +392,7 @@ export default function RoadmapPage() {
 
         // 2. 경험치와 레벨 업데이트
         filteredStudentIds.forEach(studentId => {
-            updateStudentExpAndLevel(studentId, EXP_FOR_ROADMAP_STEP);
+            updateStudentExpAndLevel(studentId, EXP_FOR_ROADMAP_STEP, selectedRoadmap.abilities);
         });
 
         // 3. 마지막 단계 완료 시 칭호 부여
@@ -506,218 +549,216 @@ export default function RoadmapPage() {
 
     // 학생을 로드맵 단계에 추가하는 함수
     const addStudentToRoadmapStep = (roadmapId: string, stepId: string, studentId: string) => {
-        // 현재 로드맵 목록 가져오기
-        const currentRoadmaps = [...roadmaps]
-
-        // 해당 로드맵과 단계 찾기
-        const roadmapIndex = currentRoadmaps.findIndex(r => r.id === roadmapId)
-        if (roadmapIndex === -1) return
-
-        const roadmap = currentRoadmaps[roadmapIndex];
-        const stepIndex = roadmap.steps.findIndex(s => s.id === stepId)
-        if (stepIndex === -1) return
-
-        // 학생이 이미 이 단계에 있는지 확인
-        const stepStudents = roadmap.steps[stepIndex].students || []
-        const isStudentAlreadyInStep = stepStudents.includes(studentId)
-        if (isStudentAlreadyInStep) {
-            toast.info('학생이 이미 이 단계에 있습니다.')
-            return
-        }
-
-        // 1. 이전 단계에서 학생 제거
-        if (stepIndex > 0) {
-            for (let i = 0; i < stepIndex; i++) {
-                const prevStep = roadmap.steps[i];
-
-                if (prevStep.students && prevStep.students.includes(studentId)) {
-                    // 이전 단계에서 학생 제거
-                    prevStep.students = prevStep.students.filter(id => id !== studentId);
-
-                    // 로컬 스토리지 업데이트 (단계별 학생 목록)
-                    localStorage.setItem(
-                        `roadmap_${classId}_step_${prevStep.id}_students`,
-                        JSON.stringify(prevStep.students)
-                    );
-
-                    // 상태 업데이트 (studentsInSteps)
-                    if (studentsInSteps[prevStep.id]) {
-                        studentsInSteps[prevStep.id] = studentsInSteps[prevStep.id].filter(
-                            id => id !== studentId
-                        );
-                    }
-                }
+        try {
+            // 1. 로드맵 데이터 불러오기
+            const savedRoadmaps = localStorage.getItem(`roadmaps_${classId}`)
+            if (!savedRoadmaps) {
+                toast.error('로드맵 데이터를 불러올 수 없습니다.')
+                return
             }
+
+            const allRoadmaps = JSON.parse(savedRoadmaps)
+            const roadmapIndex = allRoadmaps.findIndex((r: Roadmap) => r.id === roadmapId)
+
+            if (roadmapIndex === -1) {
+                toast.error('해당 로드맵을 찾을 수 없습니다.')
+                return
+            }
+
+            const roadmap = allRoadmaps[roadmapIndex]
+            const stepIndex = roadmap.steps.findIndex((s: RoadmapStep) => s.id === stepId)
+
+            if (stepIndex === -1) {
+                toast.error('해당 단계를 찾을 수 없습니다.')
+                return
+            }
+
+            const step = roadmap.steps[stepIndex];
+
+            // 이미 완료한 학생이면 추가하지 않음
+            if (step.students && step.students.includes(studentId)) {
+                toast.info('이미 완료한 단계입니다.')
+                return
+            }
+
+            // 2. 단계별 학생 목록에 추가
+            if (!step.students) {
+                step.students = []
+            }
+            step.students.push(studentId)
+
+            // 3. 로컬 스토리지 업데이트
+            allRoadmaps[roadmapIndex] = roadmap
+            localStorage.setItem(`roadmaps_${classId}`, JSON.stringify(allRoadmaps))
+
+            // 4. 단계별 별도 저장소에도 업데이트
+            const stepKey = `roadmap_${classId}_step_${stepId}_students`
+            const savedStepStudents = localStorage.getItem(stepKey)
+            let stepStudents = savedStepStudents ? JSON.parse(savedStepStudents) : []
+
+            if (!Array.isArray(stepStudents)) {
+                stepStudents = []
+            }
+
+            if (!stepStudents.includes(studentId)) {
+                stepStudents.push(studentId)
+                localStorage.setItem(stepKey, JSON.stringify(stepStudents))
+            }
+
+            // 5. 현재 상태 업데이트
+            if (selectedRoadmap && selectedRoadmap.id === roadmapId) {
+                const updatedRoadmap = { ...selectedRoadmap }
+                updatedRoadmap.steps = [...updatedRoadmap.steps]
+                updatedRoadmap.steps[stepIndex] = { ...updatedRoadmap.steps[stepIndex], students: [...step.students] }
+                setSelectedRoadmap(updatedRoadmap)
+
+                // 단계별 학생 목록 상태 업데이트
+                setStudentsInSteps(prev => {
+                    const newState = { ...prev }
+                    newState[stepId] = [...step.students]
+                    return newState
+                })
+            }
+
+            // 6. 경험치 및 레벨 업데이트
+            updateStudentExpAndLevel(studentId, EXP_FOR_ROADMAP_STEP, selectedRoadmap.abilities)
+
+            // 7. 마지막 단계면 칭호 부여 (보상)
+            const isLastStep = stepIndex === roadmap.steps.length - 1
+            if (isLastStep && roadmap.rewardTitle) {
+                assignHonorificToStudent(studentId, roadmap.rewardTitle)
+            }
+
+            toast.success('단계 완료 처리되었습니다.')
+            return true
+        } catch (error) {
+            console.error('로드맵 단계 완료 처리 중 오류:', error)
+            toast.error('단계 완료 처리 중 오류가 발생했습니다.')
+            return false
         }
-
-        // 2. 학생을 단계에 추가
-        if (!roadmap.steps[stepIndex].students) {
-            roadmap.steps[stepIndex].students = []
-        }
-        roadmap.steps[stepIndex].students!.push(studentId)
-
-        // 3. 로드맵 목록 업데이트
-        setRoadmaps(currentRoadmaps)
-
-        // 4. 로컬스토리지에 저장
-        localStorage.setItem(`roadmaps_${classId}`, JSON.stringify(currentRoadmaps))
-
-        // 5. 단계별 학생 목록 업데이트
-        const updatedStepStudents = [...(studentsInSteps[stepId] || []), studentId];
-        localStorage.setItem(`roadmap_${classId}_step_${stepId}_students`, JSON.stringify(updatedStepStudents));
-
-        // 6. 상태 업데이트
-        setStudentsInSteps({
-            ...studentsInSteps,
-            [stepId]: updatedStepStudents
-        });
-
-        // 7. 학생 경험치 및 레벨 업데이트
-        updateStudentExpAndLevel(studentId, EXP_FOR_ROADMAP_STEP)
-
-        // 8. 마지막 단계 완료 시 칭호 부여
-        const isLastStep = stepIndex === roadmap.steps.length - 1;
-        if (isLastStep && roadmap.rewardTitle) {
-            // 마지막 단계이고 보상 칭호가 설정되어 있으면 칭호 부여
-            assignHonorificToStudent(studentId, roadmap.rewardTitle);
-        }
-
-        toast.success('학생이 성장 단계에 추가되었습니다.')
-        setIsAddStudentModalOpen(false)
     }
 
     // 학생의 경험치와 레벨을 업데이트하는 함수
-    const updateStudentExpAndLevel = (studentId: string, expToAdd: number) => {
-        // 학생 목록 가져오기
-        const savedStudents = localStorage.getItem(`students_${classId}`)
-        if (!savedStudents) return
-
+    const updateStudentExpAndLevel = (studentId: string, expToAdd: number, stepAbilities?: {
+        intelligence?: boolean
+        diligence?: boolean
+        creativity?: boolean
+        personality?: boolean
+    }) => {
         try {
+            // 클래스 내 학생 목록에서 ID로 학생 찾기
+            const savedStudents = localStorage.getItem(`students_${classId}`)
+            if (!savedStudents) {
+                console.error('학생 정보를 불러올 수 없습니다.')
+                return
+            }
+
             const students = JSON.parse(savedStudents)
-            const studentIndex = students.findIndex((s: Student) => s.id === studentId)
+            const studentIndex = students.findIndex((s: any) => s.id === studentId)
 
-            if (studentIndex === -1) return
+            if (studentIndex === -1) {
+                console.error('해당 학생을 찾을 수 없습니다.')
+                return
+            }
 
-            // 학생 데이터 업데이트
+            // 현재 학생 정보 가져오기
             const student = students[studentIndex]
 
-            // 경험치가 없으면 초기화
-            if (!student.stats.exp) {
-                student.stats.exp = 0
+            // stats 객체가 없으면 기본값 설정
+            if (!student.stats) {
+                student.stats = {
+                    level: 1,
+                    exp: 0,
+                    abilities: {
+                        intelligence: 1,
+                        diligence: 1,
+                        creativity: 1,
+                        personality: 1
+                    }
+                }
             }
 
-            // 포인트가 없으면 초기화
-            if (!student.points) {
-                student.points = 0
+            // abilities 객체가 없으면 기본값 설정
+            if (!student.stats.abilities) {
+                student.stats.abilities = {
+                    intelligence: 1,
+                    diligence: 1,
+                    creativity: 1,
+                    personality: 1
+                }
             }
 
-            // 현재 레벨
-            const currentLevel = student.stats.level || 1
+            // 경험치 추가 및 레벨 계산
+            const currentExp = student.stats.exp || 0
+            const newExp = currentExp + expToAdd
 
-            // 요구사항에 맞게 직접 레벨 1 증가
-            const newLevel = currentLevel + 1
+            // 레벨 계산 (100 경험치당 1레벨)
+            const newLevel = Math.floor(newExp / EXP_PER_LEVEL)
+            const levelChange = newLevel - student.stats.level
 
-            // 경험치 추가 (로직 유지를 위해)
-            student.stats.exp += expToAdd
+            // 능력치 증가
+            if (stepAbilities) {
+                // 해당 단계에서 선택된 능력치만 증가
+                if (stepAbilities.intelligence) {
+                    student.stats.abilities.intelligence += 1;
+                }
+                if (stepAbilities.diligence) {
+                    student.stats.abilities.diligence += 1;
+                }
+                if (stepAbilities.creativity) {
+                    student.stats.abilities.creativity += 1;
+                }
+                if (stepAbilities.personality) {
+                    student.stats.abilities.personality += 1;
+                }
+            }
 
-            // 레벨 설정
+            // 학생 정보 업데이트
+            student.stats.exp = newExp
             student.stats.level = newLevel
 
-            // 레벨업 시 포인트 지급 (레벨 1당 100포인트)
-            student.points += POINTS_PER_LEVEL
+            // 레벨업 시 보상 (포인트 지급)
+            if (levelChange > 0) {
+                const pointsToAdd = levelChange * POINTS_PER_LEVEL;
+                student.points = (student.points || 0) + pointsToAdd;
 
-            // 학생 데이터 저장
+                // 레벨업 토스트 메시지
+                toast.success(
+                    <div>
+                        <p><strong>{student.name}</strong> 학생이 레벨업했습니다!</p>
+                        <p>Lv.{newLevel - levelChange} → Lv.{newLevel}</p>
+                        <p>보상: {pointsToAdd}G 지급</p>
+                    </div>
+                );
+            }
+
+            // 업데이트된 학생 목록 저장
             students[studentIndex] = student
             localStorage.setItem(`students_${classId}`, JSON.stringify(students))
 
-            // 현재 컴포넌트 상태에 반영된 학생 목록도 업데이트
-            setStudentsInClass(students)
+            // 제공된 경험치에 대한 토스트 메시지
+            toast.success(
+                <div>
+                    <p><strong>{student.name}</strong> 학생이 경험치를 획득했습니다!</p>
+                    <p>+{expToAdd} EXP</p>
+                    {stepAbilities && (
+                        <p>
+                            {stepAbilities.intelligence && <span className="inline-block bg-blue-100 text-blue-700 px-1 rounded mr-1">지력 +1</span>}
+                            {stepAbilities.diligence && <span className="inline-block bg-green-100 text-green-700 px-1 rounded mr-1">성실성 +1</span>}
+                            {stepAbilities.creativity && <span className="inline-block bg-purple-100 text-purple-700 px-1 rounded mr-1">창의력 +1</span>}
+                            {stepAbilities.personality && <span className="inline-block bg-red-100 text-red-700 px-1 rounded mr-1">인성 +1</span>}
+                        </p>
+                    )}
+                </div>
+            );
 
-            // 경험치 획득 메시지
-            const baseToastId = `student-${student.id}-${Date.now()}`;
-            toast.success(`${student.name} 학생이 ${expToAdd} 경험치를 획득했습니다!`, {
-                id: `${baseToastId}-exp`,
-                duration: 3000,
-                style: {
-                    opacity: 1,
-                    backgroundColor: '#fff',
-                    border: '1px solid rgba(0, 0, 0, 0.1)'
-                }
-            });
+            // 학생 데이터 리로드
+            loadStudentsInClass()
 
-            // 레벨업 메시지 (1초 후 표시)
-            setTimeout(() => {
-                toast.success(`${student.name} 학생이 Lv.${currentLevel}에서 Lv.${newLevel}로 레벨업했습니다!`, {
-                    id: `${baseToastId}-level`,
-                    duration: 3000,
-                    style: {
-                        opacity: 1,
-                        backgroundColor: '#fff',
-                        border: '1px solid rgba(0, 0, 0, 0.1)'
-                    }
-                });
-            }, 1000);
-
-            // 포인트 지급 메시지 (2초 후 표시)
-            setTimeout(() => {
-                toast.success(`${student.name} 학생에게 ${POINTS_PER_LEVEL} 포인트가 지급되었습니다!`, {
-                    id: `${baseToastId}-points`,
-                    duration: 3000,
-                    style: {
-                        opacity: 1,
-                        backgroundColor: '#fff',
-                        border: '1px solid rgba(0, 0, 0, 0.1)'
-                    }
-                });
-            }, 2000);
-
-            // classes 스토리지 업데이트 추가
-            const classesJson = localStorage.getItem('classes');
-            if (classesJson) {
-                const classes = JSON.parse(classesJson);
-                const classIndex = classes.findIndex((c: ClassInfo) => c.id === classId);
-
-                if (classIndex !== -1) {
-                    const studentIndex = classes[classIndex].students.findIndex(
-                        (s: Student) => s.id === studentId
-                    );
-
-                    if (studentIndex !== -1) {
-                        // 업데이트된 정보 적용
-                        classes[classIndex].students[studentIndex].stats.exp = student.stats.exp;
-                        classes[classIndex].students[studentIndex].stats.level = student.stats.level;
-                        classes[classIndex].students[studentIndex].points = student.points;
-
-                        // 저장
-                        localStorage.setItem('classes', JSON.stringify(classes));
-                    }
-                }
-            }
-
-            // class_classId 스토리지 업데이트 추가
-            const classDataJson = localStorage.getItem(`class_${classId}`);
-            if (classDataJson) {
-                const classData = JSON.parse(classDataJson);
-
-                if (classData.students && Array.isArray(classData.students)) {
-                    const studentIndex = classData.students.findIndex(
-                        (s: Student) => s.id === studentId
-                    );
-
-                    if (studentIndex !== -1) {
-                        // 업데이트된 정보 적용
-                        classData.students[studentIndex].stats.exp = student.stats.exp;
-                        classData.students[studentIndex].stats.level = student.stats.level;
-                        classData.students[studentIndex].points = student.points;
-
-                        // 저장
-                        localStorage.setItem(`class_${classId}`, JSON.stringify(classData));
-                    }
-                }
-            }
+            return student
         } catch (error) {
-            console.error('학생 데이터 업데이트 오류:', error)
-            toast.error('학생 데이터를 업데이트하는 중 오류가 발생했습니다.')
+            console.error('학생 경험치/레벨 업데이트 중 오류:', error)
+            return null
         }
     }
 
@@ -757,6 +798,41 @@ export default function RoadmapPage() {
             icon: iconPath
         }));
         setIsIconSelectOpen(false);
+    };
+
+    // 학생 아바타 렌더링 함수
+    const renderStudentAvatar = (student: any) => {
+        if (student.avatar) {
+            return <AvatarRenderer avatar={student.avatar} size={40} />
+        } else if (student.iconType) {
+            return (
+                <div className="relative w-full h-full overflow-hidden rounded-full">
+                    <Image
+                        src={student.iconType.startsWith('/') ? student.iconType : '/images/icons/Gemini_Generated_Image_3zghrv3zghrv3zgh.jpg'}
+                        alt={student.name}
+                        width={40}
+                        height={40}
+                        className="object-cover"
+                    />
+                </div>
+            )
+        } else {
+            return (
+                <div className="relative w-full h-full overflow-hidden rounded-full bg-blue-100">
+                    <span className="absolute inset-0 flex items-center justify-center text-blue-500 font-bold">
+                        {student.name?.charAt(0) || "?"}
+                    </span>
+                </div>
+            )
+        }
+    }
+
+    // 학생 목록 불러오기 함수
+    const loadStudentsInClass = () => {
+        const savedStudents = localStorage.getItem(`students_${classId}`);
+        if (savedStudents) {
+            setStudentsInClass(JSON.parse(savedStudents));
+        }
     };
 
     if (isLoading) {
@@ -938,32 +1014,24 @@ export default function RoadmapPage() {
                                     <div className="space-y-3 max-h-[30vh] overflow-y-auto pr-2 custom-scrollbar">
                                         {formData.steps.map((step, index) => (
                                             <div key={step.id} className="bg-white/70 rounded-xl p-4 shadow-sm border border-blue-100/50">
-                                                <div className="flex items-center justify-between mb-3">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="w-7 h-7 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-semibold text-sm">
-                                                            {index + 1}
-                                                        </span>
-                                                        <label htmlFor={`step-${index}`} className="font-medium text-blue-700">
-                                                            단계 목표
-                                                        </label>
-                                                    </div>
-                                                    {index > 1 && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => handleRemoveStep(index)}
-                                                            className="text-red-500 hover:text-red-600 bg-red-50 hover:bg-red-100 p-1.5 rounded-lg transition-colors"
-                                                        >
-                                                            <X className="w-4 h-4" />
-                                                        </button>
-                                                    )}
+                                                <div className="flex items-center justify-between mb-2">
+                                                    <h3 className="text-sm font-semibold text-slate-700">
+                                                        {index + 1}단계 목표
+                                                    </h3>
+                                                    <button
+                                                        type="button"
+                                                        className="text-red-500 hover:text-red-700"
+                                                        onClick={() => handleRemoveStep(index)}
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
                                                 </div>
                                                 <input
                                                     type="text"
-                                                    id={`step-${index}`}
                                                     value={step.goal}
                                                     onChange={(e) => handleStepChange(index, 'goal', e.target.value)}
-                                                    className="w-full px-3 py-2.5 bg-blue-50/60 border border-blue-200/50 rounded-lg text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                                    placeholder={`${index + 1}단계에서 달성해야 할 목표`}
+                                                    placeholder={`${index + 1}단계 목표를 입력하세요`}
+                                                    className="w-full p-2 border rounded-md mb-4"
                                                     required
                                                 />
                                             </div>
@@ -997,6 +1065,64 @@ export default function RoadmapPage() {
                                             placeholder="예: 독서왕, 수학천재 등"
                                             required
                                         />
+                                    </div>
+                                </div>
+
+                                {/* 관련 능력치 선택 */}
+                                <div className="space-y-2">
+                                    <label className="block text-blue-800 font-medium">
+                                        관련 능력치 선택
+                                    </label>
+                                    <p className="text-xs text-slate-500 mb-2">학생이 단계를 달성할 때마다 선택한 능력치가 1씩 증가합니다.</p>
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <div className="flex items-center space-x-2 bg-white/70 p-2 rounded-lg border border-blue-100">
+                                            <input
+                                                type="checkbox"
+                                                id="intelligence"
+                                                checked={formData.abilities.intelligence}
+                                                onChange={(e) => handleAbilityChange('intelligence', e.target.checked)}
+                                                className="rounded border-blue-300 text-blue-600 focus:ring-blue-500"
+                                            />
+                                            <label htmlFor="intelligence" className="text-sm text-blue-700 font-medium">
+                                                지력
+                                            </label>
+                                        </div>
+                                        <div className="flex items-center space-x-2 bg-white/70 p-2 rounded-lg border border-green-100">
+                                            <input
+                                                type="checkbox"
+                                                id="diligence"
+                                                checked={formData.abilities.diligence}
+                                                onChange={(e) => handleAbilityChange('diligence', e.target.checked)}
+                                                className="rounded border-green-300 text-green-600 focus:ring-green-500"
+                                            />
+                                            <label htmlFor="diligence" className="text-sm text-green-700 font-medium">
+                                                성실성
+                                            </label>
+                                        </div>
+                                        <div className="flex items-center space-x-2 bg-white/70 p-2 rounded-lg border border-purple-100">
+                                            <input
+                                                type="checkbox"
+                                                id="creativity"
+                                                checked={formData.abilities.creativity}
+                                                onChange={(e) => handleAbilityChange('creativity', e.target.checked)}
+                                                className="rounded border-purple-300 text-purple-600 focus:ring-purple-500"
+                                            />
+                                            <label htmlFor="creativity" className="text-sm text-purple-700 font-medium">
+                                                창의력
+                                            </label>
+                                        </div>
+                                        <div className="flex items-center space-x-2 bg-white/70 p-2 rounded-lg border border-red-100">
+                                            <input
+                                                type="checkbox"
+                                                id="personality"
+                                                checked={formData.abilities.personality}
+                                                onChange={(e) => handleAbilityChange('personality', e.target.checked)}
+                                                className="rounded border-red-300 text-red-600 focus:ring-red-500"
+                                            />
+                                            <label htmlFor="personality" className="text-sm text-red-700 font-medium">
+                                                인성
+                                            </label>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -1122,52 +1248,31 @@ export default function RoadmapPage() {
                                                 </div>
                                             </div>
 
-                                            <div className="mb-3">
-                                                <div className="flex justify-between items-center mb-2">
-                                                    <h4 className="font-semibold text-slate-700">
-                                                        달성 학생
-                                                    </h4>
-                                                    <button
-                                                        onClick={() => handleAddStudentToStep(reverseIndex)}
-                                                        className="px-3 py-1 bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition-colors text-sm"
-                                                    >
-                                                        <Plus className="w-3 h-3 inline mr-1" />
-                                                        추가하기
-                                                    </button>
-                                                </div>
+                                            {/* 단계 설명 */}
+                                            <p className="text-slate-600 mt-1">{stepData.goal}</p>
 
-                                                {stepStudentIds.length > 0 ? (
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {stepStudentIds.map(studentId => {
-                                                            const student = studentsInClass.find(s => s.id === studentId)
-                                                            return student ? (
-                                                                <div
-                                                                    key={studentId}
-                                                                    className="bg-white border border-blue-100 rounded-lg p-2 flex items-center gap-2 shadow-sm hover:shadow-md transition-shadow"
-                                                                >
-                                                                    <div className="w-8 h-8 rounded-full overflow-hidden relative bg-blue-50">
-                                                                        <Image
-                                                                            src={student.iconType.startsWith('/') ? student.iconType : '/images/icons/Gemini_Generated_Image_3zghrv3zghrv3zgh.jpg'}
-                                                                            alt={student.name}
-                                                                            width={32}
-                                                                            height={32}
-                                                                            className="object-cover"
-                                                                        />
-                                                                    </div>
-                                                                    <div className="flex flex-col">
-                                                                        <span className="text-xs text-blue-600 font-medium">{student.honorific || '초보자'}</span>
-                                                                        <span className="text-sm font-bold text-slate-700">{student.name}</span>
-                                                                    </div>
-                                                                </div>
-                                                            ) : null
-                                                        })}
+                                            {/* 획득 능력치 표시 */}
+                                            {stepData.abilities && (
+                                                Object.keys(stepData.abilities).some(key => stepData.abilities[key]) && (
+                                                    <div className="mt-3 flex flex-wrap gap-1">
+                                                        <span className="text-xs text-gray-500">획득 능력치:</span>
+                                                        <div className="flex gap-1">
+                                                            {stepData.abilities.intelligence && (
+                                                                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">지력</span>
+                                                            )}
+                                                            {stepData.abilities.diligence && (
+                                                                <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">성실성</span>
+                                                            )}
+                                                            {stepData.abilities.creativity && (
+                                                                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">창의력</span>
+                                                            )}
+                                                            {stepData.abilities.personality && (
+                                                                <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full">인성</span>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                ) : (
-                                                    <p className="text-slate-500 text-sm italic">
-                                                        아직 달성한 학생이 없습니다.
-                                                    </p>
-                                                )}
-                                            </div>
+                                                )
+                                            )}
                                         </div>
                                     )
                                 })}

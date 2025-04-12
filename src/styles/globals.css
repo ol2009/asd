@@ -1,0 +1,92 @@
+/* 무지개 테두리 애니메이션 */
+@keyframes rainbow-border {
+    0% {
+        border-color: #ff0000;
+    }
+
+    14% {
+        border-color: #ff7f00;
+    }
+
+    28% {
+        border-color: #ffff00;
+    }
+
+    42% {
+        border-color: #00ff00;
+    }
+
+    57% {
+        border-color: #0000ff;
+    }
+
+    71% {
+        border-color: #4b0082;
+    }
+
+    85% {
+        border-color: #9400d3;
+    }
+
+    100% {
+        border-color: #ff0000;
+    }
+}
+
+.ring-rainbow {
+    border: 2px solid #ff0000;
+    animation: rainbow-border 3s linear infinite;
+}
+
+/* 희귀도 아이콘 */
+.rarity-badge {
+    position: absolute;
+    top: -2px;
+    right: -2px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    font-weight: bold;
+    color: white;
+}
+
+.rarity-common {
+    background-color: #bebebe;
+}
+
+.rarity-rare {
+    background-color: #1eff00;
+}
+
+.rarity-epic {
+    background-color: #a335ee;
+}
+
+.rarity-legendary {
+    background-color: #ff8000;
+}
+
+.rarity-mythic {
+    background: linear-gradient(124deg, #ff2400, #e81d1d, #e8b71d, #e3e81d, #1de840, #1ddde8, #2b1de8, #dd00f3, #dd00f3);
+    background-size: 1800% 1800%;
+    animation: rainbow-background 3s linear infinite;
+}
+
+@keyframes rainbow-background {
+    0% {
+        background-position: 0% 82%
+    }
+
+    50% {
+        background-position: 100% 19%
+    }
+
+    100% {
+        background-position: 0% 82%
+    }
+}

@@ -6,6 +6,7 @@ import { Plus, ArrowLeft, X, Save, LogOut } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import Image from 'next/image'
+import AvatarRenderer from '@/components/Avatar'
 
 // 미션 타입 정의
 interface Mission {
@@ -14,6 +15,12 @@ interface Mission {
     condition: string
     achievers: string[] // 미션 달성자 ID 목록
     createdAt: string
+    abilities?: {
+        intelligence?: boolean // 지력
+        diligence?: boolean    // 성실성
+        creativity?: boolean   // 창의력
+        personality?: boolean  // 인성
+    }
 }
 
 // 학생 타입 정의
@@ -77,6 +84,33 @@ export default function MissionsPage() {
         name: '',
         condition: ''
     })
+
+    // 학생 아바타 렌더링 함수
+    const renderStudentAvatar = (student: any) => {
+        if (student.avatar) {
+            return <AvatarRenderer avatar={student.avatar} size={40} />
+        } else if (student.iconType) {
+            return (
+                <div className="relative w-full h-full overflow-hidden rounded-full">
+                    <Image
+                        src={student.iconType.startsWith('/') ? student.iconType : '/images/icons/Gemini_Generated_Image_3zghrv3zghrv3zgh.jpg'}
+                        alt={student.name}
+                        width={40}
+                        height={40}
+                        className="object-cover"
+                    />
+                </div>
+            )
+        } else {
+            return (
+                <div className="relative w-full h-full overflow-hidden rounded-full bg-blue-100">
+                    <span className="absolute inset-0 flex items-center justify-center text-blue-500 font-bold">
+                        {student.name?.charAt(0) || "?"}
+                    </span>
+                </div>
+            )
+        }
+    }
 
     useEffect(() => {
         // 로그인 상태 확인
@@ -169,7 +203,8 @@ export default function MissionsPage() {
             createdAt: new Date().toISOString()
         }
 
-        const updatedMissions = [...missions, newMission]
+        // 새 미션을 배열의 맨 앞에 추가하여 최신순으로 표시
+        const updatedMissions = [newMission, ...missions]
         setMissions(updatedMissions)
         localStorage.setItem(`missions_${classId}`, JSON.stringify(updatedMissions))
 
@@ -611,23 +646,26 @@ export default function MissionsPage() {
                                         <p className="text-slate-500 text-sm mt-1">위의 버튼을 눌러 미션을 추가해보세요.</p>
                                     </div>
                                 ) : (
-                                    missions.map((mission) => (
-                                        <div
-                                            key={mission.id}
-                                            className="bg-blue-50/40 hover:bg-blue-100/50 border border-blue-100/30 rounded-lg p-5 shadow-sm cursor-pointer transition-shadow"
-                                            onClick={() => handleMissionClick(mission)}
-                                        >
-                                            <div className="flex items-center mb-3">
-                                                <h3 className="font-bold text-blue-700 text-lg flex items-center">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                    </svg>
-                                                    {mission.name}
-                                                </h3>
+                                    // 최신순으로 정렬하여 표시
+                                    [...missions]
+                                        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                                        .map((mission) => (
+                                            <div
+                                                key={mission.id}
+                                                className="bg-blue-50/40 hover:bg-blue-100/50 border border-blue-100/30 rounded-lg p-5 shadow-sm cursor-pointer transition-shadow"
+                                                onClick={() => handleMissionClick(mission)}
+                                            >
+                                                <div className="flex items-center mb-3">
+                                                    <h3 className="font-bold text-blue-700 text-lg flex items-center">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                        {mission.name}
+                                                    </h3>
+                                                </div>
+                                                <p className="text-slate-700 text-sm line-clamp-2">{mission.condition}</p>
                                             </div>
-                                            <p className="text-slate-700 text-sm line-clamp-2">{mission.condition}</p>
-                                        </div>
-                                    ))
+                                        ))
                                 )}
                             </div>
                         </div>
@@ -658,13 +696,7 @@ export default function MissionsPage() {
                                                 className="bg-white/60 border border-blue-100/50 rounded-lg p-3 shadow-sm flex items-center"
                                             >
                                                 <div className="w-10 h-10 rounded-full overflow-hidden relative bg-blue-50/60 flex-shrink-0">
-                                                    <Image
-                                                        src={student.iconType.startsWith('/') ? student.iconType : '/images/icons/Gemini_Generated_Image_3zghrv3zghrv3zgh.jpg'}
-                                                        alt={student.name}
-                                                        width={40}
-                                                        height={40}
-                                                        className="object-cover"
-                                                    />
+                                                    {renderStudentAvatar(student)}
                                                 </div>
                                                 <div className="ml-3 flex-1 min-w-0">
                                                     <div className="flex items-center justify-between">
@@ -811,13 +843,7 @@ export default function MissionsPage() {
                                                 >
                                                     <div className="flex items-center gap-2">
                                                         <div className="w-10 h-10 rounded-full overflow-hidden relative bg-blue-50/60">
-                                                            <Image
-                                                                src={student.iconType.startsWith('/') ? student.iconType : '/images/icons/Gemini_Generated_Image_3zghrv3zghrv3zgh.jpg'}
-                                                                alt={student.name}
-                                                                width={40}
-                                                                height={40}
-                                                                className="object-cover"
-                                                            />
+                                                            {renderStudentAvatar(student)}
                                                         </div>
                                                         <div className="flex flex-col">
                                                             <span className="text-xs text-blue-600 font-medium">{student.honorific}</span>
@@ -861,6 +887,7 @@ export default function MissionsPage() {
                                     studentIds.forEach(studentId => handleAddAchiever(selectedMission.id, studentId))
                                 }}
                                 onCancel={() => setIsAddAchieverModalOpen(false)}
+                                renderStudentAvatar={renderStudentAvatar}
                             />
                         </div>
                     </div>
@@ -905,9 +932,10 @@ interface AddAchieverFormProps {
     onSubmit: (studentIds: string[]) => void
     onCancel: () => void
     missionId: string
+    renderStudentAvatar: (student: any) => React.ReactNode
 }
 
-function AddAchieverForm({ students, existingAchieverIds, onSubmit, onCancel, missionId }: AddAchieverFormProps) {
+function AddAchieverForm({ students, existingAchieverIds, onSubmit, onCancel, missionId, renderStudentAvatar }: AddAchieverFormProps) {
     const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([])
 
     // 이미 달성자인 학생들 제외
@@ -949,13 +977,7 @@ function AddAchieverForm({ students, existingAchieverIds, onSubmit, onCancel, mi
                                         />
                                         <div className="flex items-center gap-2 flex-1">
                                             <div className="w-8 h-8 rounded-full overflow-hidden relative bg-blue-50">
-                                                <Image
-                                                    src={student.iconType.startsWith('/') ? student.iconType : '/images/icons/Gemini_Generated_Image_3zghrv3zghrv3zgh.jpg'}
-                                                    alt={student.name}
-                                                    width={32}
-                                                    height={32}
-                                                    className="object-cover"
-                                                />
+                                                {renderStudentAvatar(student)}
                                             </div>
                                             <div className="flex flex-col">
                                                 <span className="text-xs text-blue-600">{student.honorific}</span>

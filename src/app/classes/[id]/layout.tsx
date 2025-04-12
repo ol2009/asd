@@ -25,7 +25,7 @@ export default function ClassDetailLayout({ children }: DashboardLayoutProps) {
     const pathname = usePathname()
     const router = useRouter()
     const params = useParams()
-    const classId = params.id as string
+    const classId = params?.id as string
     const [loading, setLoading] = useState(false)
 
     // 로그인 상태 확인
@@ -96,31 +96,31 @@ export default function ClassDetailLayout({ children }: DashboardLayoutProps) {
             name: '성장 로드맵',
             href: `/classes/${classId}/roadmap`,
             icon: <Map className="w-5 h-5" />,
-            isActive: pathname === `/classes/${classId}/roadmap` || pathname.startsWith(`/classes/${classId}/roadmap/`)
+            isActive: pathname === `/classes/${classId}/roadmap` || pathname?.startsWith(`/classes/${classId}/roadmap/`)
         },
         {
             name: '미션',
             href: `/classes/${classId}/missions`,
             icon: <Target className="w-5 h-5" />,
-            isActive: pathname === `/classes/${classId}/missions` || pathname.startsWith(`/classes/${classId}/missions/`)
+            isActive: pathname === `/classes/${classId}/missions` || pathname?.startsWith(`/classes/${classId}/missions/`)
         },
         {
             name: '칭찬 카드',
             href: `/classes/${classId}/cards`,
             icon: <Gift className="w-5 h-5" />,
-            isActive: pathname === `/classes/${classId}/cards` || pathname.startsWith(`/classes/${classId}/cards/`)
+            isActive: pathname === `/classes/${classId}/cards` || pathname?.startsWith(`/classes/${classId}/cards/`)
         },
         {
-            name: '포인트 상점 관리',
+            name: '학급 골드 상점 관리',
             href: `/classes/${classId}/pointshop`,
             icon: <ShoppingBag className="w-5 h-5" />,
-            isActive: pathname === `/classes/${classId}/pointshop` || pathname.startsWith(`/classes/${classId}/pointshop/`)
+            isActive: pathname === `/classes/${classId}/pointshop` || pathname?.startsWith(`/classes/${classId}/pointshop/`)
         },
         {
             name: '학급 설정',
             href: `/classes/${classId}/settings`,
             icon: <Settings className="w-5 h-5" />,
-            isActive: pathname === `/classes/${classId}/settings` || pathname.startsWith(`/classes/${classId}/settings/`)
+            isActive: pathname === `/classes/${classId}/settings` || pathname?.startsWith(`/classes/${classId}/settings/`)
         }
     ]
 

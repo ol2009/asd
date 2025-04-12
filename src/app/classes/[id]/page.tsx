@@ -306,10 +306,10 @@ export default function ClassDetail() {
                 onClick={onClick}
             >
                 <div className="flex items-center">
-                    {/* 학생 아바타 (왼쪽) - 크기 증가 */}
-                    <div className="w-24 h-24 bg-white/70 rounded-full overflow-hidden shadow-md mr-3 flex-shrink-0">
+                    {/* 학생 아바타 (왼쪽) - 배경 제거하고 크기 증가 */}
+                    <div className="w-28 h-28 rounded-full overflow-hidden mr-3 flex-shrink-0">
                         {student.avatar
-                            ? renderAvatar(student.avatar, 96)
+                            ? renderAvatar(student.avatar, 112)
                             : renderIcon(student.iconType)}
                     </div>
 
@@ -322,10 +322,12 @@ export default function ClassDetail() {
                             </div>
                         </div>
 
-                        {/* 학생 칭호 - overflow 처리 추가 */}
-                        <p className="text-sm text-blue-600 font-medium mb-1 whitespace-normal break-words">
-                            {student.honorific || '칭호없음'}
-                        </p>
+                        {/* 학생 칭호 - 있을 때만 표시 */}
+                        {student.honorific && (
+                            <p className="text-sm text-blue-600 font-medium mb-1 whitespace-normal break-words">
+                                {student.honorific}
+                            </p>
+                        )}
 
                         {/* 학생 이름 - 크기 증가 */}
                         <p className="text-lg font-extrabold text-blue-800">
