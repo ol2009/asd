@@ -1073,10 +1073,9 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                         </button>
                     </div>
 
-                    <div className="flex flex-col md:flex-row gap-4">
+                    <div className="flex gap-4">
                         {/* 아바타 미리보기 */}
-                        <div className="flex flex-col items-center p-3 bg-blue-50 rounded-lg md:w-1/3">
-                            <h4 className="text-sm font-semibold text-blue-700 mb-2">내 아바타</h4>
+                        <div className="flex flex-col items-center bg-blue-50 rounded-lg p-3 w-1/3">
                             <div className="w-28 h-28 rounded-lg overflow-hidden bg-white p-1 mb-2 border border-blue-200">
                                 {currentAvatar ? (
                                     <AvatarRenderer avatar={currentAvatar} size={104} />
@@ -1093,7 +1092,7 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                         </div>
 
                         {/* 아바타 부위 선택 및 아이템 선택 */}
-                        <div className="md:w-2/3">
+                        <div className="w-2/3">
                             {/* 아바타 부위 선택 버튼 */}
                             <div className="flex mb-2 space-x-2">
                                 {AVATAR_LAYER_ORDER.map(layer => (
@@ -1115,22 +1114,22 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
 
                             {/* 아바타 아이템 선택 목록 */}
                             <div className="max-h-64 overflow-y-auto bg-white rounded-lg border border-blue-100 p-2">
-                                <div className="grid grid-cols-2 gap-2">
-                                    {availableItems.length === 0 ? (
-                                        <div className="col-span-2 text-center py-4 text-slate-500 text-xs">
-                                            사용 가능한 아이템이 없습니다.
-                                            <div className="mt-2">
-                                                <button
-                                                    onClick={() => setActiveTab('pointshop')}
-                                                    className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2.5 py-1 rounded inline-flex items-center"
-                                                >
-                                                    <ShoppingCart className="w-3 h-3 mr-1" />
-                                                    아이템 구매하기
-                                                </button>
-                                            </div>
+                                {availableItems.length === 0 ? (
+                                    <div className="text-center py-4 text-slate-500 text-xs">
+                                        사용 가능한 아이템이 없습니다.
+                                        <div className="mt-2">
+                                            <button
+                                                onClick={() => setActiveTab('pointshop')}
+                                                className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2.5 py-1 rounded inline-flex items-center"
+                                            >
+                                                <ShoppingCart className="w-3 h-3 mr-1" />
+                                                아이템 구매하기
+                                            </button>
                                         </div>
-                                    ) : (
-                                        availableItems.map(item => (
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {availableItems.map(item => (
                                             <button
                                                 key={item.id}
                                                 onClick={() => handleAvatarItemSelect(item)}
@@ -1163,9 +1162,9 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                                                     </div>
                                                 </div>
                                             </button>
-                                        ))
-                                    )}
-                                </div>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>
