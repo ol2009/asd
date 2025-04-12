@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { toast } from 'sonner'
 import Image from 'next/image'
-import { X, Edit, Award, Trash2, User, Target, Gift, ShoppingBag, Coins, ShoppingCart, Loader2, ShirtIcon, Cpu, Sword, Calendar } from 'lucide-react'
+import { X, Edit, Award, Trash2, User, Target, Gift, ShoppingBag, Coins, ShoppingCart, Loader2, ShirtIcon, Cpu, Sword, Calendar, Shirt, Crown } from 'lucide-react'
 import AvatarRenderer, { AvatarItemRenderer } from '@/components/Avatar'
 import {
     Avatar, AvatarItem, AvatarLayerType, AVATAR_LAYER_ORDER,
@@ -1873,7 +1873,7 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                                             {/* 아바타 상품 목록 */}
                                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                                                 {pointItems
-                                                    .filter((item: any) => item.type === 'avatar')
+                                                    .filter((item: any) => item.type === 'avatar' || item.itemType === 'avatar' || item.avatarPart)
                                                     .map((item: any) => (
                                                         <div
                                                             key={item.id}
@@ -1881,18 +1881,28 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                                                         >
                                                             <div className="flex items-center gap-3 mb-3">
                                                                 <div className="w-12 h-12 bg-blue-50 rounded-lg overflow-hidden border border-blue-100 flex items-center justify-center">
-                                                                    {item.avatarItem && (
-                                                                        <AvatarItemRenderer
-                                                                            imagePath={item.avatarItem.inventoryImagePath || item.avatarItem.imagePath}
-                                                                            name={item.avatarItem.name}
-                                                                            size={48}
-                                                                            rarity={item.avatarItem.rarity}
-                                                                            showRarityBadge={true}
-                                                                        />
+                                                                    {item.avatarPart ? (
+                                                                        <div className="flex items-center justify-center">
+                                                                            {item.avatarPart === 'head' && <User className="w-6 h-6 text-blue-500" />}
+                                                                            {item.avatarPart === 'body' && <Shirt className="w-6 h-6 text-purple-500" />}
+                                                                            {item.avatarPart === 'hat' && <Crown className="w-6 h-6 text-yellow-500" />}
+                                                                            {item.avatarPart === 'weapon' && <Sword className="w-6 h-6 text-red-500" />}
+                                                                        </div>
+                                                                    ) : (
+                                                                        item.avatarItem && (
+                                                                            <AvatarItemRenderer
+                                                                                imagePath={item.avatarItem.inventoryImagePath || item.avatarItem.imagePath}
+                                                                                name={item.avatarItem.name}
+                                                                                size={48}
+                                                                                rarity={item.avatarItem.rarity}
+                                                                                showRarityBadge={true}
+                                                                            />
+                                                                        )
                                                                     )}
                                                                 </div>
                                                                 <div>
                                                                     <h4 className="text-sm font-semibold">{item.name}</h4>
+                                                                    <p className="text-xs text-gray-500 mt-1">{item.description}</p>
                                                                     <div className="flex items-center mt-2 space-x-2">
                                                                         <div className="text-yellow-600 font-semibold">{item.price} G</div>
                                                                         {isPurchasedItem(item.id) ? (
@@ -1904,7 +1914,7 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({ isOpen, onClose
                                                                             </button>
                                                                         ) : (
                                                                             <button
-                                                                                onClick={() => handlePurchaseItem(item)}
+                                                                                onClick={() => item.avatarPart ? handlePurchaseAvatarItem(item.avatarPart) : handlePurchaseItem(item)}
                                                                                 disabled={!student || (student?.points || 0) < item.price}
                                                                                 className={`text-xs px-2 py-1 rounded ${!student || (student?.points || 0) < item.price
                                                                                     ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
