@@ -1,0 +1,9 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+### Icons
+- 모든 아이콘은 Lucide React를 사용해야 합니다.
+- 아이콘 임포트 방법: `import {IconName} from “lucide-react”`
+-  예시 : `import { Search, Menu } from “lucide-react”`
