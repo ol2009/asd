@@ -37,6 +37,14 @@ interface Student {
         level: number
     }
     points: number
+    abilities?: {
+        intelligence?: number
+        diligence?: number
+        creativity?: number
+        personality?: number
+        health?: number
+        communication?: number
+    }
 }
 
 // 클래스 정보 타입 정의
@@ -183,11 +191,28 @@ export default function MissionsPage() {
         const savedStudents = localStorage.getItem(`students_${classId}`)
         if (savedStudents) {
             try {
-                setStudents(JSON.parse(savedStudents))
+                // 학생 데이터 파싱
+                const parsedStudents = JSON.parse(savedStudents);
+
+                // 학생 ID를 기준으로 중복 제거
+                const uniqueStudentsMap = new Map();
+                parsedStudents.forEach((student: Student) => {
+                    if (!uniqueStudentsMap.has(student.id)) {
+                        uniqueStudentsMap.set(student.id, student);
+                    }
+                });
+
+                // Map에서 중복이 제거된 학생 배열 생성
+                const uniqueStudents = Array.from(uniqueStudentsMap.values());
+                console.log(`학생 목록 로드: 원본 ${parsedStudents.length}명, 중복 제거 후 ${uniqueStudents.length}명`);
+
+                setStudents(uniqueStudents);
             } catch (error) {
                 console.error('학생 데이터 파싱 오류:', error)
                 setStudents([])
             }
+        } else {
+            setStudents([])
         }
 
         // 최근 미션 달성 내역 가져오기
@@ -326,6 +351,7 @@ export default function MissionsPage() {
             }
 
             const student = students[studentIndex];
+            console.log('업데이트 전 학생 상태:', JSON.stringify(student, null, 2));
 
             // 현재 레벨과 경험치 기록 (변화 감지용)
             const currentLevel = student.stats.level;
@@ -342,8 +368,8 @@ export default function MissionsPage() {
             student.stats.level = newLevel;
 
             // 학생이 abilities 객체를 가지고 있지 않으면 초기화
-            if (!student.stats.abilities) {
-                student.stats.abilities = {
+            if (!student.abilities) {
+                student.abilities = {
                     intelligence: 1,
                     diligence: 1,
                     creativity: 1,
@@ -357,27 +383,27 @@ export default function MissionsPage() {
             let abilitiesChanged = false;
             if (missionAbilities) {
                 if (missionAbilities.intelligence) {
-                    student.stats.abilities.intelligence = (student.stats.abilities.intelligence || 1) + 1;
+                    student.abilities.intelligence = (student.abilities.intelligence || 1) + 1;
                     abilitiesChanged = true;
                 }
                 if (missionAbilities.diligence) {
-                    student.stats.abilities.diligence = (student.stats.abilities.diligence || 1) + 1;
+                    student.abilities.diligence = (student.abilities.diligence || 1) + 1;
                     abilitiesChanged = true;
                 }
                 if (missionAbilities.creativity) {
-                    student.stats.abilities.creativity = (student.stats.abilities.creativity || 1) + 1;
+                    student.abilities.creativity = (student.abilities.creativity || 1) + 1;
                     abilitiesChanged = true;
                 }
                 if (missionAbilities.personality) {
-                    student.stats.abilities.personality = (student.stats.abilities.personality || 1) + 1;
+                    student.abilities.personality = (student.abilities.personality || 1) + 1;
                     abilitiesChanged = true;
                 }
                 if (missionAbilities.health) {
-                    student.stats.abilities.health = (student.stats.abilities.health || 1) + 1;
+                    student.abilities.health = (student.abilities.health || 1) + 1;
                     abilitiesChanged = true;
                 }
                 if (missionAbilities.communication) {
-                    student.stats.abilities.communication = (student.stats.abilities.communication || 1) + 1;
+                    student.abilities.communication = (student.abilities.communication || 1) + 1;
                     abilitiesChanged = true;
                 }
             }
@@ -395,6 +421,8 @@ export default function MissionsPage() {
             if (!student.iconType) {
                 student.iconType = '/images/icons/student_icon_1.png';
             }
+
+            console.log('업데이트 후 학생 상태:', JSON.stringify(student, null, 2));
 
             // 1. students_classId 저장소 업데이트
             students[studentIndex] = student;
@@ -419,6 +447,7 @@ export default function MissionsPage() {
                             classes[classIndex].students[classStudentIndex] = {
                                 ...classes[classIndex].students[classStudentIndex],
                                 stats: student.stats,
+                                abilities: student.abilities,
                                 points: student.points,
                                 iconType: student.iconType
                             };
@@ -443,6 +472,7 @@ export default function MissionsPage() {
                         classData.students[classStudentIndex] = {
                             ...classData.students[classStudentIndex],
                             stats: student.stats,
+                            abilities: student.abilities,
                             points: student.points,
                             iconType: student.iconType
                         };
@@ -462,6 +492,7 @@ export default function MissionsPage() {
                     updatedStudents[stateStudentIndex] = {
                         ...updatedStudents[stateStudentIndex],
                         stats: student.stats,
+                        abilities: student.abilities,
                         points: student.points,
                         iconType: student.iconType
                     };
@@ -539,6 +570,9 @@ export default function MissionsPage() {
             });
 
             console.log(`학생 업데이트 완료: Lv.${student.stats.level}, Exp ${student.stats.exp}, 포인트 ${student.points}`);
+            if (abilitiesChanged) {
+                console.log(`학생 능력치 업데이트: `, student.abilities);
+            }
         } catch (error) {
             console.error('학생 경험치 및 레벨 업데이트 중 오류 발생:', error);
         }
@@ -976,120 +1010,30 @@ export default function MissionsPage() {
                                         </div>
                                     </div>
 
-                                    <div className="space-y-2 mb-4">
-                                        <label className="block text-sm font-medium text-gray-700">관련 능력치 선택</label>
-                                        <p className="text-xs text-gray-500 mb-2">학생이 미션을 완료할 때 선택한 능력치가 1씩 증가합니다.</p>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <button
-                                                type="button"
-                                                onClick={() => handleAbilityToggle('intelligence')}
-                                                className={`flex items-center justify-center space-x-2 py-2 px-3 rounded-lg ${formData.abilities.intelligence
-                                                    ? 'bg-blue-600 text-white'
-                                                    : 'bg-white text-blue-600 border border-blue-200'
-                                                    }`}
-                                            >
-                                                {formData.abilities.intelligence && (
-                                                    <Check className="w-4 h-4 mr-1" />
-                                                )}
-                                                <span>지력</span>
-                                            </button>
-
-                                            <button
-                                                type="button"
-                                                onClick={() => handleAbilityToggle('diligence')}
-                                                className={`flex items-center justify-center space-x-2 py-2 px-3 rounded-lg ${formData.abilities.diligence
-                                                    ? 'bg-green-600 text-white'
-                                                    : 'bg-white text-green-600 border border-green-200'
-                                                    }`}
-                                            >
-                                                {formData.abilities.diligence && (
-                                                    <Check className="w-4 h-4 mr-1" />
-                                                )}
-                                                <span>성실성</span>
-                                            </button>
-
-                                            <button
-                                                type="button"
-                                                onClick={() => handleAbilityToggle('creativity')}
-                                                className={`flex items-center justify-center space-x-2 py-2 px-3 rounded-lg ${formData.abilities.creativity
-                                                    ? 'bg-purple-600 text-white'
-                                                    : 'bg-white text-purple-600 border border-purple-200'
-                                                    }`}
-                                            >
-                                                {formData.abilities.creativity && (
-                                                    <Check className="w-4 h-4 mr-1" />
-                                                )}
-                                                <span>창의력</span>
-                                            </button>
-
-                                            <button
-                                                type="button"
-                                                onClick={() => handleAbilityToggle('personality')}
-                                                className={`flex items-center justify-center space-x-2 py-2 px-3 rounded-lg ${formData.abilities.personality
-                                                    ? 'bg-red-600 text-white'
-                                                    : 'bg-white text-red-600 border border-red-200'
-                                                    }`}
-                                            >
-                                                {formData.abilities.personality && (
-                                                    <Check className="w-4 h-4 mr-1" />
-                                                )}
-                                                <span>인성</span>
-                                            </button>
-
-                                            <button
-                                                type="button"
-                                                onClick={() => handleAbilityToggle('health')}
-                                                className={`flex items-center justify-center space-x-2 py-2 px-3 rounded-lg ${formData.abilities.health
-                                                    ? 'bg-yellow-600 text-white'
-                                                    : 'bg-white text-yellow-600 border border-yellow-200'
-                                                    }`}
-                                            >
-                                                {formData.abilities.health && (
-                                                    <Check className="w-4 h-4 mr-1" />
-                                                )}
-                                                <span>체력</span>
-                                            </button>
-
-                                            <button
-                                                type="button"
-                                                onClick={() => handleAbilityToggle('communication')}
-                                                className={`flex items-center justify-center space-x-2 py-2 px-3 rounded-lg ${formData.abilities.communication
-                                                    ? 'bg-indigo-600 text-white'
-                                                    : 'bg-white text-indigo-600 border border-indigo-200'
-                                                    }`}
-                                            >
-                                                {formData.abilities.communication && (
-                                                    <Check className="w-4 h-4 mr-1" />
-                                                )}
-                                                <span>의사소통</span>
-                                            </button>
-                                        </div>
-
-                                        <div className="mt-3 pt-2 border-t border-gray-100">
-                                            <h4 className="text-xs font-medium text-gray-500 mb-1">선택한 능력치 설명:</h4>
-                                            <div className="space-y-2 text-xs text-gray-600">
-                                                {formData.abilities.intelligence && (
-                                                    <p><span className="font-semibold text-blue-600">지력:</span> {abilityDescriptions.intelligence}</p>
-                                                )}
-                                                {formData.abilities.diligence && (
-                                                    <p><span className="font-semibold text-green-600">성실성:</span> {abilityDescriptions.diligence}</p>
-                                                )}
-                                                {formData.abilities.creativity && (
-                                                    <p><span className="font-semibold text-purple-600">창의력:</span> {abilityDescriptions.creativity}</p>
-                                                )}
-                                                {formData.abilities.personality && (
-                                                    <p><span className="font-semibold text-red-600">인성:</span> {abilityDescriptions.personality}</p>
-                                                )}
-                                                {formData.abilities.health && (
-                                                    <p><span className="font-semibold text-yellow-600">체력:</span> {abilityDescriptions.health}</p>
-                                                )}
-                                                {formData.abilities.communication && (
-                                                    <p><span className="font-semibold text-indigo-600">의사소통:</span> {abilityDescriptions.communication}</p>
-                                                )}
-                                                {!Object.values(formData.abilities).some(v => v) && (
-                                                    <p className="italic">능력치를 선택하면 설명이 표시됩니다.</p>
-                                                )}
-                                            </div>
+                                    <div className="mt-3 pt-2 border-t border-gray-100">
+                                        <h4 className="text-xs font-medium text-gray-500 mb-1">선택한 능력치 설명:</h4>
+                                        <div className="space-y-2 text-xs text-gray-600">
+                                            {formData.abilities.intelligence && (
+                                                <p><span className="font-semibold text-blue-600">지력:</span> {abilityDescriptions.intelligence}</p>
+                                            )}
+                                            {formData.abilities.diligence && (
+                                                <p><span className="font-semibold text-green-600">성실성:</span> {abilityDescriptions.diligence}</p>
+                                            )}
+                                            {formData.abilities.creativity && (
+                                                <p><span className="font-semibold text-purple-600">창의력:</span> {abilityDescriptions.creativity}</p>
+                                            )}
+                                            {formData.abilities.personality && (
+                                                <p><span className="font-semibold text-red-600">인성:</span> {abilityDescriptions.personality}</p>
+                                            )}
+                                            {formData.abilities.health && (
+                                                <p><span className="font-semibold text-yellow-600">체력:</span> {abilityDescriptions.health}</p>
+                                            )}
+                                            {formData.abilities.communication && (
+                                                <p><span className="font-semibold text-indigo-600">의사소통:</span> {abilityDescriptions.communication}</p>
+                                            )}
+                                            {!Object.values(formData.abilities).some(v => v) && (
+                                                <p className="italic">능력치를 선택하면 설명이 표시됩니다.</p>
+                                            )}
                                         </div>
                                     </div>
 
@@ -1233,7 +1177,57 @@ export default function MissionsPage() {
                                 existingAchieverIds={selectedMission.achievers}
                                 missionId={selectedMission.id}
                                 onSubmit={(studentIds) => {
-                                    studentIds.forEach(studentId => handleAddAchiever(selectedMission.id, studentId))
+                                    // 모든 학생에 대한 미션 달성 내역 한 번에 생성
+                                    const allNewAchievements: MissionAchievement[] = [];
+
+                                    // 모든 학생에 대해 반복
+                                    studentIds.forEach(studentId => {
+                                        // 미션 달성 내역 생성
+                                        const newAchievement: MissionAchievement = {
+                                            studentId,
+                                            missionId: selectedMission.id,
+                                            timestamp: new Date().toISOString()
+                                        };
+                                        allNewAchievements.push(newAchievement);
+
+                                        // 미션 객체에 학생 추가
+                                        const currentMissions = [...missions];
+                                        const missionIndex = currentMissions.findIndex(m => m.id === selectedMission.id);
+
+                                        if (missionIndex === -1) return;
+
+                                        // 달성자 목록이 없으면 초기화
+                                        if (!currentMissions[missionIndex].achievers) {
+                                            currentMissions[missionIndex].achievers = [];
+                                        }
+
+                                        // 이미 달성자에 포함되어 있는지 확인
+                                        if (currentMissions[missionIndex].achievers?.includes(studentId)) {
+                                            console.log(`학생 ${studentId}는 이미 미션 ${selectedMission.id} 달성자입니다.`);
+                                            return; // 이 학생은 건너뜀
+                                        }
+
+                                        // 달성자에 추가
+                                        currentMissions[missionIndex].achievers!.push(studentId);
+
+                                        // 학생에게 경험치 부여 및 능력치 증가
+                                        updateStudentExpAndLevel(studentId, EXP_FOR_MISSION, currentMissions[missionIndex].abilities);
+
+                                        // 미션 정보 업데이트
+                                        setMissions(currentMissions);
+                                        localStorage.setItem(`missions_${classId}`, JSON.stringify(currentMissions));
+                                    });
+
+                                    if (allNewAchievements.length > 0) {
+                                        // 모든 새 달성 내역을 기존 달성 내역 앞에 추가하고 최대 30개 유지
+                                        const updatedAchievements = [...allNewAchievements, ...recentAchievements].slice(0, 30);
+                                        setRecentAchievements(updatedAchievements);
+                                        localStorage.setItem(`mission_achievements_${classId}`, JSON.stringify(updatedAchievements));
+
+                                        toast.success(`${allNewAchievements.length}명의 학생이 미션 달성자로 등록되었습니다.`);
+                                    }
+
+                                    setIsAddAchieverModalOpen(false);
                                 }}
                                 onCancel={() => setIsAddAchieverModalOpen(false)}
                                 renderStudentAvatar={renderStudentAvatar}
@@ -1278,17 +1272,34 @@ export default function MissionsPage() {
 interface AddAchieverFormProps {
     students: Student[]
     existingAchieverIds: string[]
+    missionId: string
     onSubmit: (studentIds: string[]) => void
     onCancel: () => void
-    missionId: string
     renderStudentAvatar: (student: any) => React.ReactNode
 }
 
-function AddAchieverForm({ students, existingAchieverIds, onSubmit, onCancel, missionId, renderStudentAvatar }: AddAchieverFormProps) {
+function AddAchieverForm({ students, existingAchieverIds, missionId, onSubmit, onCancel, renderStudentAvatar }: AddAchieverFormProps) {
     const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([])
 
-    // 이미 달성자인 학생들 제외
-    const eligibleStudents = students.filter(student => !existingAchieverIds.includes(student.id))
+    // 중복 제거 및 이미 달성자인 학생들 제외
+    const uniqueStudentIds = new Set<string>();
+    const eligibleStudents = students
+        .filter(student => {
+            // 중복된 학생 필터링 (같은 ID를 가진 학생은 한 번만 포함)
+            if (uniqueStudentIds.has(student.id)) {
+                return false;
+            }
+
+            // 이미 달성자인 학생 필터링
+            if (existingAchieverIds.includes(student.id)) {
+                return false;
+            }
+
+            uniqueStudentIds.add(student.id);
+            return true;
+        });
+
+    console.log("중복 제거 후 유효한 학생 수:", eligibleStudents.length);
 
     const handleStudentToggle = (studentId: string) => {
         if (selectedStudentIds.includes(studentId)) {
@@ -1315,8 +1326,8 @@ function AddAchieverForm({ students, existingAchieverIds, onSubmit, onCancel, mi
                     <div className="mb-4">
                         <p className="mb-2 text-sm text-slate-600">미션을 달성한 학생을 선택하세요</p>
                         <div className="max-h-64 overflow-y-auto p-2 border rounded-md">
-                            {eligibleStudents.map((student, index) => (
-                                <div key={`${missionId}-${student.id}-${index}`} className="mb-2 last:mb-0">
+                            {eligibleStudents.map((student) => (
+                                <div key={student.id} className="mb-2 last:mb-0">
                                     <label className="flex items-center space-x-2 p-2 hover:bg-slate-50 rounded cursor-pointer">
                                         <input
                                             type="checkbox"

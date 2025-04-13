@@ -12,11 +12,11 @@ const TabNavigation: React.FC<TabNavigationProps> = ({ activeTab, onTabChange })
     return (
         <div className="flex border-b border-gray-200 mb-2 flex-wrap">
             <button
-                className={`py-1.5 px-3 text-sm font-medium ${activeTab === 'roadmaps'
+                className={`py-1.5 px-3 text-sm font-medium ${activeTab === 'challenges'
                     ? 'text-blue-600 border-b-2 border-blue-600'
                     : 'text-gray-500 hover:text-gray-700'
                     }`}
-                onClick={() => onTabChange('roadmaps')}
+                onClick={() => onTabChange('challenges')}
             >
                 <div className="flex items-center">
                     <BookOpen className="w-3.5 h-3.5 mr-1" />

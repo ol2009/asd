@@ -149,7 +149,7 @@ export default function PraiseCardsPage() {
         }
 
         // 칭찬카드 부여 기록 불러오기
-        const savedHistories = localStorage.getItem(`praiseCardHistories_${classId}`)
+        const savedHistories = localStorage.getItem(`praiseCardHistory_${classId}`)
         if (savedHistories) {
             try {
                 setPraiseCardHistories(JSON.parse(savedHistories))
@@ -262,7 +262,7 @@ export default function PraiseCardsPage() {
         // 카드 발급 이력 업데이트
         const updatedHistory = [...praiseCardHistories, ...newHistoryItems]
         setPraiseCardHistories(updatedHistory)
-        localStorage.setItem(`praiseCardHistories_${classId}`, JSON.stringify(updatedHistory))
+        localStorage.setItem(`praiseCardHistory_${classId}`, JSON.stringify(updatedHistory))
 
         // 각 학생에게 경험치 및 능력치 부여
         selectedStudents.forEach(studentId => {

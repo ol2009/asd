@@ -13,13 +13,14 @@ import {
     NEWBY_HEAD_ITEMS,
     NEWBY_BODY_ITEMS,
     getRandomPremiumAvatarItemByType,
+    getUnownedRandomAvatarItemByType,
     AvatarLayerType
 } from '@/lib/avatar'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 
 // 분리된 컴포넌트 import
 import AvatarTab from './student-detail/tabs/AvatarTab'
-import RoadmapTab from './student-detail/tabs/RoadmapTab'
+import ChallengeTab from './student-detail/tabs/ChallengeTab'
 import MissionTab from './student-detail/tabs/MissionTab'
 import CardTab from './student-detail/tabs/CardTab'
 import PointShopTab, { PointShopItemType } from './student-detail/tabs/PointShopTab'
@@ -49,8 +50,8 @@ const defaultHonorifics = [
     '긍정적인'
 ]
 
-// 로드맵 달성 칭호 목록
-const roadmapHonorifics = [
+// 챌린지 달성 칭호 목록
+const challengeHonorifics = [
     '미래 탐험가',
     '지식 수집가',
     '문제 해결사',
@@ -60,8 +61,8 @@ const roadmapHonorifics = [
 
 // 사용 가능한 칭호 목록을 반환하는 함수
 const getAvailableHonorifics = () => {
-    // 여기서는 간단히 로드맵 칭호만 반환합니다.
-    return roadmapHonorifics;
+    // 여기서는 간단히 챌린지 칭호만 반환합니다.
+    return challengeHonorifics;
 }
 
 interface StudentDetailModalProps {
@@ -69,7 +70,7 @@ interface StudentDetailModalProps {
     onClose: () => void
     studentId: string | null
     classId: string | null
-    initialTab?: 'roadmaps' | 'missions' | 'cards' | 'pointshop' | 'avatar'
+    initialTab?: 'challenges' | 'missions' | 'cards' | 'pointshop' | 'avatar'
 }
 
 const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
@@ -77,10 +78,10 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
     onClose,
     studentId,
     classId,
-    initialTab = 'roadmaps'
+    initialTab = 'challenges'
 }) => {
     // 탭 관련 상태
-    const [activeTab, setActiveTab] = useState<'roadmaps' | 'missions' | 'cards' | 'pointshop' | 'avatar'>(initialTab)
+    const [activeTab, setActiveTab] = useState<'challenges' | 'missions' | 'cards' | 'pointshop' | 'avatar'>(initialTab)
 
     // UI 관련 상태
     const [isEditingName, setIsEditingName] = useState(false)
@@ -93,11 +94,11 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
     // 커스텀 훅을 사용해 학생 데이터 가져오기
     const {
         student,
-        completedRoadmaps,
+        completedChallenges,
         completedMissions,
         receivedCards,
         purchasedItems,
-        roadmapsLoading,
+        challengesLoading,
         missionsLoading,
         cardsLoading,
         pointshopLoading,
@@ -133,13 +134,18 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
             }
         }
 
-        // 아바타 아이템 및 포인트샵 아이템 로드
-        loadPointShopItems()
-        loadAvatarItems()
+        // 아바타 탭이 활성화될 때만 아바타 아이템 로드
+        if (activeTab === 'avatar') {
+            loadAvatarItems()
+        }
 
-        // 교사가 생성한 학급 쿠폰 아이템 로드
-        loadClassPointItems()
-    }, [isOpen, student, studentId, classId])
+        // 포인트샵 탭이 활성화될 때 학급 쿠폰 아이템과 포인트샵 아이템 로드
+        if (activeTab === 'pointshop') {
+            console.log('포인트샵 탭 활성화 - 쿠폰 데이터 로드');
+            loadPointShopItems()
+            loadClassPointItems()
+        }
+    }, [isOpen, student, studentId, classId, activeTab])
 
     // 학생 이름 변경 핸들러
     const handleNameChange = () => {
@@ -167,12 +173,21 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
     // 아바타 아이템 로드
     const loadAvatarItems = () => {
         try {
+            if (!studentId || !classId) return;
+
+            // 올바른 키 사용: student_avatar_items_${classId}_${student.id}
+            const avatarItemsKey = `student_avatar_items_${classId}_${studentId}`;
+            console.log('아바타 아이템 로드 키:', avatarItemsKey);
+
             // 로컬 스토리지에서 아이템 로드 시도
-            const storedItems = localStorage.getItem(`student-${studentId}-avatar-items`);
+            const storedItems = localStorage.getItem(avatarItemsKey);
             let items = [];
 
             if (storedItems) {
                 items = JSON.parse(storedItems);
+                console.log(`아바타 아이템 ${items.length}개 로드됨`);
+            } else {
+                console.log('저장된 아바타 아이템이 없음, 초기 아이템 생성');
             }
 
             // 기존 아이템과 초보자 아이템 합치기 (중복 제거)
@@ -184,9 +199,10 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
             );
 
             setAvailableAvatarItems(allItems);
+            console.log(`총 ${allItems.length}개의 아바타 아이템 로드됨`);
 
             // 로컬 스토리지에 저장
-            localStorage.setItem(`student-${studentId}-avatar-items`, JSON.stringify(allItems));
+            localStorage.setItem(avatarItemsKey, JSON.stringify(allItems));
         } catch (error) {
             console.error('아바타 아이템 로드 오류:', error);
             // 오류 발생 시 기본 초보자 아이템만 표시
@@ -197,16 +213,24 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
     // 학급 쿠폰 아이템 로드 함수
     const loadClassPointItems = () => {
         try {
+            // 로그 추가
+            console.log('학급 쿠폰 아이템 로드 시작 - 클래스 ID:', classId);
+
             // 교사가 생성한 학급 쿠폰 아이템 로드
             const savedItems = localStorage.getItem(`pointshop_items_${classId}`)
             if (savedItems) {
                 const allItems = JSON.parse(savedItems)
-                // class 타입 아이템만 필터링
+                console.log('로드된 아이템 개수:', allItems.length);
+                console.log('로드된 아이템:', allItems);
+
+                // class 타입 아이템만 필터링 (itemType이 class이거나 비어있는 경우)
                 const classItems = allItems.filter((item: any) =>
                     item.itemType === 'class' || (!item.itemType && !item.avatarItem)
                 )
+                console.log('필터링된 학급 쿠폰 개수:', classItems.length);
                 setClassPointItems(classItems)
             } else {
+                console.log('저장된 학급 쿠폰 아이템이 없습니다.');
                 setClassPointItems([])
             }
         } catch (error) {
@@ -370,32 +394,32 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
 
     // 기존 handlePurchaseItem 함수에 디버깅 로그 추가
     const handlePurchaseItem = (item: PointShopItem) => {
-        console.log("===== 아이템 구매 시작 =====");
-        console.log("handlePurchaseItem 함수 호출됨:", JSON.stringify(item, null, 2));
-        console.log("현재 학생 정보:", student ? `ID: ${student.id}, 이름: ${student.name}` : '없음');
-
-        if (!student) {
-            console.error('학생 정보가 없어 구매 취소');
-            toast.error('학생 정보를 찾을 수 없습니다.');
-            return;
-        }
-
-        console.log(`학생 포인트: ${student.points}, 아이템 가격: ${item.price}`);
-        if (student.points < item.price) {
-            console.log("포인트 부족으로 구매 취소");
-            toast.error('포인트가 부족합니다.');
-            return;
-        }
-
         try {
-            console.log(`구매 진행 중. 아이템 타입: ${item.type}, 아이템 이름: ${item.name}`);
+            console.log("===== 아이템 구매 처리 시작 =====");
+            console.log("구매 아이템:", item);
 
-            // 포인트 차감
+            // 포인트 확인
+            if (!student) {
+                console.error("구매 실패: 학생 정보가 없습니다.");
+                toast.error('학생 정보를 찾을 수 없습니다.');
+                return;
+            }
+
+            // 포인트가 충분한지 확인
+            if (student.points < item.price) {
+                console.error(`구매 실패: 포인트 부족 (보유: ${student.points}, 필요: ${item.price})`);
+                toast.error('골드가 부족합니다.');
+                return;
+            }
+
+            // 새로운 포인트 계산
             const newPoints = student.points - item.price;
-            console.log(`포인트 차감: ${student.points} -> ${newPoints}`);
+            console.log(`포인트 차감: ${student.points} -> ${newPoints} (차감액: ${item.price})`);
+
+            // 포인트 업데이트 (로컬 스토리지에 저장)
             updateStudentPoints(newPoints);
 
-            // 아바타 아이템인 경우 랜덤 아바타 아이템 생성 및 인벤토리 추가
+            // 아바타 아이템 처리
             if (item.type === PointShopItemType.AVATAR) {
                 console.log("===== 아바타 아이템 구매 처리 시작 =====");
                 try {
@@ -405,22 +429,21 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
                     const itemType = item.avatarItem?.type as AvatarLayerType || 'head';
                     console.log('사용할 아바타 레이어 타입:', itemType);
 
-                    // 랜덤 아바타 아이템 생성
-                    console.log('getRandomPremiumAvatarItemByType 함수 호출 시작...');
-                    const randomAvatarItem = getRandomPremiumAvatarItemByType(itemType);
-                    console.log("생성된 랜덤 아바타 아이템:", randomAvatarItem ? JSON.stringify(randomAvatarItem, null, 2) : '생성 실패');
+                    // 학생의 인벤토리 가져오기
+                    const avatarItemsKey = `student_avatar_items_${classId}_${student.id}`;
+                    console.log('학생 아바타 아이템 로컬 스토리지 키:', avatarItemsKey);
+
+                    const savedItems = localStorage.getItem(avatarItemsKey) || '[]';
+                    console.log('로컬 스토리지에서 가져온 데이터:', savedItems);
+
+                    const studentAvatarItems = JSON.parse(savedItems);
+                    console.log('현재 학생 아바타 아이템 수:', studentAvatarItems.length);
+
+                    // 학생이 소유하지 않은 아이템 중에서 랜덤 선택
+                    const randomAvatarItem = getUnownedRandomAvatarItemByType(itemType, studentAvatarItems);
+                    console.log("소유하지 않은 아이템 중 랜덤 생성 결과:", randomAvatarItem ? JSON.stringify(randomAvatarItem, null, 2) : '해당 타입의 모든 아이템 소유중');
 
                     if (randomAvatarItem) {
-                        // 학생의 인벤토리 가져오기
-                        const avatarItemsKey = `student_avatar_items_${classId}_${student.id}`;
-                        console.log('학생 아바타 아이템 로컬 스토리지 키:', avatarItemsKey);
-
-                        const savedItems = localStorage.getItem(avatarItemsKey) || '[]';
-                        console.log('로컬 스토리지에서 가져온 데이터:', savedItems);
-
-                        const studentAvatarItems = JSON.parse(savedItems);
-                        console.log('현재 학생 아바타 아이템 수:', studentAvatarItems.length);
-
                         // 새 아이템 추가
                         const newItemId = `${randomAvatarItem.id}_${Date.now()}`;
                         console.log('새 아이템에 할당된 ID:', newItemId);
@@ -459,9 +482,16 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
                         // 성공 메시지 표시
                         console.log('아바타 아이템 구매 처리 완료');
                         toast.success(`'${randomAvatarItem.name}' 아이템을 획득했습니다!`);
+
+                        // 이후에 아바타 아이템 리스트를 새로고침하여 아바타 탭을 열었을 때 바로 보이도록 함
+                        loadAvatarItems();
                     } else {
                         console.error("랜덤 아바타 아이템 생성 실패");
-                        toast.error('아바타 아이템을 생성하는 데 실패했습니다.');
+                        // 모든 아이템을 이미 소유하고 있는 경우 (getUnownedRandomAvatarItemByType에서 null 반환)
+                        toast.error(`이미 해당 종류(${itemType})의 모든 아바타 아이템을 소유하고 있습니다.`);
+
+                        // 포인트 환불
+                        updateStudentPoints(student.points);
                     }
                 } catch (error) {
                     console.error("아바타 아이템 처리 중 오류:", error);
@@ -567,10 +597,10 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
                             {/* 탭 콘텐츠 영역 */}
                             <div className="flex-grow bg-white rounded-lg border border-gray-200 p-3 overflow-y-auto">
                                 {/* 챌린지 탭 */}
-                                {activeTab === 'roadmaps' && (
-                                    <RoadmapTab
-                                        completedRoadmaps={completedRoadmaps}
-                                        isLoading={roadmapsLoading}
+                                {activeTab === 'challenges' && (
+                                    <ChallengeTab
+                                        completedChallenges={completedChallenges}
+                                        isLoading={challengesLoading}
                                     />
                                 )}
 
@@ -593,6 +623,7 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
                                 {/* 골드 상점 탭 */}
                                 {activeTab === 'pointshop' && student && (
                                     <PointShopTab
+                                        key={`pointshop-${student.id}-${Date.now()}`}
                                         studentId={student.id}
                                         classId={classId || ''}
                                         studentPoints={student.points}

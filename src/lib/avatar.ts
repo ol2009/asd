@@ -715,4 +715,48 @@ export function getRandomPremiumAvatarItemByType(type: AvatarLayerType): AvatarI
 
     const randomIndex = Math.floor(Math.random() * itemPool.length);
     return itemPool[randomIndex];
+}
+
+// 학생이 소유하지 않은 아바타 아이템 중에서 랜덤으로 선택
+export function getUnownedRandomAvatarItemByType(type: AvatarLayerType, ownedItems: AvatarItem[]): AvatarItem | null {
+    let itemPool: AvatarItem[] = [];
+
+    // 타입에 따른 아이템 풀 선택
+    switch (type) {
+        case 'head':
+            itemPool = PREMIUM_HEAD_ITEMS;
+            break;
+        case 'body':
+            itemPool = PREMIUM_BODY_ITEMS;
+            break;
+        case 'hat':
+            itemPool = HAT_ITEMS;
+            break;
+        case 'weapon':
+            itemPool = WEAPON_ITEMS;
+            break;
+    }
+
+    if (itemPool.length === 0) return null;
+
+    // 이미 소유한 아이템 ID 목록 생성 (비교를 위해 기본 ID만 추출)
+    const ownedItemIds = ownedItems
+        .filter(item => item.type === type)
+        .map(item => {
+            // 구매 시 생성된 ID 형식(item.id_timestamp)에서 기본 ID 부분만 추출
+            const idParts = item.id.split('_');
+            return idParts[0]; // 기본 아이템 ID
+        });
+
+    // 소유하지 않은 아이템만 필터링
+    const unownedItems = itemPool.filter(item =>
+        !ownedItemIds.includes(item.id)
+    );
+
+    // 모든 아이템을 이미 소유하고 있다면 null 반환
+    if (unownedItems.length === 0) return null;
+
+    // 소유하지 않은 아이템 중 랜덤으로 선택
+    const randomIndex = Math.floor(Math.random() * unownedItems.length);
+    return unownedItems[randomIndex];
 } 

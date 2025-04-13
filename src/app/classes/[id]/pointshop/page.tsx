@@ -24,6 +24,7 @@ interface PointShopItem {
     price: number
     createdAt: string
     itemType?: string
+    type: string
 }
 
 interface PurchaseHistory {
@@ -208,7 +209,8 @@ export default function CouponShopPage() {
             description: formData.description,
             price: formData.price,
             createdAt: new Date().toISOString(),
-            itemType: 'class'
+            itemType: 'class',
+            type: 'class'
         }
 
         // 새 아이템 추가
@@ -244,7 +246,8 @@ export default function CouponShopPage() {
             ...selectedItem,
             name: formData.name,
             description: formData.description,
-            price: formData.price
+            price: formData.price,
+            type: 'class'
         }
 
         // 아이템 수정

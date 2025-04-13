@@ -1,14 +1,14 @@
 'use client'
 
 import { Loader2 } from 'lucide-react'
-import { CompletedRoadmap } from '../types'
+import { CompletedRoadmap as CompletedChallenge } from '../types'
 
-interface RoadmapTabProps {
-    completedRoadmaps: CompletedRoadmap[]
+interface ChallengeTabProps {
+    completedChallenges: CompletedChallenge[]
     isLoading: boolean
 }
 
-const RoadmapTab: React.FC<RoadmapTabProps> = ({ completedRoadmaps, isLoading }) => {
+const ChallengeTab: React.FC<ChallengeTabProps> = ({ completedChallenges, isLoading }) => {
     if (isLoading) {
         return (
             <div className="flex justify-center items-center h-32">
@@ -18,7 +18,7 @@ const RoadmapTab: React.FC<RoadmapTabProps> = ({ completedRoadmaps, isLoading })
         )
     }
 
-    if (completedRoadmaps.length === 0) {
+    if (completedChallenges.length === 0) {
         return (
             <div className="text-center py-6 bg-gray-50 rounded-lg">
                 <p className="text-gray-500">완료한 챌린지가 없습니다.</p>
@@ -31,17 +31,17 @@ const RoadmapTab: React.FC<RoadmapTabProps> = ({ completedRoadmaps, isLoading })
             <h3 className="text-base font-bold text-gray-800 mb-3">완료한 챌린지</h3>
 
             <div className="grid grid-cols-1 gap-4">
-                {completedRoadmaps.map((roadmap) => (
+                {completedChallenges.map((challenge) => (
                     <div
-                        key={roadmap.id}
+                        key={challenge.id}
                         className="bg-indigo-50 border border-indigo-100 rounded-lg p-4"
                     >
-                        <h4 className="font-medium text-indigo-800 text-lg">{roadmap.title}</h4>
-                        <p className="text-indigo-600 mt-1">{roadmap.description}</p>
+                        <h4 className="font-medium text-indigo-800 text-lg">{challenge.title}</h4>
+                        <p className="text-indigo-600 mt-1">{challenge.description}</p>
 
                         {/* 스텝 목록 */}
                         <div className="mt-3 space-y-3">
-                            {roadmap.steps.map((step, index) => (
+                            {challenge.steps.map((step, index) => (
                                 <div
                                     key={step.id}
                                     className="bg-white border border-indigo-100 rounded-lg p-3"
@@ -70,41 +70,41 @@ const RoadmapTab: React.FC<RoadmapTabProps> = ({ completedRoadmaps, isLoading })
                         <div className="mt-4 flex flex-wrap gap-2">
                             <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs flex items-center">
                                 <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full mr-1"></span>
-                                +{roadmap.rewards?.gold || 0} G
+                                +{challenge.rewards?.gold || 0} G
                             </span>
                             <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs flex items-center">
                                 <span className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-1"></span>
-                                +{roadmap.rewards?.exp || 0} EXP
+                                +{challenge.rewards?.exp || 0} EXP
                             </span>
                         </div>
 
                         {/* 능력치 정보 */}
-                        {(roadmap.abilities?.intelligence ||
-                            roadmap.abilities?.diligence ||
-                            roadmap.abilities?.creativity ||
-                            roadmap.abilities?.personality) && (
+                        {(challenge.abilities?.intelligence ||
+                            challenge.abilities?.diligence ||
+                            challenge.abilities?.creativity ||
+                            challenge.abilities?.personality) && (
                                 <div className="mt-3 pt-3 border-t border-indigo-100">
                                     <p className="text-xs text-gray-500 mb-1">획득한 능력치:</p>
                                     <div className="flex flex-wrap gap-1">
-                                        {roadmap.abilities?.intelligence && (
+                                        {challenge.abilities?.intelligence && (
                                             <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full flex items-center">
                                                 <span className="w-1.5 h-1.5 bg-blue-700 rounded-full mr-1"></span>
                                                 지력 +1
                                             </span>
                                         )}
-                                        {roadmap.abilities?.diligence && (
+                                        {challenge.abilities?.diligence && (
                                             <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full flex items-center">
                                                 <span className="w-1.5 h-1.5 bg-green-700 rounded-full mr-1"></span>
                                                 성실성 +1
                                             </span>
                                         )}
-                                        {roadmap.abilities?.creativity && (
+                                        {challenge.abilities?.creativity && (
                                             <span className="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full flex items-center">
                                                 <span className="w-1.5 h-1.5 bg-purple-700 rounded-full mr-1"></span>
                                                 창의력 +1
                                             </span>
                                         )}
-                                        {roadmap.abilities?.personality && (
+                                        {challenge.abilities?.personality && (
                                             <span className="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full flex items-center">
                                                 <span className="w-1.5 h-1.5 bg-red-700 rounded-full mr-1"></span>
                                                 인성 +1
@@ -117,7 +117,7 @@ const RoadmapTab: React.FC<RoadmapTabProps> = ({ completedRoadmaps, isLoading })
                         {/* 완료 시간 */}
                         <div className="mt-3 text-right">
                             <p className="text-xs text-gray-500">
-                                {roadmap.timestamp && new Date(roadmap.timestamp).toLocaleDateString('ko-KR', {
+                                {challenge.timestamp && new Date(challenge.timestamp).toLocaleDateString('ko-KR', {
                                     year: 'numeric',
                                     month: 'long',
                                     day: 'numeric'
@@ -131,4 +131,4 @@ const RoadmapTab: React.FC<RoadmapTabProps> = ({ completedRoadmaps, isLoading })
     )
 }
 
-export default RoadmapTab 
+export default ChallengeTab 

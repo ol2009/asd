@@ -223,29 +223,44 @@ export default function ChallengePage() {
     const handleAddChallenge = (e: React.FormEvent) => {
         e.preventDefault()
 
-        const newChallenge: Challenge = {
-            id: Date.now().toString(),
-            name: formData.name,
-            steps: formData.steps.map(step => ({
-                id: step.id,
-                goal: step.goal
-            })),
-            rewardTitle: formData.rewardTitle,
-            icon: formData.icon,
-            abilities: formData.abilities,
-            createdAt: new Date().toISOString()
+        try {
+            // 폼 유효성 검사
+            if (!formData.name || !formData.rewardTitle || formData.steps.some(step => !step.goal)) {
+                toast.error('모든 필드를 입력해주세요.')
+                return
+            }
+
+            // 고유 ID 생성
+            const newChallenge: Challenge = {
+                ...formData,
+                id: Date.now().toString(),
+                createdAt: new Date().toISOString()
+            }
+
+            // 챌린지 목록에 추가
+            const updatedChallenges = [...challenges, newChallenge]
+            setChallenges(updatedChallenges)
+
+            // 로컬 스토리지에 저장
+            localStorage.setItem(`challenges_${classId}`, JSON.stringify(updatedChallenges))
+
+            // 각 단계별로 별도 저장 (반복 복구를 위해)
+            newChallenge.steps.forEach(step => {
+                // 각 단계별 빈 학생 배열 초기화만 하고 실제 학생은 추가하지 않음
+                const emptyStudentsArray: string[] = [];
+                localStorage.setItem(`challenge_${classId}_step_${step.id}_students`, JSON.stringify(emptyStudentsArray));
+            });
+
+            // 저장 성공 메시지
+            toast.success('새 챌린지가 추가되었습니다.')
+
+            // 폼 초기화
+            initAddForm()
+            setIsAddModalOpen(false)
+        } catch (error) {
+            console.error('챌린지 추가 오류:', error)
+            toast.error('챌린지를 추가하는 중 오류가 발생했습니다.')
         }
-
-        // 새 챌린지 추가
-        const updatedChallenges = [...challenges, newChallenge]
-        setChallenges(updatedChallenges)
-
-        // 로컬 스토리지 업데이트
-        localStorage.setItem(`challenges_${classId}`, JSON.stringify(updatedChallenges))
-
-        // 모달 닫기
-        setIsAddModalOpen(false)
-        toast.success('새 챌린지가 추가되었습니다')
     }
 
     // 챌린지 이름 변경 핸들러
@@ -317,9 +332,24 @@ export default function ChallengePage() {
         const stepStudents: { [stepId: string]: string[] } = {}
 
         challenge.steps.forEach(step => {
-            const stepKey = `challenge_${classId}_${challengeId}_${step.id}`
-            const studentsInStep = localStorage.getItem(stepKey)
+            // 새로운 키 형식으로 데이터 로드 (챌린지 ID 포함)
+            const newStepKey = `challenge_${classId}_${challengeId}_step_${step.id}_students`
+            let studentsInStep = localStorage.getItem(newStepKey)
+
+            // 새 키에 데이터가 없으면 이전 키 형식도 확인
+            if (!studentsInStep) {
+                const oldStepKey = `challenge_${classId}_step_${step.id}_students`
+                studentsInStep = localStorage.getItem(oldStepKey)
+
+                // 이전 키 형식에 데이터가 있다면 새 키 형식으로 마이그레이션
+                if (studentsInStep) {
+                    console.log(`이전 키(${oldStepKey})에서 데이터를 찾았습니다. 새 키(${newStepKey})로 마이그레이션합니다.`)
+                    localStorage.setItem(newStepKey, studentsInStep)
+                }
+            }
+
             stepStudents[step.id] = studentsInStep ? JSON.parse(studentsInStep) : []
+            console.log(`스텝 ${step.id} 학생 목록 로드됨:`, stepStudents[step.id])
         })
 
         // 로컬 스토리지의 학생 목록과 챌린지 객체의 학생 목록 동기화
@@ -356,28 +386,36 @@ export default function ChallengePage() {
         setIsAddStudentModalOpen(true)
     }
 
-    // 챌린지의 특정 단계에 학생 추가
+    // 학생들을 단계에 추가하는 함수 (모달에서 호출)
     const handleAddStudentsToStep = (studentIds: string[]) => {
-        if (!selectedChallenge || selectedChallengeStepIndex === null) return
-
-        const step = selectedChallenge.steps[selectedChallengeStepIndex]
-
-        // 이미 해당 단계 또는 그 이상 단계에 속한 학생은 제외
-        const existingStudentIds: string[] = []
-
-        // 현재 선택된 단계와 그 이상 단계에 있는 학생들 수집
-        for (let i = selectedChallengeStepIndex; i < selectedChallenge.steps.length; i++) {
-            const currentStepId = selectedChallenge.steps[i].id
-            if (studentsInSteps[currentStepId]) {
-                existingStudentIds.push(...studentsInSteps[currentStepId])
-            }
+        if (!selectedChallenge || selectedChallengeStepIndex === null) {
+            toast.error('챌린지 정보가 없습니다.');
+            return;
         }
 
-        // 필터링된 학생 ID만 추가
-        const filteredStudentIds = studentIds.filter(id => !existingStudentIds.includes(id))
+        const step = selectedChallenge.steps[selectedChallengeStepIndex];
+        if (!step) {
+            toast.error('단계 정보가 없습니다.');
+            return;
+        }
+
+        // 이미 해당 단계나 이후 단계에 있는 학생들 필터링
+        const filteredStudentIds = studentIds.filter(studentId => {
+            // 현재 단계 이후의 모든 단계 확인
+            for (let i = selectedChallengeStepIndex; i < selectedChallenge.steps.length; i++) {
+                const stepId = selectedChallenge.steps[i].id;
+                const studentsInStep = studentsInSteps[stepId] || [];
+
+                // 이미 이 단계나 이후 단계에 있으면 필터링
+                if (studentsInStep.includes(studentId)) {
+                    return false;
+                }
+            }
+            return true;
+        });
 
         if (filteredStudentIds.length === 0) {
-            toast.info('추가할 학생이 없습니다');
+            toast.info('추가할 학생이 없습니다. 이미 모든 선택된 학생이 이 단계나 이후 단계에 있습니다.');
             setIsAddStudentModalOpen(false);
             return;
         }
@@ -385,8 +423,12 @@ export default function ChallengePage() {
         // 새 학생 추가
         const updatedStudentsInStep = [...(studentsInSteps[step.id] || []), ...filteredStudentIds]
 
+        // 챌린지 ID를 포함하는 고유한 키 생성
+        const stepKey = `challenge_${classId}_${selectedChallenge.id}_step_${step.id}_students`;
+        console.log(`새로운 키로 저장 중: ${stepKey}`);
+
         // 로컬 스토리지 업데이트
-        localStorage.setItem(`challenge_${classId}_step_${step.id}_students`, JSON.stringify(updatedStudentsInStep))
+        localStorage.setItem(stepKey, JSON.stringify(updatedStudentsInStep))
 
         // 1. 이전 단계에서 학생 제거 (선택된 학생을 이전 단계에서 제거)
         if (selectedChallengeStepIndex > 0) {
@@ -399,11 +441,11 @@ export default function ChallengePage() {
                     studentId => !filteredStudentIds.includes(studentId)
                 );
 
+                // 챌린지 ID를 포함하는 고유한 키 생성
+                const prevStepKey = `challenge_${classId}_${selectedChallenge.id}_step_${prevStepId}_students`;
+
                 // 로컬 스토리지 업데이트
-                localStorage.setItem(
-                    `challenge_${classId}_step_${prevStepId}_students`,
-                    JSON.stringify(updatedPrevStepStudents)
-                );
+                localStorage.setItem(prevStepKey, JSON.stringify(updatedPrevStepStudents));
 
                 // 상태 업데이트
                 studentsInSteps[prevStepId] = updatedPrevStepStudents;
@@ -487,35 +529,50 @@ export default function ChallengePage() {
                 console.warn('students_classId 데이터가 없음');
             }
 
-            // 2. classes 스토리지에서도 학생 정보 업데이트
-            const classesJson = localStorage.getItem('classes');
-            if (classesJson) {
-                const classes = JSON.parse(classesJson);
-                const classIndex = classes.findIndex((c: ClassInfo) => c.id === classId);
+            // 2. classes 스토리지에도 학생 정보 업데이트
+            try {
+                const classesString = localStorage.getItem('classes');
+                if (classesString) {
+                    const classes = JSON.parse(classesString);
+                    const classIndex = classes.findIndex((c: any) => c.id === classId);
 
-                if (classIndex !== -1) {
-                    const studentIndex = classes[classIndex].students.findIndex(
-                        (s: Student) => s.id === studentId
-                    );
+                    if (classIndex !== -1) {
+                        // 학생 배열이 없거나 배열이 아닌 경우 빈 배열로 초기화
+                        const classStudents = classes[classIndex].students || [];
 
-                    if (studentIndex !== -1) {
-                        // 학생 이름 가져오기
-                        const studentName = classes[classIndex].students[studentIndex].name;
+                        // classStudents가 배열인지 확인
+                        if (!Array.isArray(classStudents)) {
+                            console.warn('classes 스토리지의 students가 배열이 아닙니다. 빈 배열로 초기화합니다.');
+                            classes[classIndex].students = [];
+                            localStorage.setItem('classes', JSON.stringify(classes));
+                            console.log('classes 스토리지 students 필드 초기화 완료');
+                            return; // 더 이상 진행하지 않음
+                        }
 
-                        // 칭호 업데이트
-                        classes[classIndex].students[studentIndex].honorific = honorific;
-                        console.log('classes 스토리지 학생 칭호 업데이트:', { studentName, honorific });
+                        const classStudentIndex = classStudents.findIndex((s: any) => s.id === studentId);
 
-                        // 저장
-                        localStorage.setItem('classes', JSON.stringify(classes));
+                        if (classStudentIndex !== -1) {
+                            // 최신 정보로 업데이트
+                            classes[classIndex].students[classStudentIndex] = {
+                                ...classes[classIndex].students[classStudentIndex],
+                                stats: student.stats,
+                                abilities: student.abilities,
+                                points: student.points
+                            };
+
+                            localStorage.setItem('classes', JSON.stringify(classes));
+                            console.log('classes 스토리지 업데이트 완료');
+                        } else {
+                            console.warn(`classes 스토리지에서 학생 ID ${studentId}를 찾을 수 없습니다.`);
+                        }
                     } else {
-                        console.warn('classes 스토리지에서 학생을 찾을 수 없음:', studentId);
+                        console.warn(`classes 스토리지에서 클래스 ID ${classId}를 찾을 수 없습니다.`);
                     }
                 } else {
-                    console.warn('classes 스토리지에서 클래스를 찾을 수 없음:', classId);
+                    console.warn('classes 스토리지 데이터가 없습니다.');
                 }
-            } else {
-                console.warn('classes 스토리지 데이터가 없음');
+            } catch (error) {
+                console.error('classes 스토리지 업데이트 오류:', error);
             }
 
             // 3. class_classId 스토리지에서도 학생 정보 업데이트
@@ -633,8 +690,8 @@ export default function ChallengePage() {
             challenges[challengeIndex] = challenge
             localStorage.setItem(`challenges_${classId}`, JSON.stringify(challenges))
 
-            // 4. 단계별 별도 저장소에도 업데이트
-            const stepKey = `challenge_${classId}_step_${stepId}_students`
+            // 4. 단계별 별도 저장소에도 업데이트 - 챌린지 ID를 포함한 고유한 키 사용
+            const stepKey = `challenge_${classId}_${challengeId}_step_${stepId}_students`
             const savedStepStudents = localStorage.getItem(stepKey)
             let stepStudents = savedStepStudents ? JSON.parse(savedStepStudents) : []
 
@@ -645,6 +702,7 @@ export default function ChallengePage() {
             if (!stepStudents.includes(studentId)) {
                 stepStudents.push(studentId)
                 localStorage.setItem(stepKey, JSON.stringify(stepStudents))
+                console.log(`학생 ${studentId}를 ${stepKey}에 추가했습니다.`)
             }
 
             // 5. 현재 상태 업데이트
@@ -692,6 +750,8 @@ export default function ChallengePage() {
         communication?: boolean // 의사소통
     }) => {
         try {
+            console.log('학생 경험치/능력치 업데이트 시작:', { studentId, expToAdd, stepAbilities });
+
             // 클래스 내 학생 목록에서 ID로 학생 찾기
             const savedStudents = localStorage.getItem(`students_${classId}`)
             if (!savedStudents) {
@@ -709,28 +769,25 @@ export default function ChallengePage() {
 
             // 현재 학생 정보 가져오기
             const student = students[studentIndex]
+            console.log('업데이트 전 학생 정보:', student);
 
-            // stats 객체가 없으면 기본값 설정
+            // 학생 데이터 구조 표준화
             if (!student.stats) {
                 student.stats = {
                     level: 1,
-                    exp: 0,
-                    abilities: {
-                        intelligence: 1,
-                        diligence: 1,
-                        creativity: 1,
-                        personality: 1
-                    }
+                    exp: 0
                 }
             }
 
-            // abilities 객체가 없으면 기본값 설정
-            if (!student.stats.abilities) {
-                student.stats.abilities = {
+            // 능력치 구조가 없으면 생성
+            if (!student.abilities) {
+                student.abilities = {
                     intelligence: 1,
                     diligence: 1,
                     creativity: 1,
-                    personality: 1
+                    personality: 1,
+                    health: 1,
+                    communication: 1
                 }
             }
 
@@ -740,28 +797,28 @@ export default function ChallengePage() {
 
             // 레벨 계산 (100 경험치당 1레벨)
             const newLevel = Math.floor(newExp / EXP_PER_LEVEL) + 1
-            const levelChange = newLevel - student.stats.level
+            const levelChange = newLevel - (student.stats.level || 1)
 
-            // 능력치 증가
+            // 능력치 증가 - 표준화된 구조 사용
             if (stepAbilities) {
                 // 해당 단계에서 선택된 능력치만 증가
                 if (stepAbilities.intelligence) {
-                    student.stats.abilities.intelligence += 1;
+                    student.abilities.intelligence = (student.abilities.intelligence || 1) + 1;
                 }
                 if (stepAbilities.diligence) {
-                    student.stats.abilities.diligence += 1;
+                    student.abilities.diligence = (student.abilities.diligence || 1) + 1;
                 }
                 if (stepAbilities.creativity) {
-                    student.stats.abilities.creativity += 1;
+                    student.abilities.creativity = (student.abilities.creativity || 1) + 1;
                 }
                 if (stepAbilities.personality) {
-                    student.stats.abilities.personality += 1;
+                    student.abilities.personality = (student.abilities.personality || 1) + 1;
                 }
                 if (stepAbilities.health) {
-                    student.stats.abilities.health = (student.stats.abilities.health || 1) + 1;
+                    student.abilities.health = (student.abilities.health || 1) + 1;
                 }
                 if (stepAbilities.communication) {
-                    student.stats.abilities.communication = (student.stats.abilities.communication || 1) + 1;
+                    student.abilities.communication = (student.abilities.communication || 1) + 1;
                 }
             }
 
@@ -784,9 +841,83 @@ export default function ChallengePage() {
                 );
             }
 
-            // 업데이트된 학생 목록 저장
+            // 1. 업데이트된 학생 목록 저장 (students_classId)
             students[studentIndex] = student
             localStorage.setItem(`students_${classId}`, JSON.stringify(students))
+            console.log('students_classId 스토리지 업데이트 완료');
+
+            // 2. classes 스토리지에도 학생 정보 업데이트
+            try {
+                const classesString = localStorage.getItem('classes');
+                if (classesString) {
+                    const classes = JSON.parse(classesString);
+                    const classIndex = classes.findIndex((c: any) => c.id === classId);
+
+                    if (classIndex !== -1) {
+                        // 학생 배열이 없거나 배열이 아닌 경우 빈 배열로 초기화
+                        const classStudents = classes[classIndex].students || [];
+
+                        // classStudents가 배열인지 확인
+                        if (!Array.isArray(classStudents)) {
+                            console.warn('classes 스토리지의 students가 배열이 아닙니다. 빈 배열로 초기화합니다.');
+                            classes[classIndex].students = [];
+                            localStorage.setItem('classes', JSON.stringify(classes));
+                            console.log('classes 스토리지 students 필드 초기화 완료');
+                            return; // 더 이상 진행하지 않음
+                        }
+
+                        const classStudentIndex = classStudents.findIndex((s: any) => s.id === studentId);
+
+                        if (classStudentIndex !== -1) {
+                            // 최신 정보로 업데이트
+                            classes[classIndex].students[classStudentIndex] = {
+                                ...classes[classIndex].students[classStudentIndex],
+                                stats: student.stats,
+                                abilities: student.abilities,
+                                points: student.points
+                            };
+
+                            localStorage.setItem('classes', JSON.stringify(classes));
+                            console.log('classes 스토리지 업데이트 완료');
+                        } else {
+                            console.warn(`classes 스토리지에서 학생 ID ${studentId}를 찾을 수 없습니다.`);
+                        }
+                    } else {
+                        console.warn(`classes 스토리지에서 클래스 ID ${classId}를 찾을 수 없습니다.`);
+                    }
+                } else {
+                    console.warn('classes 스토리지 데이터가 없습니다.');
+                }
+            } catch (error) {
+                console.error('classes 스토리지 업데이트 오류:', error);
+            }
+
+            // 3. class_classId 스토리지에도 업데이트
+            try {
+                const classDataString = localStorage.getItem(`class_${classId}`);
+                if (classDataString) {
+                    const classData = JSON.parse(classDataString);
+
+                    if (classData.students && Array.isArray(classData.students)) {
+                        const classStudentIndex = classData.students.findIndex((s: any) => s.id === studentId);
+
+                        if (classStudentIndex !== -1) {
+                            // 최신 정보로 업데이트
+                            classData.students[classStudentIndex] = {
+                                ...classData.students[classStudentIndex],
+                                stats: student.stats,
+                                abilities: student.abilities,
+                                points: student.points
+                            };
+
+                            localStorage.setItem(`class_${classId}`, JSON.stringify(classData));
+                            console.log('class_classId 스토리지 업데이트 완료');
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('class_classId 스토리지 업데이트 오류:', error);
+            }
 
             // 제공된 경험치에 대한 토스트 메시지
             const abilityTexts = [];
@@ -810,6 +941,7 @@ export default function ChallengePage() {
             // 학생 데이터 리로드
             loadStudentsInClass()
 
+            console.log('학생 경험치/능력치 업데이트 완료:', student);
             return student
         } catch (error) {
             console.error('학생 경험치/레벨 업데이트 중 오류:', error)
@@ -822,6 +954,8 @@ export default function ChallengePage() {
         if (!selectedChallenge) return
 
         try {
+            console.log('챌린지 삭제 시작:', selectedChallenge.id);
+
             // 챌린지 목록에서 선택된 챌린지 제거
             const updatedChallenges = challenges.filter(r => r.id !== selectedChallenge.id)
             setChallenges(updatedChallenges)
@@ -829,10 +963,11 @@ export default function ChallengePage() {
             // 로컬 스토리지에서 챌린지 정보 업데이트
             localStorage.setItem(`challenges_${classId}`, JSON.stringify(updatedChallenges))
 
-            // 해당 챌린지의 각 단계별 학생 정보도 삭제
+            // 해당 챌린지의 각 단계별 학생 정보도 삭제 (수정된 키 형식 사용)
             selectedChallenge.steps.forEach(step => {
-                const stepKey = `challenge_${classId}_${selectedChallenge.id}_${step.id}`
+                const stepKey = `challenge_${classId}_step_${step.id}_students`
                 localStorage.removeItem(stepKey)
+                console.log(`삭제된 단계 데이터: ${stepKey}`);
             })
 
             setIsDeleteConfirmOpen(false)
@@ -840,6 +975,7 @@ export default function ChallengePage() {
             setSelectedChallenge(null)
 
             toast.success('챌린지가 삭제되었습니다.');
+            console.log('챌린지 삭제 완료');
         } catch (error) {
             console.error('챌린지 삭제 오류:', error);
             toast.error('챌린지를 삭제하는 중 오류가 발생했습니다.');
@@ -933,6 +1069,7 @@ export default function ChallengePage() {
                     <div className="mb-8 bg-white/40 backdrop-blur-sm p-6 rounded-xl shadow-md">
                         <h1 className="text-2xl font-bold text-blue-800">챌린지</h1>
                         <p className="text-slate-700">학생들의 장기적인 목표를 설정하고 학생들이 목표를 달성하게 도와주세요.</p>
+                        <p className="text-slate-700 mt-1 text-sm bg-blue-50 p-2 rounded-md inline-block">챌린지에서 학생이 각 단계를 달성하면 레벨 2씩 오릅니다.</p>
                     </div>
 
                     {/* 챌린지 목록 */}
@@ -988,7 +1125,7 @@ export default function ChallengePage() {
                 {/* 챌린지 추가 모달 */}
                 {isAddModalOpen && (
                     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-                        <div className="bg-gradient-to-br from-white to-blue-50/95 backdrop-blur-xl rounded-2xl shadow-2xl p-8 w-full max-w-md relative border border-blue-100/50">
+                        <div className="bg-gradient-to-br from-white to-blue-50/95 backdrop-blur-xl rounded-2xl shadow-2xl p-8 w-full max-w-md max-h-[90vh] overflow-y-auto relative border border-blue-100/50">
                             <button
                                 onClick={() => setIsAddModalOpen(false)}
                                 className="absolute top-6 right-6 p-2 rounded-full bg-white/80 hover:bg-white shadow-sm hover:shadow transition-all duration-200 group"
@@ -1204,6 +1341,33 @@ export default function ChallengePage() {
                                             )}
                                             <span className="font-medium">의사소통</span>
                                         </button>
+                                    </div>
+
+                                    <div className="mt-3 pt-2 border-t border-gray-100">
+                                        <h4 className="text-xs font-medium text-gray-500 mb-1">선택한 능력치 설명:</h4>
+                                        <div className="space-y-2 text-xs text-gray-600">
+                                            {formData.abilities.intelligence && (
+                                                <p><span className="font-semibold text-blue-600">지력:</span> 지식정보처리 역량. 정보를 수용, 분석하고 새로운 지식으로 재구성하는 힘.</p>
+                                            )}
+                                            {formData.abilities.diligence && (
+                                                <p><span className="font-semibold text-green-600">성실성:</span> 자기관리 역량과 관련. 자기 주도적으로 목표를 향해 꾸준히 나아갈 줄 아는, 맡은 바를 이행하는 성실한 태도.</p>
+                                            )}
+                                            {formData.abilities.creativity && (
+                                                <p><span className="font-semibold text-purple-600">창의력:</span> 창의적 사고 역량과 심미적 감성 역량이 관련. 문제를 새롭게 바라보고 아름답게 표현하는 능력.</p>
+                                            )}
+                                            {formData.abilities.personality && (
+                                                <p><span className="font-semibold text-red-600">인성:</span> 공동체 역량과 관련된 능력. 책임감을 가지고, 타인을 배려하며, 정의롭고 윤리적인 판단을 할 수 있는 능력.</p>
+                                            )}
+                                            {formData.abilities.health && (
+                                                <p><span className="font-semibold text-yellow-600">체력:</span> 자기관리 역량과 관련. 건강하고 안전한 삶을 위해 자기 몸을 가꿀 수 있는 능력.</p>
+                                            )}
+                                            {formData.abilities.communication && (
+                                                <p><span className="font-semibold text-indigo-600">의사소통:</span> 의사소통 역량과 관련. 남의 의견을 경청하고 자신의 의견을 표현할 줄 알며 협력적으로 소통하는 능력.</p>
+                                            )}
+                                            {!Object.values(formData.abilities).some(v => v) && (
+                                                <p className="italic">능력치를 선택하면 설명이 표시됩니다.</p>
+                                            )}
+                                        </div>
                                     </div>
                                 </div>
 

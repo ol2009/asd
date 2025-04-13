@@ -36,8 +36,8 @@ const MissionTab: React.FC<MissionTabProps> = ({ completedMissions, isLoading })
                         key={mission.id}
                         className="bg-blue-50 border border-blue-100 rounded-lg p-3"
                     >
-                        <h4 className="font-medium text-blue-800">{mission.name}</h4>
-                        <p className="text-sm text-blue-600 mt-1">{mission.condition}</p>
+                        <h4 className="font-medium text-blue-800">{mission.title}</h4>
+                        <p className="text-sm text-blue-600 mt-1">{mission.description}</p>
 
                         {/* 보상 정보 */}
                         <div className="flex items-center mt-2 text-xs">

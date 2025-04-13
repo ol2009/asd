@@ -117,15 +117,25 @@ const PointShopTab: React.FC<PointShopTabProps> = ({
     const [showUsedCoupons, setShowUsedCoupons] = useState<boolean>(false)
     const [items, setItems] = useState<PointShopItem[]>([])
     const [purchaseHistory, setPurchaseHistory] = useState<PurchaseHistory[]>([])
+    const [displayedPoints, setDisplayedPoints] = useState<number>(studentPoints)
+    const [isPurchasing, setIsPurchasing] = useState<boolean>(false)
+
+    // studentPoints가 변경되면 displayedPoints도 업데이트
+    useEffect(() => {
+        setDisplayedPoints(studentPoints);
+    }, [studentPoints]);
 
     // 포인트샵 아이템 로드
     useEffect(() => {
         if (!classId) return
 
+        console.log('PointShopTab이 마운트됨 - 클래스 ID:', classId);
+
         // 로컬 스토리지에서 포인트샵 아이템 가져오기
         try {
             const savedItems = localStorage.getItem(`pointshop_items_${classId}`) || '[]'
             let parsedItems = JSON.parse(savedItems)
+            console.log('로드된 포인트샵 아이템:', parsedItems.length);
 
             // 아바타 아이템이 없는 경우 기본 아바타 아이템 추가
             const hasAvatarItems = parsedItems.some((item: PointShopItem) => item.type === PointShopItemType.AVATAR)
@@ -135,6 +145,7 @@ const PointShopTab: React.FC<PointShopTabProps> = ({
                 localStorage.setItem(`pointshop_items_${classId}`, JSON.stringify(parsedItems))
             }
 
+            console.log('PointShopTab에 로드된 전체 아이템 수:', parsedItems.length);
             setItems(parsedItems)
         } catch (error) {
             console.error('포인트샵 아이템 로드 오류:', error)
@@ -160,29 +171,69 @@ const PointShopTab: React.FC<PointShopTabProps> = ({
     // 상점 아이템 구매 함수
     const handlePurchaseItem = (item: PointShopItem) => {
         console.log('구매 시도 - 아이템:', item);
-        console.log('학생 포인트:', studentPoints, '아이템 가격:', item.price);
+        console.log('학생 포인트:', displayedPoints, '아이템 가격:', item.price);
         console.log('아이템 타입:', item.type);
 
+        // 이미 구매 중이면 중복 구매 방지
+        if (isPurchasing) {
+            console.log('이미 구매 처리 중입니다...');
+            return;
+        }
+
         // 포인트 검사를 제거하고 항상 구매 진행
+        if (displayedPoints < item.price) {
+            console.log('포인트가 부족합니다.');
+            toast.error('골드가 부족합니다.');
+            return;
+        }
+
+        // 구매 중 상태로 변경
+        setIsPurchasing(true);
+
+        // 즉시 UI에 포인트 차감 반영
+        setDisplayedPoints(prevPoints => prevPoints - item.price);
+
         console.log('구매 진행 중...');
+        // 실제 구매 처리를 위해 콜백 호출
         onItemPurchase(item);
+
+        // 구매 완료 후 구매 중 상태 해제 (약간의 지연 추가)
+        setTimeout(() => {
+            setIsPurchasing(false);
+        }, 1000);
     };
 
-    // 필터링된 구매 내역 계산
+    // 필터링된 구매 내역 계산 - 아바타 아이템은 제외하고 표시
     const filteredPurchaseHistory = showUsedCoupons
-        ? purchaseHistory
-        : purchaseHistory.filter(purchase => !purchase.used)
+        ? purchaseHistory.filter(purchase => purchase.item.type !== PointShopItemType.AVATAR && purchase.item.itemType !== 'avatar')
+        : purchaseHistory.filter(purchase => !purchase.used && purchase.item.type !== PointShopItemType.AVATAR && purchase.item.itemType !== 'avatar')
 
     // 아이템 필터링
-    const avatarItems = items.filter((item) => item.type === PointShopItemType.AVATAR)
-    const classItems = items.filter((item) => item.type === PointShopItemType.CLASS)
+    const avatarItems = items.filter((item) =>
+        item.type === PointShopItemType.AVATAR || item.itemType === 'avatar'
+    )
+    const classItems = items.filter((item) =>
+        item.type === PointShopItemType.CLASS ||
+        item.itemType === 'class' ||
+        (!item.type && !item.avatarItem)
+    )
+
+    console.log('아바타 아이템 개수:', avatarItems.length);
+    console.log('학급 쿠폰 아이템 개수:', classItems.length);
+
+    // 필터링된 아이템 디버깅
+    if (classItems.length === 0) {
+        console.log('학급 쿠폰 아이템이 없습니다. 전체 아이템:', items);
+    } else {
+        console.log('학급 쿠폰 아이템 목록:', classItems);
+    }
 
     return (
         <div>
             <div className="flex justify-between items-center mb-3">
                 <h3 className="text-base font-bold text-gray-800">쿠폰 상점</h3>
                 <div className="text-yellow-600 font-medium">
-                    보유 골드: {studentPoints} G
+                    보유 골드: {displayedPoints} G
                 </div>
             </div>
 
@@ -226,9 +277,9 @@ const PointShopTab: React.FC<PointShopTabProps> = ({
                         </div>
                     ) : (
                         classItems.map((item, index) => {
-                            const canPurchase = studentPoints >= item.price;
+                            const canPurchase = displayedPoints >= item.price;
 
-                            console.log(`Item ${item.name}: canPurchase=${canPurchase}, points=${studentPoints}, price=${item.price}`);
+                            console.log(`Item ${item.name}: canPurchase=${canPurchase}, points=${displayedPoints}, price=${item.price}`);
 
                             return (
                                 <div key={index} className="border rounded-lg p-3 bg-white">
@@ -253,9 +304,13 @@ const PointShopTab: React.FC<PointShopTabProps> = ({
                                                 console.log('클래스 쿠폰 구매 버튼 클릭:', item.id);
                                                 handlePurchaseItem(item);
                                             }}
-                                            className="px-3 py-1 text-xs rounded-full bg-blue-500 hover:bg-blue-600 text-white"
+                                            disabled={isPurchasing || !canPurchase}
+                                            className={`px-3 py-1 text-xs rounded-full ${isPurchasing || !canPurchase
+                                                ? 'bg-gray-400 cursor-not-allowed'
+                                                : 'bg-blue-500 hover:bg-blue-600'
+                                                } text-white`}
                                         >
-                                            구매하기
+                                            {isPurchasing ? '구매 중...' : '구매하기'}
                                         </button>
                                     </div>
                                 </div>
@@ -274,9 +329,9 @@ const PointShopTab: React.FC<PointShopTabProps> = ({
                         </div>
                     ) : (
                         avatarItems.map((item, index) => {
-                            const canPurchase = studentPoints >= item.price;
+                            const canPurchase = displayedPoints >= item.price;
 
-                            console.log(`Item ${item.name}: canPurchase=${canPurchase}, points=${studentPoints}, price=${item.price}`);
+                            console.log(`Item ${item.name}: canPurchase=${canPurchase}, points=${displayedPoints}, price=${item.price}`);
 
                             // 아이템 타입에 따라 적절한 아이콘 선택
                             const renderIcon = () => {
@@ -316,9 +371,13 @@ const PointShopTab: React.FC<PointShopTabProps> = ({
                                                 console.log('이벤트 객체:', e.type);
                                                 handlePurchaseItem(item);
                                             }}
-                                            className="px-3 py-1 text-xs rounded-full bg-blue-500 hover:bg-blue-600 text-white"
+                                            disabled={isPurchasing || !canPurchase}
+                                            className={`px-3 py-1 text-xs rounded-full ${isPurchasing || !canPurchase
+                                                ? 'bg-gray-400 cursor-not-allowed'
+                                                : 'bg-blue-500 hover:bg-blue-600'
+                                                } text-white`}
                                         >
-                                            구매하기
+                                            {isPurchasing ? '구매 중...' : '구매하기'}
                                         </button>
                                     </div>
                                 </div>

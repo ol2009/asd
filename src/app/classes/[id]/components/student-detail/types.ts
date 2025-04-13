@@ -36,7 +36,7 @@ export interface StudentDetailModalProps {
 }
 
 // 탭 타입
-export type TabType = 'roadmaps' | 'missions' | 'cards' | 'pointshop' | 'avatar';
+export type TabType = 'challenges' | 'missions' | 'cards' | 'pointshop' | 'avatar';
 
 // 포인트샵 탭 타입
 export type PointShopTabType = 'avatar_items' | 'class_items' | 'purchases';
@@ -57,24 +57,28 @@ export interface Reward {
     gold: number;
 }
 
-// 완료된 로드맵 스텝
-export interface RoadmapStep {
+// 완료된 챌린지 스텝
+export interface ChallengeStep {
     id: string;
     title: string;
     description: string;
     completedAt?: string;
 }
 
-// 완료된 로드맵
-export interface CompletedRoadmap {
+// 완료된 챌린지
+export interface CompletedChallenge {
     id: string;
     title: string;
     description: string;
-    steps: RoadmapStep[];
+    steps: ChallengeStep[];
     abilities?: AbilityFlags;
     rewards?: Reward;
     timestamp: string;
 }
+
+// 기존 타입과의 호환성을 위한 타입 별칭
+export type CompletedRoadmap = CompletedChallenge;
+export type RoadmapStep = ChallengeStep;
 
 // 완료된 미션
 export interface CompletedMission {
