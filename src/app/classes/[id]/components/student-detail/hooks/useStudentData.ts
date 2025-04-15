@@ -3,6 +3,17 @@
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import { Student, CompletedChallenge, CompletedMission, ReceivedCard, ChallengeStep } from '../types'
+import { calculateLevelFromExp } from '@/lib/types'
+
+// 학생 능력치 인터페이스
+interface StudentAbilities {
+    intelligence?: boolean
+    diligence?: boolean
+    creativity?: boolean
+    personality?: boolean
+    health?: boolean
+    communication?: boolean
+}
 
 interface UseStudentDataProps {
     studentId: string | null
@@ -24,7 +35,11 @@ interface UseStudentDataReturn {
     updateStudentPoints: (points: number) => void
     updateStudentAvatar: (avatarString: string) => boolean
     deleteStudent: () => Promise<boolean>
+    updateStudentExpAndLevel: (studentId: string, expToAdd: number, abilities?: StudentAbilities, goldToAdd?: number) => Student | null
 }
+
+// 상수 값을 훅 내부에서 사용할 수 있도록 추가
+const POINTS_PER_LEVEL = 100; // 레벨업 시 획득 포인트
 
 export function useStudentData({ studentId, classId }: UseStudentDataProps): UseStudentDataReturn {
     const [student, setStudent] = useState<Student | null>(null)
@@ -800,6 +815,224 @@ export function useStudentData({ studentId, classId }: UseStudentDataProps): Use
         }
     };
 
+    /**
+     * 학생의 경험치와 레벨을 업데이트하는 함수
+     * @param studentId 학생 ID
+     * @param expToAdd 추가할 경험치
+     * @param abilities 증가시킬 능력치 (선택 사항)
+     * @param goldToAdd 추가할 골드 (선택 사항, 기본값 0)
+     * @returns 업데이트된 학생 객체 또는 null (실패 시)
+     */
+    const updateStudentExpAndLevel = (
+        studentId: string,
+        expToAdd: number,
+        abilities?: StudentAbilities,
+        goldToAdd: number = 0
+    ): Student | null => {
+        try {
+            if (!classId) {
+                console.error('클래스 ID가 없습니다.');
+                return null;
+            }
+
+            // 학생 정보 가져오기
+            const studentsJson = localStorage.getItem(`students_${classId}`);
+            if (!studentsJson) {
+                console.error('학생 데이터를 찾을 수 없습니다.');
+                return null;
+            }
+
+            const students = JSON.parse(studentsJson);
+            const studentIndex = students.findIndex((s: Student) => s.id === studentId);
+
+            if (studentIndex === -1) {
+                console.error('해당 학생을 찾을 수 없습니다.');
+                return null;
+            }
+
+            const student = students[studentIndex];
+            console.log('업데이트 전 학생 상태:', JSON.stringify(student, null, 2));
+
+            // 학생 데이터 구조 표준화
+            if (!student.stats) {
+                student.stats = {
+                    level: 1,
+                    exp: 0
+                };
+            }
+
+            // exp 필드가 숫자인지 확인하고 아니면 초기화
+            if (typeof student.stats.exp !== 'number') {
+                console.warn('학생의 경험치가 숫자가 아닙니다. 0으로 초기화합니다.', student.stats.exp);
+                student.stats.exp = 0;
+            }
+
+            // 현재 레벨과 경험치 기록 (변화 감지용)
+            const currentLevel = student.stats.level;
+            const currentExp = student.stats.exp;
+
+            // 새로운 경험치 계산
+            const newExp = currentExp + expToAdd;
+
+            // 새로운 레벨 계산
+            const { level: newLevel } = calculateLevelFromExp(newExp);
+
+            // 경험치 업데이트
+            student.stats.exp = newExp;
+            student.stats.level = newLevel;
+
+            // 골드 추가 (미션 보상)
+            if (goldToAdd > 0) {
+                student.points = (student.points || 0) + goldToAdd;
+                console.log(`미션 완료 보상: ${goldToAdd} 골드 지급`);
+            }
+
+            // 학생이 abilities 객체를 가지고 있지 않으면 초기화
+            if (!student.abilities) {
+                student.abilities = {
+                    intelligence: 1,
+                    diligence: 1,
+                    creativity: 1,
+                    personality: 1,
+                    health: 1,
+                    communication: 1
+                };
+            }
+
+            // 능력치 증가 (미션에서 선택된 능력치가 있는 경우)
+            let abilitiesChanged = false;
+            if (abilities) {
+                if (abilities.intelligence) {
+                    student.abilities.intelligence = (student.abilities.intelligence || 1) + 1;
+                    abilitiesChanged = true;
+                }
+                if (abilities.diligence) {
+                    student.abilities.diligence = (student.abilities.diligence || 1) + 1;
+                    abilitiesChanged = true;
+                }
+                if (abilities.creativity) {
+                    student.abilities.creativity = (student.abilities.creativity || 1) + 1;
+                    abilitiesChanged = true;
+                }
+                if (abilities.personality) {
+                    student.abilities.personality = (student.abilities.personality || 1) + 1;
+                    abilitiesChanged = true;
+                }
+                if (abilities.health) {
+                    student.abilities.health = (student.abilities.health || 1) + 1;
+                    abilitiesChanged = true;
+                }
+                if (abilities.communication) {
+                    student.abilities.communication = (student.abilities.communication || 1) + 1;
+                    abilitiesChanged = true;
+                }
+            }
+
+            // 레벨업 시 포인트 지급
+            if (newLevel > currentLevel) {
+                const levelsGained = newLevel - currentLevel;
+                const pointsToAdd = levelsGained * POINTS_PER_LEVEL;
+                student.points = (student.points || 0) + pointsToAdd;
+
+                console.log(`레벨업! Lv.${currentLevel} -> Lv.${newLevel}, 포인트 +${pointsToAdd}`);
+
+                // 레벨업 토스트 메시지
+                toast.success(`${student.name} 학생이 레벨업했습니다! Lv.${currentLevel} → Lv.${newLevel} (보상: ${pointsToAdd}G 지급)`);
+            }
+
+            // 학생 아이콘이 없는 경우 기본 아이콘 설정
+            if (!student.iconType) {
+                student.iconType = '/images/icons/student_icon_1.png';
+            }
+
+            console.log('업데이트 후 학생 상태:', JSON.stringify(student, null, 2));
+
+            // 1. students_classId 저장소 업데이트
+            students[studentIndex] = student;
+            localStorage.setItem(`students_${classId}`, JSON.stringify(students));
+            console.log('students_classId 저장소 업데이트 완료');
+
+            // 2. classes 저장소 업데이트
+            const classesJson = localStorage.getItem('classes');
+            if (classesJson) {
+                const classes = JSON.parse(classesJson);
+                const classIndex = classes.findIndex((c: any) => c.id === classId);
+
+                if (classIndex !== -1) {
+                    // 해당 클래스 내의 학생 찾기
+                    const classStudents = classes[classIndex].students;
+
+                    if (Array.isArray(classStudents)) {
+                        const classStudentIndex = classStudents.findIndex((s: any) => s.id === studentId);
+
+                        if (classStudentIndex !== -1) {
+                            // 학생 데이터 업데이트
+                            classes[classIndex].students[classStudentIndex] = {
+                                ...classes[classIndex].students[classStudentIndex],
+                                stats: student.stats,
+                                abilities: student.abilities,
+                                points: student.points,
+                                iconType: student.iconType
+                            };
+
+                            localStorage.setItem('classes', JSON.stringify(classes));
+                            console.log('classes 저장소 업데이트 완료');
+                        }
+                    }
+                }
+            }
+
+            // 3. class_classId 저장소 업데이트
+            const classJson = localStorage.getItem(`class_${classId}`);
+            if (classJson) {
+                const classData = JSON.parse(classJson);
+
+                if (classData.students && Array.isArray(classData.students)) {
+                    const classStudentIndex = classData.students.findIndex((s: any) => s.id === studentId);
+
+                    if (classStudentIndex !== -1) {
+                        // 학생 데이터 업데이트
+                        classData.students[classStudentIndex] = {
+                            ...classData.students[classStudentIndex],
+                            stats: student.stats,
+                            abilities: student.abilities,
+                            points: student.points,
+                            iconType: student.iconType
+                        };
+
+                        localStorage.setItem(`class_${classId}`, JSON.stringify(classData));
+                        console.log('class_classId 저장소 업데이트 완료');
+                    }
+                }
+            }
+
+            // 현재 컴포넌트 상태 업데이트
+            if (student.id === studentId) {
+                setStudent({ ...student });
+            }
+
+            // 경험치 획득 메시지
+            if (expToAdd > 0) {
+                const abilityTexts = [];
+                if (abilities?.intelligence) abilityTexts.push("지력 +1");
+                if (abilities?.diligence) abilityTexts.push("성실성 +1");
+                if (abilities?.creativity) abilityTexts.push("창의력 +1");
+                if (abilities?.personality) abilityTexts.push("인성 +1");
+                if (abilities?.health) abilityTexts.push("체력 +1");
+                if (abilities?.communication) abilityTexts.push("의사소통 +1");
+
+                const abilitiesText = abilityTexts.length > 0 ? ` (${abilityTexts.join(', ')})` : '';
+                toast.success(`${student.name} 학생이 ${expToAdd} EXP를 획득했습니다!${abilitiesText}`);
+            }
+
+            return student;
+        } catch (error) {
+            console.error('학생 경험치/레벨 업데이트 중 오류:', error);
+            toast.error('학생 정보를 업데이트하는 중 오류가 발생했습니다.');
+            return null;
+        }
+    };
+
     return {
         student,
         completedChallenges,
@@ -814,6 +1047,7 @@ export function useStudentData({ studentId, classId }: UseStudentDataProps): Use
         updateStudentHonorific,
         updateStudentPoints,
         updateStudentAvatar,
-        deleteStudent
+        deleteStudent,
+        updateStudentExpAndLevel
     };
 } 

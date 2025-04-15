@@ -2,12 +2,13 @@
 
 import React, { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Plus, ArrowLeft, X, Save, LogOut, Check } from 'lucide-react'
+import { Plus, ArrowLeft, X, Save, LogOut, Check, Search, User, Edit, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import Image from 'next/image'
 import AvatarRenderer from '@/components/Avatar'
 import { calculateLevelFromExp, getExpRequiredForLevel } from '@/lib/types'
+import { useStudentData } from '../components/student-detail/hooks/useStudentData'
 
 // 미션 타입 정의
 interface Mission {
@@ -124,6 +125,9 @@ export default function MissionsPage() {
             communication: false
         }
     })
+
+    // useStudentData 훅을 가져와서 updateStudentExpAndLevel 함수만 사용
+    const { updateStudentExpAndLevel } = useStudentData({ studentId: null, classId });
 
     // 학생 아바타 렌더링 함수
     const renderStudentAvatar = (student: any) => {
@@ -305,8 +309,8 @@ export default function MissionsPage() {
         currentMissions[missionIndex].achievers!.push(studentId)
         setMissions(currentMissions)
 
-        // 학생에게 경험치 부여 및 능력치 증가, 골드 지급
-        updateStudentExpAndLevel(studentId, EXP_FOR_MISSION, currentMissions[missionIndex].abilities, 100)
+        // 기존 함수 호출 대신 useStudentData의 함수 사용
+        updateStudentExpAndLevel(studentId, EXP_FOR_MISSION, currentMissions[missionIndex].abilities, 100);
 
         // 로컬 스토리지 업데이트
         localStorage.setItem(`missions_${classId}`, JSON.stringify(currentMissions))
@@ -324,285 +328,6 @@ export default function MissionsPage() {
 
         toast.success('미션 달성자로 등록되었습니다.')
         setIsAddAchieverModalOpen(false)
-    }
-
-    // 학생의 경험치와 레벨을 업데이트하는 함수
-    const updateStudentExpAndLevel = (studentId: string, expToAdd: number, missionAbilities?: {
-        intelligence?: boolean
-        diligence?: boolean
-        creativity?: boolean
-        personality?: boolean
-        health?: boolean
-        communication?: boolean
-    }, goldToAdd: number = 0) => {
-        try {
-            // 학생 정보 가져오기
-            const studentsJson = localStorage.getItem(`students_${classId}`);
-            if (!studentsJson) {
-                console.error('학생 데이터를 찾을 수 없습니다.');
-                return;
-            }
-
-            const students = JSON.parse(studentsJson);
-            const studentIndex = students.findIndex((s: Student) => s.id === studentId);
-
-            if (studentIndex === -1) {
-                console.error('해당 학생을 찾을 수 없습니다.');
-                return;
-            }
-
-            const student = students[studentIndex];
-            console.log('업데이트 전 학생 상태:', JSON.stringify(student, null, 2));
-
-            // exp 필드가 숫자인지 확인하고 아니면 초기화
-            if (typeof student.stats.exp !== 'number') {
-                console.warn('학생의 경험치가 숫자가 아닙니다. 0으로 초기화합니다.', student.stats.exp);
-                student.stats.exp = 0;
-            }
-
-            // 현재 레벨과 경험치 기록 (변화 감지용)
-            const currentLevel = student.stats.level;
-            const currentExp = student.stats.exp;
-
-            // 새로운 경험치 계산
-            const newExp = currentExp + expToAdd;
-
-            // 새로운 레벨 계산
-            const { level: newLevel } = calculateLevelFromExp(newExp);
-
-            // 경험치 업데이트
-            student.stats.exp = newExp;
-            student.stats.level = newLevel;
-
-            // 골드 추가 (미션 보상)
-            if (goldToAdd > 0) {
-                student.points = (student.points || 0) + goldToAdd;
-                console.log(`미션 완료 보상: ${goldToAdd} 골드 지급`);
-            }
-
-            // 학생이 abilities 객체를 가지고 있지 않으면 초기화
-            if (!student.abilities) {
-                student.abilities = {
-                    intelligence: 1,
-                    diligence: 1,
-                    creativity: 1,
-                    personality: 1,
-                    health: 1,
-                    communication: 1
-                };
-            }
-
-            // 능력치 증가 (미션에서 선택된 능력치가 있는 경우)
-            let abilitiesChanged = false;
-            if (missionAbilities) {
-                if (missionAbilities.intelligence) {
-                    student.abilities.intelligence = (student.abilities.intelligence || 1) + 1;
-                    abilitiesChanged = true;
-                }
-                if (missionAbilities.diligence) {
-                    student.abilities.diligence = (student.abilities.diligence || 1) + 1;
-                    abilitiesChanged = true;
-                }
-                if (missionAbilities.creativity) {
-                    student.abilities.creativity = (student.abilities.creativity || 1) + 1;
-                    abilitiesChanged = true;
-                }
-                if (missionAbilities.personality) {
-                    student.abilities.personality = (student.abilities.personality || 1) + 1;
-                    abilitiesChanged = true;
-                }
-                if (missionAbilities.health) {
-                    student.abilities.health = (student.abilities.health || 1) + 1;
-                    abilitiesChanged = true;
-                }
-                if (missionAbilities.communication) {
-                    student.abilities.communication = (student.abilities.communication || 1) + 1;
-                    abilitiesChanged = true;
-                }
-            }
-
-            // 레벨업 시 포인트 지급
-            if (newLevel > currentLevel) {
-                const levelsGained = newLevel - currentLevel;
-
-                // 레벨업 시 포인트(골드) 추가 코드 제거
-                // const pointsToAdd = levelsGained * POINTS_PER_LEVEL;
-                // student.points = (student.points || 0) + pointsToAdd;
-
-                console.log(`레벨업! Lv.${currentLevel} -> Lv.${newLevel}`);
-            }
-
-            // 학생 아이콘이 없는 경우 기본 아이콘 설정
-            if (!student.iconType) {
-                student.iconType = '/images/icons/student_icon_1.png';
-            }
-
-            console.log('업데이트 후 학생 상태:', JSON.stringify(student, null, 2));
-
-            // 1. students_classId 저장소 업데이트
-            students[studentIndex] = student;
-            localStorage.setItem(`students_${classId}`, JSON.stringify(students));
-            console.log('students_classId 저장소 업데이트 완료');
-
-            // 2. classes 저장소 업데이트
-            const classesJson = localStorage.getItem('classes');
-            if (classesJson) {
-                const classes = JSON.parse(classesJson);
-                const classIndex = classes.findIndex((c: any) => c.id === classId);
-
-                if (classIndex !== -1) {
-                    // 해당 클래스 내의 학생 찾기
-                    const classStudents = classes[classIndex].students;
-
-                    if (Array.isArray(classStudents)) {
-                        const classStudentIndex = classStudents.findIndex((s: any) => s.id === studentId);
-
-                        if (classStudentIndex !== -1) {
-                            // 학생 데이터 업데이트
-                            classes[classIndex].students[classStudentIndex] = {
-                                ...classes[classIndex].students[classStudentIndex],
-                                stats: student.stats,
-                                abilities: student.abilities,
-                                points: student.points,
-                                iconType: student.iconType
-                            };
-
-                            localStorage.setItem('classes', JSON.stringify(classes));
-                            console.log('classes 저장소 업데이트 완료');
-                        }
-                    }
-                }
-            }
-
-            // 3. class_classId 저장소 업데이트
-            const classJson = localStorage.getItem(`class_${classId}`);
-            if (classJson) {
-                const classData = JSON.parse(classJson);
-
-                if (classData.students && Array.isArray(classData.students)) {
-                    const classStudentIndex = classData.students.findIndex((s: any) => s.id === studentId);
-
-                    if (classStudentIndex !== -1) {
-                        // 학생 데이터 업데이트
-                        classData.students[classStudentIndex] = {
-                            ...classData.students[classStudentIndex],
-                            stats: student.stats,
-                            abilities: student.abilities,
-                            points: student.points,
-                            iconType: student.iconType
-                        };
-
-                        localStorage.setItem(`class_${classId}`, JSON.stringify(classData));
-                        console.log('class_classId 저장소 업데이트 완료');
-                    }
-                }
-            }
-
-            // 현재 컴포넌트 상태에 반영된 학생 목록도 업데이트
-            setStudents(prevStudents => {
-                const updatedStudents = [...prevStudents];
-                const stateStudentIndex = updatedStudents.findIndex(s => s.id === studentId);
-
-                if (stateStudentIndex !== -1) {
-                    updatedStudents[stateStudentIndex] = {
-                        ...updatedStudents[stateStudentIndex],
-                        stats: student.stats,
-                        abilities: student.abilities,
-                        points: student.points,
-                        iconType: student.iconType
-                    };
-                }
-
-                return updatedStudents;
-            });
-
-            // 알림 메시지 추가
-            const baseId = `${student.id}-${Date.now()}`;
-            const newNotifications: {
-                id: string;
-                type: 'exp' | 'levelup' | 'points';
-                message: string;
-                studentId: string;
-                expanded: boolean;
-                timestamp: number;
-            }[] = [];
-
-            // 경험치 획득 알림
-            let expMessage = `${student.name} 학생이 ${expToAdd} 경험치를 획득했습니다!`;
-
-            // 능력치 증가 정보 추가
-            if (abilitiesChanged && missionAbilities) {
-                const abilityChanges = [];
-                if (missionAbilities.intelligence) abilityChanges.push("지력 +1");
-                if (missionAbilities.diligence) abilityChanges.push("성실성 +1");
-                if (missionAbilities.creativity) abilityChanges.push("창의력 +1");
-                if (missionAbilities.personality) abilityChanges.push("인성 +1");
-                if (missionAbilities.health) abilityChanges.push("체력 +1");
-                if (missionAbilities.communication) abilityChanges.push("의사소통 +1");
-
-                if (abilityChanges.length > 0) {
-                    expMessage += ` (${abilityChanges.join(', ')})`;
-                }
-            }
-
-            newNotifications.push({
-                id: `${baseId}-exp`,
-                type: 'exp',
-                message: expMessage,
-                studentId: student.id,
-                expanded: false,
-                timestamp: Date.now()
-            });
-
-            // 레벨업 발생 시 추가 알림
-            if (newLevel > currentLevel) {
-                // 레벨업 알림
-                newNotifications.push({
-                    id: `${baseId}-levelup`,
-                    type: 'levelup',
-                    message: `${student.name} 학생이 Lv.${currentLevel}에서 Lv.${newLevel}로 레벨업했습니다!`,
-                    studentId: student.id,
-                    expanded: false,
-                    timestamp: Date.now() + 100
-                });
-
-                // 포인트 획득 알림 제거 (레벨업으로 인한 골드 지급 알림)
-                // const levelsGained = newLevel - currentLevel;
-                // newNotifications.push({
-                //     id: `${baseId}-points`,
-                //     type: 'points',
-                //     message: `${student.name} 학생에게 ${levelsGained * POINTS_PER_LEVEL} 포인트가 지급되었습니다!`,
-                //     studentId: student.id,
-                //     expanded: false,
-                //     timestamp: Date.now() + 200
-                // });
-            }
-
-            // 골드 획득 알림 (미션 보상)
-            if (goldToAdd > 0) {
-                newNotifications.push({
-                    id: `${baseId}-mission-gold`,
-                    type: 'points',
-                    message: `${student.name} 학생이 미션 보상으로 ${goldToAdd} 골드를 획득했습니다!`,
-                    studentId: student.id,
-                    expanded: false,
-                    timestamp: Date.now() + 150
-                });
-            }
-
-            // 알림 추가 및 자동 제거 (60초 후)
-            setNotifications(prev => {
-                const updated = [...prev, ...newNotifications];
-                return updated.sort((a, b) => b.timestamp - a.timestamp);
-            });
-
-            console.log(`학생 업데이트 완료: Lv.${student.stats.level}, Exp ${student.stats.exp}, 포인트 ${student.points}`);
-            if (abilitiesChanged) {
-                console.log(`학생 능력치 업데이트: `, student.abilities);
-            }
-        } catch (error) {
-            console.error('학생 경험치 및 레벨 업데이트 중 오류 발생:', error);
-        }
     }
 
     // 알림 확장/축소 토글

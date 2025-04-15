@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import Image from 'next/image'
 import AvatarRenderer from '@/components/Avatar'
 import { getExpRequiredForLevel, calculateLevelFromExp } from '@/lib/types'
+import { useStudentData } from '../components/student-detail/hooks/useStudentData'
 
 interface ClassInfo {
     id: string
@@ -127,6 +128,9 @@ export default function ChallengePage() {
         '/images/icons/challenge/experthat.jpg',
         '/images/icons/challenge/goldhat.jpg'
     ])
+
+    // useStudentData 훅을 가져와서 updateStudentExpAndLevel 함수만 사용
+    const { updateStudentExpAndLevel } = useStudentData({ studentId: null, classId });
 
     useEffect(() => {
         // 로그인 상태 확인
@@ -504,6 +508,7 @@ export default function ChallengePage() {
 
         // 2. 경험치와 레벨 업데이트
         filteredStudentIds.forEach(studentId => {
+            // 기존 내부 함수 호출을 useStudentData에서 제공하는 함수로 교체
             updateStudentExpAndLevel(studentId, EXP_FOR_CHALLENGE_STEP, selectedChallenge.abilities);
         });
 
@@ -766,7 +771,8 @@ export default function ChallengePage() {
 
             // 6. 경험치 및 레벨 업데이트
             if (selectedChallenge) {
-                updateStudentExpAndLevel(studentId, EXP_FOR_CHALLENGE_STEP, selectedChallenge.abilities)
+                // 기존 내부 함수 호출을 useStudentData에서 제공하는 함수로 교체
+                updateStudentExpAndLevel(studentId, EXP_FOR_CHALLENGE_STEP, selectedChallenge.abilities);
             }
 
             // 7. 마지막 단계면 칭호 부여 (보상)
@@ -781,221 +787,6 @@ export default function ChallengePage() {
             console.error('챌린지 단계 완료 처리 중 오류:', error)
             toast.error('단계 완료 처리 중 오류가 발생했습니다.')
             return false
-        }
-    }
-
-    // 학생의 경험치와 레벨을 업데이트하는 함수
-    const updateStudentExpAndLevel = (studentId: string, expToAdd: number, stepAbilities?: {
-        intelligence?: boolean
-        diligence?: boolean
-        creativity?: boolean
-        personality?: boolean
-        health?: boolean      // 체력
-        communication?: boolean // 의사소통
-    }) => {
-        try {
-            console.log('학생 경험치/능력치 업데이트 시작:', { studentId, expToAdd, stepAbilities });
-
-            // 클래스 내 학생 목록에서 ID로 학생 찾기
-            const savedStudents = localStorage.getItem(`students_${classId}`)
-            if (!savedStudents) {
-                console.error('학생 정보를 불러올 수 없습니다.')
-                return
-            }
-
-            const students = JSON.parse(savedStudents)
-            const studentIndex = students.findIndex((s: any) => s.id === studentId)
-
-            if (studentIndex === -1) {
-                console.error('해당 학생을 찾을 수 없습니다.')
-                return
-            }
-
-            // 현재 학생 정보 가져오기
-            const student = students[studentIndex]
-            console.log('업데이트 전 학생 정보:', student);
-
-            // 학생 데이터 구조 표준화
-            if (!student.stats) {
-                student.stats = {
-                    level: 1,
-                    exp: 0
-                }
-            }
-
-            // exp 필드가 숫자인지 확인하고 아니면 초기화
-            if (typeof student.stats.exp !== 'number') {
-                console.warn('학생의 경험치가 숫자가 아닙니다. 0으로 초기화합니다.', student.stats.exp);
-                student.stats.exp = 0;
-            }
-
-            // 능력치 구조가 없으면 생성
-            if (!student.abilities) {
-                student.abilities = {
-                    intelligence: 1,
-                    diligence: 1,
-                    creativity: 1,
-                    personality: 1,
-                    health: 1,
-                    communication: 1
-                }
-            }
-
-            // 경험치 추가 및 레벨 계산
-            const currentExp = student.stats.exp || 0
-            const newExp = currentExp + expToAdd
-
-            // 새로운 레벨 계산 방식 적용
-            const { level: newLevel, expInCurrentLevel } = calculateLevelFromExp(newExp)
-            const levelChange = newLevel - (student.stats.level || 1)
-
-            // 능력치 증가 - 표준화된 구조 사용
-            if (stepAbilities) {
-                // 해당 단계에서 선택된 능력치만 증가
-                if (stepAbilities.intelligence) {
-                    student.abilities.intelligence = (student.abilities.intelligence || 1) + 1;
-                }
-                if (stepAbilities.diligence) {
-                    student.abilities.diligence = (student.abilities.diligence || 1) + 1;
-                }
-                if (stepAbilities.creativity) {
-                    student.abilities.creativity = (student.abilities.creativity || 1) + 1;
-                }
-                if (stepAbilities.personality) {
-                    student.abilities.personality = (student.abilities.personality || 1) + 1;
-                }
-                if (stepAbilities.health) {
-                    student.abilities.health = (student.abilities.health || 1) + 1;
-                }
-                if (stepAbilities.communication) {
-                    student.abilities.communication = (student.abilities.communication || 1) + 1;
-                }
-            }
-
-            // 학생 정보 업데이트
-            student.stats.exp = newExp
-            student.stats.level = newLevel
-
-            // 레벨업 시 보상 (포인트 지급)
-            if (levelChange > 0) {
-                const pointsToAdd = levelChange * POINTS_PER_LEVEL;
-                student.points = (student.points || 0) + pointsToAdd;
-
-                // 레벨업 토스트 메시지
-                toast.success(
-                    <div>
-                        <p><strong>{student.name}</strong> 학생이 레벨업했습니다!</p>
-                        <p>Lv.{newLevel - levelChange} → Lv.{newLevel}</p>
-                        <p>보상: {pointsToAdd}G 지급</p>
-                    </div>
-                );
-            }
-
-            // 1. 업데이트된 학생 목록 저장 (students_classId)
-            students[studentIndex] = student
-            localStorage.setItem(`students_${classId}`, JSON.stringify(students))
-            console.log('students_classId 스토리지 업데이트 완료');
-
-            // 2. classes 스토리지에도 학생 정보 업데이트
-            try {
-                const classesString = localStorage.getItem('classes');
-                if (classesString) {
-                    const classes = JSON.parse(classesString);
-                    const classIndex = classes.findIndex((c: any) => c.id === classId);
-
-                    if (classIndex !== -1) {
-                        // 학생 배열이 없거나 배열이 아닌 경우 빈 배열로 초기화
-                        const classStudents = classes[classIndex].students || [];
-
-                        // classStudents가 배열인지 확인
-                        if (!Array.isArray(classStudents)) {
-                            console.warn('classes 스토리지의 students가 배열이 아닙니다. 빈 배열로 초기화합니다.');
-                            classes[classIndex].students = [];
-                            localStorage.setItem('classes', JSON.stringify(classes));
-                            console.log('classes 스토리지 students 필드 초기화 완료');
-                            return; // 더 이상 진행하지 않음
-                        }
-
-                        const classStudentIndex = classStudents.findIndex((s: any) => s.id === studentId);
-
-                        if (classStudentIndex !== -1) {
-                            // 최신 정보로 업데이트
-                            classes[classIndex].students[classStudentIndex] = {
-                                ...classes[classIndex].students[classStudentIndex],
-                                stats: student.stats,
-                                abilities: student.abilities,
-                                points: student.points
-                            };
-
-                            localStorage.setItem('classes', JSON.stringify(classes));
-                            console.log('classes 스토리지 업데이트 완료');
-                        } else {
-                            console.warn(`classes 스토리지에서 학생 ID ${studentId}를 찾을 수 없습니다.`);
-                        }
-                    } else {
-                        console.warn(`classes 스토리지에서 클래스 ID ${classId}를 찾을 수 없습니다.`);
-                    }
-                } else {
-                    console.warn('classes 스토리지 데이터가 없습니다.');
-                }
-            } catch (error) {
-                console.error('classes 스토리지 업데이트 오류:', error);
-            }
-
-            // 3. class_classId 스토리지에도 업데이트
-            try {
-                const classDataString = localStorage.getItem(`class_${classId}`);
-                if (classDataString) {
-                    const classData = JSON.parse(classDataString);
-
-                    if (classData.students && Array.isArray(classData.students)) {
-                        const classStudentIndex = classData.students.findIndex((s: any) => s.id === studentId);
-
-                        if (classStudentIndex !== -1) {
-                            // 최신 정보로 업데이트
-                            classData.students[classStudentIndex] = {
-                                ...classData.students[classStudentIndex],
-                                stats: student.stats,
-                                abilities: student.abilities,
-                                points: student.points
-                            };
-
-                            localStorage.setItem(`class_${classId}`, JSON.stringify(classData));
-                            console.log('class_classId 스토리지 업데이트 완료');
-                        }
-                    }
-                }
-            } catch (error) {
-                console.error('class_classId 스토리지 업데이트 오류:', error);
-            }
-
-            // 제공된 경험치에 대한 토스트 메시지
-            const abilityTexts = [];
-            if (stepAbilities?.intelligence) abilityTexts.push("지력 +1");
-            if (stepAbilities?.diligence) abilityTexts.push("성실성 +1");
-            if (stepAbilities?.creativity) abilityTexts.push("창의력 +1");
-            if (stepAbilities?.personality) abilityTexts.push("인성 +1");
-            if (stepAbilities?.health) abilityTexts.push("체력 +1");
-            if (stepAbilities?.communication) abilityTexts.push("의사소통 +1");
-
-            toast.success(
-                <div>
-                    <p><strong>{student.name}</strong> 학생이 경험치를 획득했습니다!</p>
-                    <p>+{expToAdd} EXP</p>
-                    {abilityTexts.map((text, index) => (
-                        <p key={index} className="text-xs text-slate-500">{text}</p>
-                    ))}
-                </div>
-            );
-
-            // 학생 데이터 리로드
-            loadStudentsInClass()
-
-            console.log('학생 경험치/능력치 업데이트 완료:', student);
-            return student
-        } catch (error) {
-            console.error('학생 경험치/레벨 업데이트 중 오류:', error)
-            return null
         }
     }
 

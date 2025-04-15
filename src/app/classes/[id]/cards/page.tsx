@@ -12,6 +12,7 @@ import Image from 'next/image'
 import { toast } from 'sonner'
 import AvatarRenderer from '@/components/Avatar'
 import { calculateLevelFromExp } from '@/lib/types'
+import { useStudentData } from '../components/student-detail/hooks/useStudentData'
 
 interface PraiseCard {
     id: number
@@ -135,6 +136,9 @@ export default function PraiseCardsPage() {
     const [searchTerm, setSearchTerm] = useState("")
     const [praiseCardHistories, setPraiseCardHistories] = useState<PraiseCardHistory[]>([])
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
+
+    // useStudentData 훅을 가져와서 updateStudentExpAndLevel 함수만 사용
+    const { updateStudentExpAndLevel } = useStudentData({ studentId: null, classId });
 
     // 학생 목록 불러오기
     useEffect(() => {
@@ -264,257 +268,16 @@ export default function PraiseCardsPage() {
         setPraiseCardHistories(updatedHistory)
         localStorage.setItem(`praiseCardHistory_${classId}`, JSON.stringify(updatedHistory))
 
-        // 각 학생에게 경험치 및 능력치 부여
+        // 선택된 모든 학생에게 카드 발급 및 경험치 부여
         selectedStudents.forEach(studentId => {
-            updateStudentExpAndLevel(studentId, EXP_FOR_PRAISE_CARD, selectedCard.abilities)
+            // 경험치 및 능력치 업데이트 - useStudentData 훅 사용
+            updateStudentExpAndLevel(studentId, EXP_FOR_PRAISE_CARD, selectedCard.abilities);
         })
 
         // 선택 초기화
         setSelectedStudents([])
         setShowStudentSelectModal(false)
         toast.success(`${selectedStudents.length}명의 학생에게 '${selectedCard.name}' 카드가 발급되었습니다.`)
-    }
-
-    // 학생의 경험치와 레벨을 업데이트하는 함수
-    const updateStudentExpAndLevel = (studentId: string, expToAdd: number, cardAbilities?: {
-        intelligence?: boolean // 지력
-        diligence?: boolean    // 성실성
-        creativity?: boolean   // 창의력
-        personality?: boolean  // 인성
-        health?: boolean       // 체력
-        communication?: boolean // 의사소통
-    }) => {
-        try {
-            console.log(`학생 ID ${studentId}에게 ${expToAdd} 경험치 부여 시작`);
-
-            // 1. students_classId에서 학생 정보 가져오기
-            const savedStudents = localStorage.getItem(`students_${classId}`)
-            if (!savedStudents) {
-                console.error('학생 데이터를 찾을 수 없습니다.');
-                return;
-            }
-
-            const students = JSON.parse(savedStudents);
-            const studentIndex = students.findIndex((s: Student) => s.id === studentId);
-
-            if (studentIndex === -1) {
-                console.error('학생을 찾을 수 없습니다.');
-                return;
-            }
-
-            // 학생 데이터 업데이트
-            const student = students[studentIndex];
-
-            // 학생 데이터 정규화 확인
-            if (!student.stats) {
-                student.stats = { level: 1, exp: 0 };
-            }
-
-            // exp 필드가 숫자인지 확인하고 아니면 초기화
-            if (typeof student.stats.exp !== 'number') {
-                console.warn('학생의 경험치가 숫자가 아닙니다. 0으로 초기화합니다.', student.stats.exp);
-                student.stats.exp = 0;
-            }
-
-            // 현재 레벨과 경험치 기록
-            const currentLevel = student.stats.level;
-            const currentExp = student.stats.exp;
-            console.log(`현재 상태: Lv.${currentLevel}, Exp ${currentExp}, 포인트 ${student.points}`);
-
-            // 요구사항에 맞게 직접 레벨 1 증가
-            const { level: newLevel } = calculateLevelFromExp(currentExp + expToAdd);
-
-            // 경험치 추가 (로직 유지를 위해)
-            student.stats.exp += expToAdd;
-
-            // 레벨 설정
-            student.stats.level = newLevel;
-
-            // 능력치 증가 (카드에 선택된 능력치가 있는 경우)
-            let abilitiesChanged = false;
-            if (cardAbilities) {
-                if (cardAbilities.intelligence) {
-                    student.stats.abilities.intelligence = (student.stats.abilities.intelligence || 1) + 1;
-                    abilitiesChanged = true;
-                }
-                if (cardAbilities.diligence) {
-                    student.stats.abilities.diligence = (student.stats.abilities.diligence || 1) + 1;
-                    abilitiesChanged = true;
-                }
-                if (cardAbilities.creativity) {
-                    student.stats.abilities.creativity = (student.stats.abilities.creativity || 1) + 1;
-                    abilitiesChanged = true;
-                }
-                if (cardAbilities.personality) {
-                    student.stats.abilities.personality = (student.stats.abilities.personality || 1) + 1;
-                    abilitiesChanged = true;
-                }
-            }
-
-            // 포인트 지급 (레벨 1당 100포인트)
-            student.points += POINTS_PER_LEVEL;
-
-            console.log(`레벨업! Lv.${currentLevel} → Lv.${newLevel}, 포인트 +${POINTS_PER_LEVEL}`);
-
-            // 아이콘이 변경되었다면 업데이트
-            let newIcon = student.iconType;
-
-            // 1. students_classId 저장소 업데이트
-            students[studentIndex] = student;
-            localStorage.setItem(`students_${classId}`, JSON.stringify(students));
-            console.log('students_classId 저장소 업데이트 완료');
-
-            // 2. classes 저장소 업데이트
-            const classesJson = localStorage.getItem('classes');
-            if (classesJson) {
-                const classes = JSON.parse(classesJson);
-                const classIndex = classes.findIndex((c: any) => c.id === classId);
-
-                if (classIndex !== -1) {
-                    // 해당 클래스 내의 학생 찾기
-                    const classStudents = classes[classIndex].students;
-
-                    if (Array.isArray(classStudents)) {
-                        const classStudentIndex = classStudents.findIndex((s: any) => s.id === studentId);
-
-                        if (classStudentIndex !== -1) {
-                            // 학생 데이터 업데이트
-                            classes[classIndex].students[classStudentIndex] = {
-                                ...classes[classIndex].students[classStudentIndex],
-                                stats: student.stats,
-                                points: student.points,
-                                iconType: student.iconType
-                            };
-
-                            localStorage.setItem('classes', JSON.stringify(classes));
-                            console.log('classes 저장소 업데이트 완료');
-                        }
-                    }
-                }
-            }
-
-            // 3. class_classId 저장소 업데이트
-            const classJson = localStorage.getItem(`class_${classId}`);
-            if (classJson) {
-                const classData = JSON.parse(classJson);
-
-                if (classData.students && Array.isArray(classData.students)) {
-                    const classStudentIndex = classData.students.findIndex((s: any) => s.id === studentId);
-
-                    if (classStudentIndex !== -1) {
-                        // 학생 데이터 업데이트
-                        classData.students[classStudentIndex] = {
-                            ...classData.students[classStudentIndex],
-                            stats: student.stats,
-                            points: student.points,
-                            iconType: student.iconType
-                        };
-
-                        localStorage.setItem(`class_${classId}`, JSON.stringify(classData));
-                        console.log('class_classId 저장소 업데이트 완료');
-                    }
-                }
-            }
-
-            // 현재 컴포넌트 상태에 반영된 학생 목록도 업데이트
-            setStudents(prevStudents => {
-                const updatedStudents = [...prevStudents];
-                const stateStudentIndex = updatedStudents.findIndex(s => s.id === studentId);
-
-                if (stateStudentIndex !== -1) {
-                    updatedStudents[stateStudentIndex] = {
-                        ...updatedStudents[stateStudentIndex],
-                        stats: student.stats,
-                        points: student.points,
-                        iconType: student.iconType
-                    };
-                }
-
-                return updatedStudents;
-            });
-
-            // 토스트 메시지 표시
-            const baseToastId = `student-${student.id}-${Date.now()}`;
-
-            if (newLevel > currentLevel) {
-                // 경험치 획득 메시지 (먼저 표시)
-                toast.success(`${student.name} 학생이 ${expToAdd} 경험치를 획득했습니다!${abilitiesChanged ? ' (능력치 증가)' : ''}`, {
-                    id: `${baseToastId}-exp`,
-                    duration: 3000
-                });
-
-                // 레벨업 메시지 (1초 후 표시)
-                setTimeout(() => {
-                    toast.success(`${student.name} 학생이 Lv.${currentLevel}에서 Lv.${newLevel}로 레벨업했습니다!`, {
-                        id: `${baseToastId}-level`,
-                        duration: 3000
-                    });
-                }, 1000);
-
-                // 포인트 지급 메시지 (2초 후 표시)
-                setTimeout(() => {
-                    toast.success(`${student.name} 학생에게 ${POINTS_PER_LEVEL} 포인트가 지급되었습니다!`, {
-                        id: `${baseToastId}-points`,
-                        duration: 3000
-                    });
-                }, 2000);
-
-                // 능력치 증가 메시지 (3초 후 표시)
-                if (abilitiesChanged) {
-                    setTimeout(() => {
-                        const abilityTexts = [];
-                        if (cardAbilities?.intelligence) abilityTexts.push("지력 +1");
-                        if (cardAbilities?.diligence) abilityTexts.push("성실성 +1");
-                        if (cardAbilities?.creativity) abilityTexts.push("창의력 +1");
-                        if (cardAbilities?.personality) abilityTexts.push("인성 +1");
-
-                        toast.success(
-                            <div>
-                                <p><strong>{student.name}</strong> 학생의 능력치가 상승했습니다!</p>
-                                <p>{abilityTexts.join(', ')}</p>
-                            </div>,
-                            {
-                                id: `${baseToastId}-abilities`,
-                                duration: 3000
-                            }
-                        );
-                    }, 3000);
-                }
-            } else {
-                // 경험치만 획득한 경우
-                toast.success(`${student.name} 학생이 ${expToAdd} 경험치를 획득했습니다!`, {
-                    id: `exp-${student.id}-${Date.now()}`,
-                    duration: 3000
-                });
-
-                // 능력치 증가 메시지
-                if (abilitiesChanged) {
-                    setTimeout(() => {
-                        const abilityTexts = [];
-                        if (cardAbilities?.intelligence) abilityTexts.push("지력 +1");
-                        if (cardAbilities?.diligence) abilityTexts.push("성실성 +1");
-                        if (cardAbilities?.creativity) abilityTexts.push("창의력 +1");
-                        if (cardAbilities?.personality) abilityTexts.push("인성 +1");
-
-                        toast.success(
-                            <div>
-                                <p><strong>{student.name}</strong> 학생의 능력치가 상승했습니다!</p>
-                                <p>{abilityTexts.join(', ')}</p>
-                            </div>,
-                            {
-                                id: `abilities-${student.id}-${Date.now()}`,
-                                duration: 3000
-                            }
-                        );
-                    }, 1000);
-                }
-            }
-
-            console.log(`학생 업데이트 완료: Lv.${student.stats.level}, Exp ${student.stats.exp}, 포인트 ${student.points}`);
-        } catch (error) {
-            console.error('학생 데이터 업데이트 오류:', error);
-            toast.error('학생 데이터를 업데이트하는 중 오류가 발생했습니다.');
-        }
     }
 
     // 검색어에 맞는 학생만 필터링
