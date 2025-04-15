@@ -10,7 +10,7 @@ export { default as AbilitiesDisplay } from './components/AbilitiesDisplay';
 export { default as TabNavigation } from './components/TabNavigation';
 
 // 탭 컴포넌트
-export { default as RoadmapTab } from './tabs/RoadmapTab';
+export { ChallengeTab } from './tabs/ChallengeTab';
 export { default as MissionTab } from './tabs/MissionTab';
 export { default as CardTab } from './tabs/CardTab';
 export { default as AvatarTab } from './tabs/AvatarTab';

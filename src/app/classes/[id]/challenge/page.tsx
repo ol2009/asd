@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import Image from 'next/image'
 import AvatarRenderer from '@/components/Avatar'
+import { getExpRequiredForLevel, calculateLevelFromExp } from '@/lib/types'
 
 interface ClassInfo {
     id: string
@@ -64,7 +65,7 @@ interface Challenge {
 }
 
 // 상수 값을 추가
-const EXP_PER_LEVEL = 100 // 레벨업에 필요한 경험치
+// const EXP_PER_LEVEL = 100 // 레벨업에 필요한 경험치 (이제 함수로 계산)
 const EXP_FOR_CHALLENGE_STEP = 200 // 챌린지 단계 완료 시 획득 경험치 (레벨 2업)
 const POINTS_PER_LEVEL = 100 // 레벨업 시 획득 포인트
 
@@ -332,24 +333,56 @@ export default function ChallengePage() {
         const stepStudents: { [stepId: string]: string[] } = {}
 
         challenge.steps.forEach(step => {
-            // 새로운 키 형식으로 데이터 로드 (챌린지 ID 포함)
-            const newStepKey = `challenge_${classId}_${challengeId}_step_${step.id}_students`
-            let studentsInStep = localStorage.getItem(newStepKey)
+            // 모든 가능한 키 형식을 확인
+            console.log(`단계 ${step.id}의 학생 목록을 불러오는 중...`);
 
-            // 새 키에 데이터가 없으면 이전 키 형식도 확인
+            // 1. 표준 형식 - challenge_${classId}_${challengeId}_step_${step.id}_students
+            const primaryKey = `challenge_${classId}_${challengeId}_step_${step.id}_students`;
+
+            // 2. 이전 형식 - challenge_${classId}_step_${step.id}_students
+            const oldStepKey = `challenge_${classId}_step_${step.id}_students`;
+
+            // 3. 다른 형식 - challenge_step_${classId}_${challengeId}_${step.id}
+            const alternateKey = `challenge_step_${classId}_${challengeId}_${step.id}`;
+
+            // 4. 레거시 형식 - roadmap_step_${classId}_${challengeId}_${step.id}
+            const legacyKey = `roadmap_step_${classId}_${challengeId}_${step.id}`;
+
+            // 모든 키를 확인하고 데이터 로드
+            let studentsInStep = localStorage.getItem(primaryKey);
+            let sourceKey = primaryKey;
+
             if (!studentsInStep) {
-                const oldStepKey = `challenge_${classId}_step_${step.id}_students`
-                studentsInStep = localStorage.getItem(oldStepKey)
+                studentsInStep = localStorage.getItem(oldStepKey);
+                if (studentsInStep) sourceKey = oldStepKey;
+            }
 
-                // 이전 키 형식에 데이터가 있다면 새 키 형식으로 마이그레이션
-                if (studentsInStep) {
-                    console.log(`이전 키(${oldStepKey})에서 데이터를 찾았습니다. 새 키(${newStepKey})로 마이그레이션합니다.`)
-                    localStorage.setItem(newStepKey, studentsInStep)
-                }
+            if (!studentsInStep) {
+                studentsInStep = localStorage.getItem(alternateKey);
+                if (studentsInStep) sourceKey = alternateKey;
+            }
+
+            if (!studentsInStep) {
+                studentsInStep = localStorage.getItem(legacyKey);
+                if (studentsInStep) sourceKey = legacyKey;
+            }
+
+            // 어느 곳에서든 데이터를 찾았다면 모든 형식에 저장
+            if (studentsInStep) {
+                console.log(`단계 데이터 발견: ${sourceKey}`);
+
+                // 모든 형식에 일관되게 저장 (마이그레이션)
+                localStorage.setItem(primaryKey, studentsInStep);
+                localStorage.setItem(oldStepKey, studentsInStep);
+                localStorage.setItem(alternateKey, studentsInStep);
+
+                console.log(`단계 데이터 마이그레이션: ${sourceKey} → 모든 형식`);
+            } else {
+                console.log(`단계 ${step.id}에 대한 학생 데이터를 찾을 수 없음`);
             }
 
             stepStudents[step.id] = studentsInStep ? JSON.parse(studentsInStep) : []
-            console.log(`스텝 ${step.id} 학생 목록 로드됨:`, stepStudents[step.id])
+            console.log(`단계 ${step.id} 학생 목록 (${stepStudents[step.id].length}명):`, stepStudents[step.id]);
         })
 
         // 로컬 스토리지의 학생 목록과 챌린지 객체의 학생 목록 동기화
@@ -423,12 +456,18 @@ export default function ChallengePage() {
         // 새 학생 추가
         const updatedStudentsInStep = [...(studentsInSteps[step.id] || []), ...filteredStudentIds]
 
-        // 챌린지 ID를 포함하는 고유한 키 생성
-        const stepKey = `challenge_${classId}_${selectedChallenge.id}_step_${step.id}_students`;
-        console.log(`새로운 키로 저장 중: ${stepKey}`);
+        // 챌린지 ID를 포함한 일관된 형식의 키로 저장
+        const stepKey = `challenge_${classId}_${selectedChallenge.id}_step_${step.id}_students`
+        console.log(`새로운 형식의 키로 데이터 저장: ${stepKey}`)
 
-        // 로컬 스토리지 업데이트
+        // 로컬 스토리지 업데이트 - 일관된 키 형식 사용
         localStorage.setItem(stepKey, JSON.stringify(updatedStudentsInStep))
+
+        // 이전 호환성을 위해 모든 키 형식에 저장 (일시적)
+        localStorage.setItem(`challenge_${classId}_step_${step.id}_students`, JSON.stringify(updatedStudentsInStep))
+        localStorage.setItem(`challenge_step_${classId}_${selectedChallenge.id}_${step.id}`, JSON.stringify(updatedStudentsInStep))
+
+        console.log(`학생 정보 저장 완료: ${filteredStudentIds.length}명, 키: ${stepKey}`)
 
         // 1. 이전 단계에서 학생 제거 (선택된 학생을 이전 단계에서 제거)
         if (selectedChallengeStepIndex > 0) {
@@ -441,11 +480,22 @@ export default function ChallengePage() {
                     studentId => !filteredStudentIds.includes(studentId)
                 );
 
-                // 챌린지 ID를 포함하는 고유한 키 생성
+                // 일관된 키 형식 사용 - 챌린지 ID를 포함
                 const prevStepKey = `challenge_${classId}_${selectedChallenge.id}_step_${prevStepId}_students`;
+                console.log(`이전 단계 업데이트 - 새 키 형식: ${prevStepKey}`);
 
-                // 로컬 스토리지 업데이트
+                // 모든 형식의 키에 대해 일관되게 업데이트
                 localStorage.setItem(prevStepKey, JSON.stringify(updatedPrevStepStudents));
+
+                // 이전 호환성을 위해 다른 키 형식에도 저장 (일시적)
+                localStorage.setItem(
+                    `challenge_${classId}_step_${prevStepId}_students`,
+                    JSON.stringify(updatedPrevStepStudents)
+                );
+                localStorage.setItem(
+                    `challenge_step_${classId}_${selectedChallenge.id}_${prevStepId}`,
+                    JSON.stringify(updatedPrevStepStudents)
+                );
 
                 // 상태 업데이트
                 studentsInSteps[prevStepId] = updatedPrevStepStudents;
@@ -552,16 +602,12 @@ export default function ChallengePage() {
                         const classStudentIndex = classStudents.findIndex((s: any) => s.id === studentId);
 
                         if (classStudentIndex !== -1) {
-                            // 최신 정보로 업데이트
-                            classes[classIndex].students[classStudentIndex] = {
-                                ...classes[classIndex].students[classStudentIndex],
-                                stats: student.stats,
-                                abilities: student.abilities,
-                                points: student.points
-                            };
+                            // 최신 정보로 업데이트 - student 변수는 이 함수에서 접근할 수 없으므로
+                            // 직접 값을 할당합니다
+                            classes[classIndex].students[classStudentIndex].honorific = honorific;
 
                             localStorage.setItem('classes', JSON.stringify(classes));
-                            console.log('classes 스토리지 업데이트 완료');
+                            console.log('classes 스토리지 학생 칭호 업데이트 완료');
                         } else {
                             console.warn(`classes 스토리지에서 학생 ID ${studentId}를 찾을 수 없습니다.`);
                         }
@@ -692,18 +738,16 @@ export default function ChallengePage() {
 
             // 4. 단계별 별도 저장소에도 업데이트 - 챌린지 ID를 포함한 고유한 키 사용
             const stepKey = `challenge_${classId}_${challengeId}_step_${stepId}_students`
-            const savedStepStudents = localStorage.getItem(stepKey)
-            let stepStudents = savedStepStudents ? JSON.parse(savedStepStudents) : []
+            console.log(`새로운 형식의 키로 데이터 저장: ${stepKey}`)
 
-            if (!Array.isArray(stepStudents)) {
-                stepStudents = []
-            }
+            // 로컬 스토리지 업데이트 - 일관된 키 형식 사용
+            localStorage.setItem(stepKey, JSON.stringify(step.students))
 
-            if (!stepStudents.includes(studentId)) {
-                stepStudents.push(studentId)
-                localStorage.setItem(stepKey, JSON.stringify(stepStudents))
-                console.log(`학생 ${studentId}를 ${stepKey}에 추가했습니다.`)
-            }
+            // 이전 호환성을 위해 모든 키 형식에 저장 (일시적)
+            localStorage.setItem(`challenge_${classId}_step_${stepId}_students`, JSON.stringify(step.students))
+            localStorage.setItem(`challenge_step_${classId}_${challengeId}_${stepId}`, JSON.stringify(step.students))
+
+            console.log(`학생 정보 저장 완료: ${step.students.length}명, 키: ${stepKey}`)
 
             // 5. 현재 상태 업데이트
             if (selectedChallenge && selectedChallenge.id === challengeId) {
@@ -779,6 +823,12 @@ export default function ChallengePage() {
                 }
             }
 
+            // exp 필드가 숫자인지 확인하고 아니면 초기화
+            if (typeof student.stats.exp !== 'number') {
+                console.warn('학생의 경험치가 숫자가 아닙니다. 0으로 초기화합니다.', student.stats.exp);
+                student.stats.exp = 0;
+            }
+
             // 능력치 구조가 없으면 생성
             if (!student.abilities) {
                 student.abilities = {
@@ -795,8 +845,8 @@ export default function ChallengePage() {
             const currentExp = student.stats.exp || 0
             const newExp = currentExp + expToAdd
 
-            // 레벨 계산 (100 경험치당 1레벨)
-            const newLevel = Math.floor(newExp / EXP_PER_LEVEL) + 1
+            // 새로운 레벨 계산 방식 적용
+            const { level: newLevel, expInCurrentLevel } = calculateLevelFromExp(newExp)
             const levelChange = newLevel - (student.stats.level || 1)
 
             // 능력치 증가 - 표준화된 구조 사용
@@ -931,7 +981,7 @@ export default function ChallengePage() {
             toast.success(
                 <div>
                     <p><strong>{student.name}</strong> 학생이 경험치를 획득했습니다!</p>
-                    <p>+{expToAdd} EXP (레벨 {Math.floor(expToAdd / EXP_PER_LEVEL)}업)</p>
+                    <p>+{expToAdd} EXP</p>
                     {abilityTexts.map((text, index) => (
                         <p key={index} className="text-xs text-slate-500">{text}</p>
                     ))}
@@ -986,7 +1036,78 @@ export default function ChallengePage() {
     const loadStudentsInClass = () => {
         const savedStudents = localStorage.getItem(`students_${classId}`);
         if (savedStudents) {
-            setStudentsInClass(JSON.parse(savedStudents));
+            try {
+                // 학생 데이터 파싱
+                const parsedStudents = JSON.parse(savedStudents);
+
+                // ID 기준으로 중복 제거
+                const uniqueStudents = removeDuplicateStudents(parsedStudents);
+
+                // 중복이 제거된 경우 localStorage 업데이트
+                if (uniqueStudents.length !== parsedStudents.length) {
+                    console.log(`중복 학생 ${parsedStudents.length - uniqueStudents.length}명 제거됨`);
+                    localStorage.setItem(`students_${classId}`, JSON.stringify(uniqueStudents));
+
+                    // 다른 저장소와 동기화
+                    syncStudentsWithOtherStorage(uniqueStudents);
+                    toast.success(`중복된 학생 데이터가 정리되었습니다. (${parsedStudents.length - uniqueStudents.length}명 제거됨)`);
+                }
+
+                setStudentsInClass(uniqueStudents);
+            } catch (error) {
+                console.error('학생 데이터 파싱 오류:', error);
+                setStudentsInClass([]);
+            }
+        }
+    };
+
+    // ID 기준으로 중복 학생 제거 함수
+    const removeDuplicateStudents = (students: any[]): any[] => {
+        const uniqueIds = new Set();
+        return students.filter(student => {
+            if (uniqueIds.has(student.id)) {
+                return false; // 이미 처리된 ID는 제외
+            }
+            uniqueIds.add(student.id);
+            return true; // 새로운 ID는 포함
+        });
+    };
+
+    // 학생 데이터를 다른 저장소와 동기화하는 함수
+    const syncStudentsWithOtherStorage = (studentsData: any[]) => {
+        // 1. classes 데이터와 동기화
+        const savedClasses = localStorage.getItem('classes');
+        if (savedClasses) {
+            try {
+                const classes = JSON.parse(savedClasses);
+                const updatedClasses = classes.map((c: any) => {
+                    if (c.id === classId) {
+                        return {
+                            ...c,
+                            students: studentsData
+                        };
+                    }
+                    return c;
+                });
+
+                localStorage.setItem('classes', JSON.stringify(updatedClasses));
+                console.log('classes 스토리지 학생 정보 동기화 완료');
+            } catch (error) {
+                console.error('classes 데이터 동기화 오류:', error);
+            }
+        }
+
+        // 2. class_classId 저장소와도 동기화
+        const classDataJson = localStorage.getItem(`class_${classId}`);
+        if (classDataJson) {
+            try {
+                const classData = JSON.parse(classDataJson);
+                classData.students = studentsData;
+                localStorage.setItem(`class_${classId}`, JSON.stringify(classData));
+                console.log('class_classId 스토리지 학생 정보 동기화 완료');
+            } catch (error) {
+                console.error('class_classId 데이터 동기화 오류:', error);
+            }
         }
     };
 

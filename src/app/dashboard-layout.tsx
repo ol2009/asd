@@ -3,17 +3,19 @@
 import React, { useEffect, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Home, Users, LogOut, BookOpen, Settings } from 'lucide-react'
+import { Home, Users, LogOut, BookOpen, Settings, Image as ImageIcon } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
+import { isAdmin } from '@/lib/auth'
 
 interface DashboardLayoutProps {
     children: React.ReactNode
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
-    const pathname = usePathname()
+    const pathname = usePathname() || ''
     const router = useRouter()
     const [loading, setLoading] = useState(false)
+    const [isAdminUser, setIsAdminUser] = useState(false)
 
     // 로그인 상태 확인
     useEffect(() => {
@@ -21,6 +23,9 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             const { data, error } = await supabase.auth.getSession()
             if (!data.session) {
                 router.push('/login')
+            } else {
+                // 관리자 권한 확인
+                setIsAdminUser(isAdmin())
             }
         }
 
@@ -50,7 +55,8 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
         }
     }
 
-    const menus = [
+    // 기본 메뉴
+    const baseMenus = [
         {
             name: '홈',
             href: '/dashboard',
@@ -76,6 +82,19 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             isActive: pathname === '/settings' || pathname.startsWith('/settings/')
         }
     ]
+
+    // 관리자용 메뉴
+    const adminMenus = [
+        {
+            name: '아바타 아이템 관리',
+            href: '/avatar-items',
+            icon: <ImageIcon className="w-5 h-5" />,
+            isActive: pathname === '/avatar-items' || pathname.startsWith('/avatar-items/')
+        }
+    ]
+
+    // 표시할 메뉴 (관리자면 관리자용 메뉴 추가)
+    const menus = isAdminUser ? [...baseMenus, ...adminMenus] : baseMenus
 
     return (
         <div className="flex min-h-screen" style={{

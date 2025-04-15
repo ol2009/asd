@@ -759,4 +759,24 @@ export function getUnownedRandomAvatarItemByType(type: AvatarLayerType, ownedIte
     // 소유하지 않은 아이템 중 랜덤으로 선택
     const randomIndex = Math.floor(Math.random() * unownedItems.length);
     return unownedItems[randomIndex];
+}
+
+// 아바타 아이템 이름 변경 기능
+export function getCustomAvatarName(itemId: string): string | null {
+    try {
+        const customNames = localStorage.getItem('avatarCustomNames');
+        if (!customNames) return null;
+
+        const namesMap = JSON.parse(customNames) as Record<string, string>;
+        return namesMap[itemId] || null;
+    } catch (error) {
+        console.error('아바타 이름 로드 오류:', error);
+        return null;
+    }
+}
+
+// 아이템의 실제 표시 이름 (커스텀 이름 우선, 없으면 기본 이름)
+export function getAvatarItemDisplayName(item: AvatarItem): string {
+    const customName = getCustomAvatarName(item.id);
+    return customName || item.name;
 } 

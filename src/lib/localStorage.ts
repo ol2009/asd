@@ -6,7 +6,8 @@ import {
     PraiseCard,
     MissionAchievement,
     PointShopItem,
-    PurchaseHistory
+    PurchaseHistory,
+    Challenge
 } from './types';
 import { getLocalStorage } from './storage';
 
@@ -149,37 +150,70 @@ export const addMissionAchievement = (classId: string, newAchievement: MissionAc
     saveMissionAchievements(classId, [...achievements, newAchievement]);
 };
 
-// 로드맵 관련 함수
+// 챌린지 관련 함수
+export function getChallenges(classId: string): Challenge[] {
+    return getLocalStorage<Challenge[]>(`challenges_${classId}`, []);
+}
+
+export const saveChallenges = (classId: string, challenges: Challenge[]): void => {
+    localStorage.setItem(`challenges_${classId}`, JSON.stringify(challenges));
+};
+
+export const getChallengeById = (classId: string, challengeId: string): Challenge | null => {
+    const challenges = getChallenges(classId);
+    return challenges.find(c => c.id === challengeId) || null;
+};
+
+export const addChallenge = (classId: string, newChallenge: Challenge): void => {
+    const challenges = getChallenges(classId);
+    saveChallenges(classId, [...challenges, newChallenge]);
+};
+
+export const updateChallenge = (classId: string, updatedChallenge: Challenge): void => {
+    const challenges = getChallenges(classId);
+    const updatedChallenges = challenges.map(c =>
+        c.id === updatedChallenge.id ? updatedChallenge : c
+    );
+    saveChallenges(classId, updatedChallenges);
+};
+
+export const removeChallenge = (classId: string, challengeId: string): void => {
+    const challenges = getChallenges(classId);
+    const updatedChallenges = challenges.filter(c => c.id !== challengeId);
+    saveChallenges(classId, updatedChallenges);
+};
+
+// 로드맵 관련 함수 (호환성 유지)
 export function getRoadmaps(classId: string): Roadmap[] {
+    // 먼저 challenges를 확인
+    const challenges = getChallenges(classId);
+    if (challenges.length > 0) {
+        return challenges as Roadmap[];
+    }
+    // 이전 데이터가 있으면 사용 (마이그레이션 아직 안 된 경우)
     return getLocalStorage<Roadmap[]>(`roadmaps_${classId}`, []);
 }
 
 export const saveRoadmaps = (classId: string, roadmaps: Roadmap[]): void => {
+    // 두 키 모두에 저장 (마이그레이션 과정이므로)
     localStorage.setItem(`roadmaps_${classId}`, JSON.stringify(roadmaps));
+    localStorage.setItem(`challenges_${classId}`, JSON.stringify(roadmaps));
 };
 
 export const getRoadmapById = (classId: string, roadmapId: string): Roadmap | null => {
-    const roadmaps = getRoadmaps(classId);
-    return roadmaps.find(r => r.id === roadmapId) || null;
+    return getChallengeById(classId, roadmapId) as Roadmap | null;
 };
 
 export const addRoadmap = (classId: string, newRoadmap: Roadmap): void => {
-    const roadmaps = getRoadmaps(classId);
-    saveRoadmaps(classId, [...roadmaps, newRoadmap]);
+    addChallenge(classId, newRoadmap as Challenge);
 };
 
 export const updateRoadmap = (classId: string, updatedRoadmap: Roadmap): void => {
-    const roadmaps = getRoadmaps(classId);
-    const updatedRoadmaps = roadmaps.map(r =>
-        r.id === updatedRoadmap.id ? updatedRoadmap : r
-    );
-    saveRoadmaps(classId, updatedRoadmaps);
+    updateChallenge(classId, updatedRoadmap as Challenge);
 };
 
 export const removeRoadmap = (classId: string, roadmapId: string): void => {
-    const roadmaps = getRoadmaps(classId);
-    const updatedRoadmaps = roadmaps.filter(r => r.id !== roadmapId);
-    saveRoadmaps(classId, updatedRoadmaps);
+    removeChallenge(classId, roadmapId);
 };
 
 // 칭찬 카드 관련 함수

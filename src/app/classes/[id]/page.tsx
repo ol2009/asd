@@ -122,9 +122,81 @@ export default function ClassDetail() {
     // 학생 데이터는 로그인 확인 후에만 로드
     useEffect(() => {
         if (isSessionChecked) {
+            // 학생 데이터 유효성 검사 및 수정
+            validateAndFixStudentData();
+
+            // 학생 목록 로드
             loadStudents()
         }
     }, [classId, isSessionChecked])
+
+    // 학생 데이터 유효성 검사 및 수정 함수
+    const validateAndFixStudentData = () => {
+        try {
+            // 클래스의 모든 학생 데이터 불러오기
+            const savedStudents = localStorage.getItem(`students_${classId}`);
+            if (!savedStudents) return;
+
+            let students = JSON.parse(savedStudents);
+            let dataFixed = false;
+
+            // 모든 학생 데이터 확인 및 수정
+            students = students.map((student: any) => {
+                // 학생 데이터 구조 확인
+                if (!student.stats) {
+                    student.stats = { level: 1, exp: 0 };
+                    dataFixed = true;
+                }
+
+                // exp 필드가 숫자인지 확인
+                if (typeof student.stats.exp !== 'number') {
+                    console.warn(`학생 ${student.name}의 경험치가 숫자가 아닙니다. 0으로 초기화합니다.`, student.stats.exp);
+                    student.stats.exp = 0;
+                    dataFixed = true;
+                }
+
+                // level 필드가 숫자인지 확인
+                if (typeof student.stats.level !== 'number') {
+                    console.warn(`학생 ${student.name}의 레벨이 숫자가 아닙니다. 1로 초기화합니다.`, student.stats.level);
+                    student.stats.level = 1;
+                    dataFixed = true;
+                }
+
+                return student;
+            });
+
+            // 수정된 데이터가 있으면 로컬 스토리지에 저장
+            if (dataFixed) {
+                console.log('학생 데이터를 수정했습니다. 수정된 데이터를 저장합니다.');
+                localStorage.setItem(`students_${classId}`, JSON.stringify(students));
+
+                // classes 스토리지에서도 해당 클래스의 학생 데이터 업데이트
+                const classesJson = localStorage.getItem('classes');
+                if (classesJson) {
+                    const classes = JSON.parse(classesJson);
+                    const classIndex = classes.findIndex((c: any) => c.id === classId);
+                    if (classIndex !== -1 && classes[classIndex].students) {
+                        classes[classIndex].students = students;
+                        localStorage.setItem('classes', JSON.stringify(classes));
+                    }
+                }
+
+                // class_classId 스토리지에서도 학생 데이터 업데이트
+                const classJson = localStorage.getItem(`class_${classId}`);
+                if (classJson) {
+                    const classData = JSON.parse(classJson);
+                    if (classData.students && Array.isArray(classData.students)) {
+                        classData.students = students;
+                        localStorage.setItem(`class_${classId}`, JSON.stringify(classData));
+                    }
+                }
+
+                toast.success('학생 데이터를 복구했습니다.');
+            }
+        } catch (error) {
+            console.error('학생 데이터 검증 및 수정 중 오류:', error);
+        }
+    };
 
     // 학생 목록 로드 함수 (중복 제거 로직 추가)
     const loadStudents = () => {

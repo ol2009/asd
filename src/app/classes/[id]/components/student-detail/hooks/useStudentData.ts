@@ -166,100 +166,195 @@ export function useStudentData({ studentId, classId }: UseStudentDataProps): Use
             const completedChallenges: CompletedChallenge[] = [];
             const currentStudentId = studentId.toString(); // 문자열 확실히
 
+            // 챌린지 단계 관련 모든 키를 로깅하여 디버깅에 도움이 되도록 함
+            console.log('학생 ID:', currentStudentId);
+
+            // 모든 키 형식을 로깅하여 어떤 형식이 사용되고 있는지 확인
+            const allKeys = Object.keys(localStorage).filter(key =>
+                key.includes(`challenge_${classId}`) ||
+                key.includes(`challenge_step_${classId}`)
+            );
+            console.log('챌린지 관련 localStorage 키들:', allKeys);
+
             // 각 챌린지를 확인
             for (const challenge of challenges) {
                 const completedSteps: ChallengeStep[] = [];
                 let completedStepCount = 0;
+                let lastCompletedDate = '';
                 const totalSteps = challenge.steps.length;
+
+                console.log(`챌린지 검사: ${challenge.name} (ID: ${challenge.id}), 총 ${totalSteps}단계`);
 
                 // 각 단계를 확인하여 학생이 완료한 단계 찾기
                 for (const step of challenge.steps) {
                     // 챌린지 ID와 스텝 ID를 조합하여 고유한 키 생성
-                    // 기존 방식 - 같은 번호의 스텝은 모든 챌린지에서 동일한 키를 사용함
-                    // const stepKey = `challenge_${classId}_step_${step.id}_students`;
+                    // 모든 가능한 키 형식을 확인
 
-                    // 새로운 방식 - 챌린지 ID를 포함시켜 고유한 키 생성
-                    const stepKey = `challenge_${classId}_${challenge.id}_step_${step.id}_students`;
+                    // 1. 표준 형식 - challenge_${classId}_${challengeId}_step_${step.id}_students
+                    const primaryKey = `challenge_${classId}_${challenge.id}_step_${step.id}_students`;
 
-                    // 이전 방식의 키도 확인 (이전 데이터와의 호환성 유지)
+                    // 2. 이전 형식 - challenge_${classId}_step_${step.id}_students
                     const oldStepKey = `challenge_${classId}_step_${step.id}_students`;
 
-                    // 새 키 또는 이전 키로 데이터 로드
-                    let studentsInStepString = localStorage.getItem(stepKey);
+                    // 3. 다른 형식 - challenge_step_${classId}_${challengeId}_${step.id}
+                    const alternateKey = `challenge_step_${classId}_${challenge.id}_${step.id}`;
 
-                    // 새 키에 데이터가 없으면 이전 키도 확인
+                    // 4. 레거시 형식 - roadmap_step_${classId}_${challengeId}_${step.id}
+                    const legacyKey = `roadmap_step_${classId}_${challenge.id}_${step.id}`;
+
+                    // 모든 키 형식 로깅
+                    console.log('검색할 키 형식들:', { primaryKey, oldStepKey, alternateKey, legacyKey });
+
+                    // 모든 키를 확인하고 데이터 로드
+                    let studentsInStepString = localStorage.getItem(primaryKey);
+                    let sourceKey = primaryKey;
+
                     if (!studentsInStepString) {
                         studentsInStepString = localStorage.getItem(oldStepKey);
-                        // 이전 키에서 데이터를 찾았다면, 새 키 형식으로 마이그레이션
-                        if (studentsInStepString) {
-                            console.log(`이전 키 형식 데이터 발견: ${oldStepKey}, 새 키 형식으로 마이그레이션 중: ${stepKey}`);
-                            localStorage.setItem(stepKey, studentsInStepString);
-                        }
+                        if (studentsInStepString) sourceKey = oldStepKey;
+                    }
+
+                    if (!studentsInStepString) {
+                        studentsInStepString = localStorage.getItem(alternateKey);
+                        if (studentsInStepString) sourceKey = alternateKey;
+                    }
+
+                    if (!studentsInStepString) {
+                        studentsInStepString = localStorage.getItem(legacyKey);
+                        if (studentsInStepString) sourceKey = legacyKey;
+                    }
+
+                    // 어느 곳에서든 데이터를 찾았다면 모든 형식에 저장
+                    if (studentsInStepString) {
+                        console.log(`단계 데이터 발견: ${sourceKey}`);
+
+                        // 모든 형식에 일관되게 저장 (마이그레이션)
+                        localStorage.setItem(primaryKey, studentsInStepString);
+                        localStorage.setItem(oldStepKey, studentsInStepString);
+                        localStorage.setItem(alternateKey, studentsInStepString);
+
+                        console.log(`단계 데이터 마이그레이션: ${sourceKey} → 모든 형식`);
                     }
 
                     if (studentsInStepString) {
                         try {
                             const studentsInStep = JSON.parse(studentsInStepString);
-                            console.log(`스텝 ${step.id} (챌린지 ${challenge.id}) 참여 학생들:`, studentsInStep);
+                            console.log(`스텝 ${step.id} (챌린지 ${challenge.id}) 데이터 소스:`,
+                                localStorage.getItem(primaryKey) ? 'primaryKey' :
+                                    localStorage.getItem(oldStepKey) ? 'oldStepKey' :
+                                        localStorage.getItem(alternateKey) ? 'alternateKey' :
+                                            localStorage.getItem(legacyKey) ? 'legacyKey' : '알 수 없음');
+                            console.log(`스텝 ${step.id} (챌린지 ${challenge.id}) 참여 학생들 (${studentsInStep.length}명):`, studentsInStep);
 
                             // 배열인지 확인하고 현재 학생이 이 단계를 완료했는지 정확히 검증
-                            if (Array.isArray(studentsInStep) &&
+                            const hasCompleted = Array.isArray(studentsInStep) &&
                                 studentsInStep.length > 0 &&
-                                studentsInStep.some(id => id.toString() === currentStudentId)) {
+                                studentsInStep.some(id => id && id.toString() === currentStudentId);
 
+                            console.log(`학생 ${currentStudentId}의 단계 완료 여부:`, hasCompleted ? '완료' : '미완료');
+
+                            if (hasCompleted) {
                                 console.log(`학생 ${currentStudentId}가 챌린지 ${challenge.name}(ID: ${challenge.id})의 단계 ${step.goal} 완료함`);
                                 completedStepCount++;
+
+                                // 완료 날짜 - 로컬 스토리지에서 스텝 완료 시간 데이터가 있으면 사용, 없으면 현재 시간
+                                const completionDateKey = `challenge_${classId}_${challenge.id}_step_${step.id}_${currentStudentId}_completedAt`;
+                                let completedAt = localStorage.getItem(completionDateKey);
+
+                                if (!completedAt) {
+                                    completedAt = new Date().toISOString();
+                                    // 없으면 현재 시간으로 저장
+                                    localStorage.setItem(completionDateKey, completedAt);
+                                }
+
+                                // 가장 최근에 완료한 단계의 날짜를 기억
+                                if (!lastCompletedDate || completedAt > lastCompletedDate) {
+                                    lastCompletedDate = completedAt;
+                                }
+
+                                // 단계 설명에 구체적인 목표 내용 포함
+                                const stepNumber = step.id.replace(/\D/g, '');
+                                // 단계 번호가 너무 크거나 없으면 배열의 인덱스 + 1을 사용
+                                const stepIndex = challenge.steps.findIndex((s: any) => s.id === step.id);
+                                let actualStepNumber: number;
+
+                                // 추출한 번호가 있고 합리적인 크기면 사용, 그렇지 않으면 인덱스 사용
+                                if (stepNumber && parseInt(stepNumber) > 0 && parseInt(stepNumber) < 100) {
+                                    actualStepNumber = parseInt(stepNumber);
+                                } else {
+                                    actualStepNumber = stepIndex + 1; // 인덱스는 0부터 시작하므로 +1
+                                }
+
                                 completedSteps.push({
                                     id: step.id,
-                                    title: `${challenge.name} - ${step.goal}`,
+                                    title: `${actualStepNumber}단계`,
                                     description: step.goal,
-                                    completedAt: new Date().toISOString() // 정확한 날짜가 없으므로 현재 날짜 사용
+                                    completedAt: completedAt
                                 });
                             } else {
                                 console.log(`학생 ${currentStudentId}는 챌린지 ${challenge.name}(ID: ${challenge.id})의 단계 ${step.goal}를 완료하지 않음`);
                             }
                         } catch (error) {
-                            console.error(`스텝 데이터 파싱 오류: ${stepKey}`, error);
+                            console.error(`스텝 데이터 파싱 오류: ${primaryKey}`, error);
                         }
                     } else {
-                        console.log(`스텝 데이터 없음: ${stepKey} 및 ${oldStepKey}`);
+                        console.log(`스텝 데이터 없음: ${primaryKey} 및 ${oldStepKey}, ${alternateKey}, ${legacyKey}`);
                     }
                 }
 
-                // 모든 단계를 완료했을 때만 챌린지 정보 추가
-                if (completedStepCount === totalSteps) {
-                    console.log(`챌린지 ${challenge.name}(ID: ${challenge.id})의 모든 단계(${totalSteps}개)를 완료함`);
-                    completedChallenges.push({
-                        id: challenge.id,
-                        title: challenge.name,
-                        description: `최종 보상: ${challenge.rewardTitle || '없음'}`,
-                        steps: completedSteps,
-                        abilities: challenge.abilities,
-                        rewards: {
-                            exp: 200, // 챌린지 단계당 200 경험치 획득
-                            gold: 0
-                        },
-                        timestamp: new Date().toISOString()
+                // 하나 이상의 단계를 완료했을 때 챌린지 정보 추가
+                if (completedStepCount > 0) {
+                    // 모든 단계를 완료한 경우 vs 일부 단계만 완료한 경우
+                    const isFullyCompleted = completedStepCount === totalSteps;
+
+                    console.log(`챌린지 ${challenge.name}(ID: ${challenge.id})의 ${completedStepCount}/${totalSteps} 단계를 완료함`);
+
+                    // 완료한 단계 수를 정확히 표시하기 위해 단계 개수를 로깅
+                    console.log(`완료한 단계: ${completedSteps.length}개, 카운터 값: ${completedStepCount}개`);
+
+                    // 단계 수 일치 여부를 확인하고 로깅
+                    if (completedSteps.length !== completedStepCount) {
+                        console.warn(`경고: 완료된 단계 수 불일치! completedSteps: ${completedSteps.length}, completedStepCount: ${completedStepCount}`);
+                        // 불일치 문제 수정: 실제 completedSteps 배열의 길이를 사용하여 표시 내용 결정
+                        completedStepCount = completedSteps.length;
+                    }
+
+                    // 마지막으로 완료한 단계의 정보를 명확히 표시
+                    const lastCompletedStep = completedSteps[completedSteps.length - 1];
+                    const descriptionText = isFullyCompleted
+                        ? `최종 보상: ${challenge.rewardTitle || '없음'}`
+                        : `완료한 단계: ${completedStepCount}/${totalSteps}단계`;
+
+                    console.log(`챌린지 ${challenge.name}에 대해 진행 정보 생성`, {
+                        completedStepCount,
+                        totalSteps,
+                        description: descriptionText
                     });
-                } else if (completedStepCount > 0) {
-                    // 일부 단계만 완료한 경우에도 챌린지 정보 추가
-                    console.log(`챌린지 ${challenge.name}(ID: ${challenge.id})의 일부 단계만 완료(${completedStepCount}/${totalSteps})`);
+
                     completedChallenges.push({
                         id: challenge.id,
                         title: challenge.name,
-                        description: `진행 중: ${completedStepCount}/${totalSteps} 단계 완료`,
-                        steps: completedSteps,
+                        description: descriptionText,
+                        steps: completedSteps.sort((a, b) =>
+                            // 단계별로 정렬 - id 기준으로 오름차순 정렬 (1단계, 2단계, ... 순서대로)
+                            Number(a.id.replace(/\D/g, '') || 0) - Number(b.id.replace(/\D/g, '') || 0)
+                        ),
                         abilities: challenge.abilities,
                         rewards: {
-                            exp: 100, // 일부 완료 시 적은 경험치
+                            exp: isFullyCompleted ? 200 : 100, // 모두 완료 시 더 많은 경험치
                             gold: 0
                         },
-                        timestamp: new Date().toISOString()
+                        timestamp: lastCompletedDate || new Date().toISOString()
                     });
                 } else {
                     console.log(`챌린지 ${challenge.name}(ID: ${challenge.id})의 단계를 하나도 완료하지 않음`);
                 }
             }
+
+            // 최신순으로 정렬 (timestamp 기준)
+            completedChallenges.sort((a, b) =>
+                (b.timestamp || '').localeCompare(a.timestamp || '')
+            );
 
             console.log(`${completedChallenges.length}개의 완료된 챌린지 발견`);
             setCompletedChallenges(completedChallenges);

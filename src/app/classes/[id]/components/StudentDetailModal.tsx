@@ -17,10 +17,12 @@ import {
     AvatarLayerType
 } from '@/lib/avatar'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
+import { Student } from '@/lib/types'
+import { calculateLevelFromExp } from '@/lib/types'
 
 // 분리된 컴포넌트 import
 import AvatarTab from './student-detail/tabs/AvatarTab'
-import ChallengeTab from './student-detail/tabs/ChallengeTab'
+import { ChallengeTab } from './student-detail/tabs/ChallengeTab'
 import MissionTab from './student-detail/tabs/MissionTab'
 import CardTab from './student-detail/tabs/CardTab'
 import PointShopTab, { PointShopItemType } from './student-detail/tabs/PointShopTab'
@@ -33,7 +35,6 @@ import TabNavigation from './student-detail/components/TabNavigation'
 import { useStudentData } from './student-detail/hooks/useStudentData'
 
 // 기본 상수
-const EXP_PER_LEVEL = 100
 const POINTS_PER_LEVEL = 100
 
 // 칭호 목록
@@ -90,6 +91,7 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
     const [isEditingHonorific, setIsEditingHonorific] = useState(false)
     const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
     const [honorifics, setHonorifics] = useState<string[]>(defaultHonorifics)
+    const [isPurchasingItem, setIsPurchasingItem] = useState(false)
 
     // 커스텀 훅을 사용해 학생 데이터 가져오기
     const {
@@ -392,141 +394,91 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
         }
     };
 
-    // 기존 handlePurchaseItem 함수에 디버깅 로그 추가
-    const handlePurchaseItem = (item: PointShopItem) => {
+    // 아이템 구매 처리
+    const handlePurchaseItem = async (item: PointShopItem) => {
+        console.log('아이템 구매 처리 시작:', item);
+
+        // 구매 처리 중인지 확인
+        if (isPurchasingItem) {
+            console.log('이미 구매 처리 중입니다.');
+            return;
+        }
+
+        setIsPurchasingItem(true);
+
         try {
-            console.log("===== 아이템 구매 처리 시작 =====");
-            console.log("구매 아이템:", item);
-
-            // 포인트 확인
+            // 포인트 검사
             if (!student) {
-                console.error("구매 실패: 학생 정보가 없습니다.");
                 toast.error('학생 정보를 찾을 수 없습니다.');
+                setIsPurchasingItem(false);
                 return;
             }
 
-            // 포인트가 충분한지 확인
+            // 비정상적으로 큰 골드 값 감지 및 수정
+            if (student.points > 1000000) {
+                console.error('비정상적으로 큰 골드 값 감지:', student.points);
+                // 학생의 골드를 100으로 재설정
+                updateStudentPoints(100);
+                toast.error('비정상적인 골드 값이 감지되어 100으로 재설정했습니다.');
+                setIsPurchasingItem(false);
+                return;
+            }
+
             if (student.points < item.price) {
-                console.error(`구매 실패: 포인트 부족 (보유: ${student.points}, 필요: ${item.price})`);
                 toast.error('골드가 부족합니다.');
+                setIsPurchasingItem(false);
                 return;
             }
 
-            // 새로운 포인트 계산
+            // 포인트 차감
             const newPoints = student.points - item.price;
-            console.log(`포인트 차감: ${student.points} -> ${newPoints} (차감액: ${item.price})`);
+            console.log('새 포인트 값:', newPoints);
 
-            // 포인트 업데이트 (로컬 스토리지에 저장)
-            updateStudentPoints(newPoints);
+            // 안전하게 포인트가 음수가 되지 않도록 방지
+            const safePoints = Math.max(0, newPoints);
 
-            // 아바타 아이템 처리
-            if (item.type === PointShopItemType.AVATAR) {
-                console.log("===== 아바타 아이템 구매 처리 시작 =====");
-                try {
-                    console.log("아바타 아이템 상세:", item.avatarItem ? JSON.stringify(item.avatarItem, null, 2) : '타입 정보 없음');
+            // 포인트 업데이트
+            updateStudentPoints(safePoints);
 
-                    // 여러 타입 중에서 랜덤하게 하나 선택 또는 아이템에서 지정된 타입 사용
-                    const itemType = item.avatarItem?.type as AvatarLayerType || 'head';
-                    console.log('사용할 아바타 레이어 타입:', itemType);
-
-                    // 학생의 인벤토리 가져오기
-                    const avatarItemsKey = `student_avatar_items_${classId}_${student.id}`;
-                    console.log('학생 아바타 아이템 로컬 스토리지 키:', avatarItemsKey);
-
-                    const savedItems = localStorage.getItem(avatarItemsKey) || '[]';
-                    console.log('로컬 스토리지에서 가져온 데이터:', savedItems);
-
-                    const studentAvatarItems = JSON.parse(savedItems);
-                    console.log('현재 학생 아바타 아이템 수:', studentAvatarItems.length);
-
-                    // 학생이 소유하지 않은 아이템 중에서 랜덤 선택
-                    const randomAvatarItem = getUnownedRandomAvatarItemByType(itemType, studentAvatarItems);
-                    console.log("소유하지 않은 아이템 중 랜덤 생성 결과:", randomAvatarItem ? JSON.stringify(randomAvatarItem, null, 2) : '해당 타입의 모든 아이템 소유중');
-
-                    if (randomAvatarItem) {
-                        // 새 아이템 추가
-                        const newItemId = `${randomAvatarItem.id}_${Date.now()}`;
-                        console.log('새 아이템에 할당된 ID:', newItemId);
-
-                        const newItem = {
-                            ...randomAvatarItem,
-                            id: newItemId,
-                            acquiredAt: new Date().toISOString(),
-                        };
-
-                        studentAvatarItems.push(newItem);
-                        console.log('새 아이템이 추가된 후 아바타 아이템 수:', studentAvatarItems.length);
-
-                        // 로컬 스토리지 업데이트
-                        console.log('로컬 스토리지 업데이트 시작...');
-                        const itemsToSave = JSON.stringify(studentAvatarItems);
-                        localStorage.setItem(avatarItemsKey, itemsToSave);
-                        console.log('로컬 스토리지 업데이트 완료. 저장된 데이터 크기:', itemsToSave.length);
-
-                        // 구매 내역 추가
-                        console.log('구매 내역 추가 시작...');
-                        const purchaseItem = {
-                            ...item,
-                            purchasedAt: new Date().toISOString(),
-                            avatarItemDetail: randomAvatarItem,
-                        };
-
-                        if (classId && student.id) {
-                            console.log('구매 내역 저장을 위한 classId, studentId 확인됨');
-                            const purchaseId = addItemToStudentPurchaseHistory(classId, student.id, purchaseItem);
-                            console.log('구매 내역 저장 완료. 구매 ID:', purchaseId);
-                        } else {
-                            console.error('구매 내역 저장 불가: classId 또는 studentId 없음');
-                        }
-
-                        // 성공 메시지 표시
-                        console.log('아바타 아이템 구매 처리 완료');
-                        toast.success(`'${randomAvatarItem.name}' 아이템을 획득했습니다!`);
-
-                        // 이후에 아바타 아이템 리스트를 새로고침하여 아바타 탭을 열었을 때 바로 보이도록 함
-                        loadAvatarItems();
-                    } else {
-                        console.error("랜덤 아바타 아이템 생성 실패");
-                        // 모든 아이템을 이미 소유하고 있는 경우 (getUnownedRandomAvatarItemByType에서 null 반환)
-                        toast.error(`이미 해당 종류(${itemType})의 모든 아바타 아이템을 소유하고 있습니다.`);
-
-                        // 포인트 환불
-                        updateStudentPoints(student.points);
-                    }
-                } catch (error) {
-                    console.error("아바타 아이템 처리 중 오류:", error);
-                    toast.error('아바타 아이템 구매 처리 중 오류가 발생했습니다.');
-                }
-                console.log("===== 아바타 아이템 구매 처리 완료 =====");
-            } else {
-                console.log('===== 학급 아이템 구매 처리 시작 =====');
-                // 구매 내역 추가
-                if (classId && student.id) {
-                    console.log('학급 아이템 구매 내역 추가 시작');
-                    const purchaseData = {
-                        ...item,
-                        purchasedAt: new Date().toISOString(),
-                    };
-                    const purchaseId = addItemToStudentPurchaseHistory(classId, student.id, purchaseData);
-                    console.log('학급 아이템 구매 내역 추가 완료. 구매 ID:', purchaseId);
-                } else {
-                    console.error('구매 내역 저장 불가: classId 또는 studentId 없음');
-                }
-
-                // 성공 메시지 표시
-                console.log('학급 아이템 구매 처리 완료');
-                toast.success(`'${item.name}' 아이템을 구매했습니다!`);
-                console.log('===== 학급 아이템 구매 처리 완료 =====');
+            // 학급 아이템인 경우 구매 내역에 추가
+            if (item.type === PointShopItemType.CLASS || item.itemType === 'class') {
+                addItemToStudentPurchaseHistory(classId || '', student.id, item);
+                toast.success('학급 쿠폰 구매 완료! 학급 쿠폰 보관함에서 확인하세요.');
             }
 
-            // 구매한 아이템 정보 업데이트
-            console.log('구매 후 아이템 목록 새로고침 시작');
-            loadPurchasedItems();
-            console.log('구매 후 아이템 목록 새로고침 완료');
-            console.log("===== 아이템 구매 완료 =====");
+            // 아바타 아이템인 경우
+            if (item.type === PointShopItemType.AVATAR || item.itemType === 'avatar') {
+                // 아바타 아이템 처리
+                const type = item.itemType as AvatarLayerType;
+                if (type) {
+                    try {
+                        // 랜덤 아바타 아이템 생성
+                        const avatarItem = getRandomPremiumAvatarItemByType(type);
+
+                        if (avatarItem) {
+                            // 아바타 아이템 획득 업데이트
+                            loadAvatarItems();
+
+                            toast.success(`${avatarItem.name} 아이템을 획득했습니다!`);
+                        } else {
+                            // 아이템을 찾을 수 없는 경우
+                            toast.error(`해당 타입의 아바타 아이템을 찾을 수 없습니다.`);
+
+                            // 포인트 환불
+                            const refundPoints = safePoints + item.price;
+                            updateStudentPoints(refundPoints);
+                        }
+                    } catch (error) {
+                        console.error('아바타 아이템 구매 오류:', error);
+                        toast.error('아바타 아이템 구매 중 오류가 발생했습니다.');
+                    }
+                }
+            }
         } catch (error) {
-            console.error("구매 처리 중 오류 발생:", error);
-            toast.error('아이템을 구매하는 중 오류가 발생했습니다.');
+            console.error('아이템 구매 오류:', error);
+            toast.error('구매 중 오류가 발생했습니다.');
+        } finally {
+            setIsPurchasingItem(false);
         }
     };
 

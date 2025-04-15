@@ -1,134 +1,176 @@
 'use client'
 
-import { Loader2 } from 'lucide-react'
-import { CompletedRoadmap as CompletedChallenge } from '../types'
+import React from 'react';
+import { CompletedChallenge, ChallengeStep } from '../types';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import dayjs from 'dayjs';
+import { CalendarIcon, CheckCircle } from 'lucide-react';
 
-interface ChallengeTabProps {
-    completedChallenges: CompletedChallenge[]
-    isLoading: boolean
+// 타입 정의
+type Ability = 'intelligence' | 'diligence' | 'creativity' | 'personality' | 'health' | 'communication';
+
+// 능력치 한글 매핑
+const abilityKoreanNames: Record<Ability, string> = {
+    intelligence: '지력',
+    diligence: '성실성',
+    creativity: '창의력',
+    personality: '인성',
+    health: '체력',
+    communication: '의사소통'
+};
+
+interface Props {
+    completedChallenges: CompletedChallenge[];
+    isLoading: boolean;
 }
 
-const ChallengeTab: React.FC<ChallengeTabProps> = ({ completedChallenges, isLoading }) => {
+export function ChallengeTab({ completedChallenges, isLoading }: Props) {
+    // 날짜 기준으로 정렬 (최신순)
+    const sortedChallenges = React.useMemo(() => {
+        return [...completedChallenges].sort((a, b) => {
+            return new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime();
+        });
+    }, [completedChallenges]);
+
+    // 누적 능력치 계산 함수 추가
+    const calculateCumulativeAbilities = (challenge: CompletedChallenge, currentStepIndex: number) => {
+        // 챌린지에 능력치가 없으면 빈 객체 반환
+        if (!challenge.abilities) return {};
+
+        // 누적 능력치를 저장할 객체
+        const cumulativeAbilities: Record<string, number> = {};
+
+        // 현재 단계까지 능력치 누적
+        for (const ability in challenge.abilities) {
+            if (challenge.abilities[ability as Ability]) {
+                // 단계 수만큼 능력치 누적 (현재 단계 인덱스 + 1)
+                cumulativeAbilities[ability] = (currentStepIndex + 1);
+            }
+        }
+
+        return cumulativeAbilities;
+    };
+
     if (isLoading) {
-        return (
-            <div className="flex justify-center items-center h-32">
-                <Loader2 className="w-6 h-6 text-blue-500 animate-spin" />
-                <p className="ml-2 text-gray-500">챌린지 데이터 로딩 중...</p>
-            </div>
-        )
+        return <div className="flex justify-center p-4">로딩 중...</div>;
     }
 
-    if (completedChallenges.length === 0) {
+    if (sortedChallenges.length === 0) {
         return (
-            <div className="text-center py-6 bg-gray-50 rounded-lg">
-                <p className="text-gray-500">완료한 챌린지가 없습니다.</p>
+            <div className="flex flex-col items-center justify-center p-8 text-center text-gray-500">
+                <p className="mb-2">완료한 챌린지가 없습니다.</p>
+                <p className="text-sm">챌린지를 완료하면 경험치와 능력치를 획득할 수 있습니다.</p>
             </div>
-        )
+        );
     }
 
     return (
-        <div>
-            <h3 className="text-base font-bold text-gray-800 mb-3">완료한 챌린지</h3>
+        <div className="space-y-6 p-4">
+            {/* 챌린지 별로 그룹화하여 표시 */}
+            {sortedChallenges.map((challenge) => {
+                const completedSteps = challenge.steps || [];
 
-            <div className="grid grid-cols-1 gap-4">
-                {completedChallenges.map((challenge) => (
-                    <div
-                        key={challenge.id}
-                        className="bg-indigo-50 border border-indigo-100 rounded-lg p-4"
-                    >
-                        <h4 className="font-medium text-indigo-800 text-lg">{challenge.title}</h4>
-                        <p className="text-indigo-600 mt-1">{challenge.description}</p>
+                // 해당 챌린지의 능력치
+                const abilities = challenge.abilities
+                    ? Object.entries(challenge.abilities)
+                        .filter(([_, value]) => value)
+                        .map(([ability]) => abilityKoreanNames[ability as Ability] || ability)
+                    : [];
 
-                        {/* 스텝 목록 */}
-                        <div className="mt-3 space-y-3">
-                            {challenge.steps.map((step, index) => (
-                                <div
-                                    key={step.id}
-                                    className="bg-white border border-indigo-100 rounded-lg p-3"
-                                >
-                                    <div className="flex items-center">
-                                        <div className="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xs font-medium">
-                                            {index + 1}
-                                        </div>
-                                        <h5 className="font-medium ml-2">{step.title}</h5>
-                                    </div>
-                                    <p className="text-sm text-gray-600 mt-1 ml-8">{step.description}</p>
+                // 전체 단계 수 확인
+                const totalSteps = challenge.steps?.length || completedSteps.length;
 
-                                    {/* 완료 날짜 */}
-                                    <p className="text-xs text-gray-500 mt-2 ml-8">
-                                        완료일: {step.completedAt && new Date(step.completedAt).toLocaleDateString('ko-KR', {
-                                            year: 'numeric',
-                                            month: 'long',
-                                            day: 'numeric'
-                                        })}
-                                    </p>
-                                </div>
-                            ))}
-                        </div>
+                // 마지막 단계 여부 및 챌린지 완료 여부 확인
+                const isFullyCompleted = completedSteps.length === totalSteps;
+                const showHonorific = isFullyCompleted && (challenge as any).rewardTitle;
 
-                        {/* 보상 정보 */}
-                        <div className="mt-4 flex flex-wrap gap-2">
-                            <span className="bg-yellow-100 text-yellow-800 px-2 py-1 rounded-full text-xs flex items-center">
-                                <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full mr-1"></span>
-                                +{challenge.rewards?.gold || 0} G
-                            </span>
-                            <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs flex items-center">
-                                <span className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-1"></span>
-                                +{challenge.rewards?.exp || 0} EXP
-                            </span>
-                        </div>
+                return (
+                    <div key={challenge.id} className="mb-6">
+                        {/* 챌린지 제목 */}
+                        <h3 className="text-lg font-bold text-blue-700 mb-3">{challenge.title}</h3>
 
-                        {/* 능력치 정보 */}
-                        {(challenge.abilities?.intelligence ||
-                            challenge.abilities?.diligence ||
-                            challenge.abilities?.creativity ||
-                            challenge.abilities?.personality) && (
-                                <div className="mt-3 pt-3 border-t border-indigo-100">
-                                    <p className="text-xs text-gray-500 mb-1">획득한 능력치:</p>
-                                    <div className="flex flex-wrap gap-1">
-                                        {challenge.abilities?.intelligence && (
-                                            <span className="bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full flex items-center">
-                                                <span className="w-1.5 h-1.5 bg-blue-700 rounded-full mr-1"></span>
-                                                지력 +1
-                                            </span>
-                                        )}
-                                        {challenge.abilities?.diligence && (
-                                            <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full flex items-center">
-                                                <span className="w-1.5 h-1.5 bg-green-700 rounded-full mr-1"></span>
-                                                성실성 +1
-                                            </span>
-                                        )}
-                                        {challenge.abilities?.creativity && (
-                                            <span className="bg-purple-100 text-purple-700 text-xs px-2 py-0.5 rounded-full flex items-center">
-                                                <span className="w-1.5 h-1.5 bg-purple-700 rounded-full mr-1"></span>
-                                                창의력 +1
-                                            </span>
-                                        )}
-                                        {challenge.abilities?.personality && (
-                                            <span className="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full flex items-center">
-                                                <span className="w-1.5 h-1.5 bg-red-700 rounded-full mr-1"></span>
-                                                인성 +1
-                                            </span>
-                                        )}
-                                    </div>
-                                </div>
-                            )}
+                        {/* 각 단계별 카드 */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {completedSteps.map((step, index) => {
+                                // 단계 번호 계산
+                                let stepNumber = index + 1;
+                                if (step.title) {
+                                    const match = step.title.match(/(\d+)단계/);
+                                    if (match && match[1]) {
+                                        const num = parseInt(match[1]);
+                                        if (num > 0 && num < 100) {
+                                            stepNumber = num;
+                                        }
+                                    }
+                                }
 
-                        {/* 완료 시간 */}
-                        <div className="mt-3 text-right">
-                            <p className="text-xs text-gray-500">
-                                {challenge.timestamp && new Date(challenge.timestamp).toLocaleDateString('ko-KR', {
-                                    year: 'numeric',
-                                    month: 'long',
-                                    day: 'numeric'
-                                })}
-                            </p>
+                                // 마지막 단계 여부 확인
+                                const isLastStep = index === completedSteps.length - 1;
+                                const isFullyCompleted = completedSteps.length === totalSteps;
+                                const showHonorific = isFullyCompleted && (challenge as any).rewardTitle;
+
+                                return (
+                                    <Card key={step.id} className="overflow-hidden border-0 shadow-sm">
+                                        <CardHeader className="bg-gradient-to-r from-blue-500 to-indigo-600 py-2 px-3 text-white">
+                                            <div className="flex items-center">
+                                                <CheckCircle className="w-4 h-4 text-white mr-2" />
+                                                <span className="font-medium">{stepNumber}단계 달성!</span>
+                                            </div>
+                                        </CardHeader>
+                                        <CardContent className="p-3">
+                                            {/* 단계 목표 */}
+                                            <p className="text-sm font-medium text-gray-700 mb-2">
+                                                {step.description}
+                                            </p>
+
+                                            {/* 날짜 */}
+                                            {step.completedAt && (
+                                                <p className="text-xs text-gray-500 mb-2 flex items-center">
+                                                    <CalendarIcon className="w-3 h-3 mr-1" />
+                                                    {dayjs(step.completedAt).format('YYYY.MM.DD')} 완료
+                                                </p>
+                                            )}
+
+                                            {/* 보상 정보 */}
+                                            <div className="bg-yellow-50 rounded p-2 border border-yellow-100 mt-1">
+                                                {/* 능력치 */}
+                                                {(() => {
+                                                    // 현재 단계까지의 누적 능력치 계산
+                                                    // 배열 인덱스가 아닌 실제 단계 번호(stepNumber)를 기준으로 계산
+                                                    const realIndex = stepNumber - 1; // 예: "2단계"면 stepNumber=2 -> realIndex=1
+                                                    const cumulativeAbilities = calculateCumulativeAbilities(challenge, realIndex);
+
+                                                    return Object.keys(cumulativeAbilities).length > 0 && (
+                                                        <p className="text-xs font-medium text-purple-700">
+                                                            능력치: {Object.entries(cumulativeAbilities)
+                                                                .filter(([_, count]) => count > 0)
+                                                                .map(([key, count]) => `${abilityKoreanNames[key as Ability]} +${count}`)
+                                                                .join(', ')}
+                                                        </p>
+                                                    );
+                                                })()}
+
+                                                {/* 경험치 */}
+                                                <p className="text-xs font-medium text-amber-700">
+                                                    경험치 +200
+                                                    {challenge.rewards && challenge.rewards.gold && challenge.rewards.gold > 0 && `, 골드 +${challenge.rewards.gold}`}
+                                                </p>
+
+                                                {/* 칭호 (마지막 단계와 모든 단계 완료의 경우만) */}
+                                                {showHonorific && (
+                                                    <p className="text-xs font-medium text-purple-700 mt-1 pt-1 border-t border-yellow-200">
+                                                        획득 칭호: {(challenge as any).rewardTitle}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                );
+                            })}
                         </div>
                     </div>
-                ))}
-            </div>
+                );
+            })}
         </div>
-    )
-}
-
-export default ChallengeTab 
+    );
+} 

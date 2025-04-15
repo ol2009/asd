@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { Edit, Trash2, User } from 'lucide-react'
 import AvatarRenderer from '@/components/Avatar'
 import { Student } from '../types'
+import { calculateLevelFromExp, getExpRequiredForLevel } from '@/lib/types'
 
 interface StudentProfileProps {
     student: Student
@@ -22,7 +23,7 @@ const StudentProfile: React.FC<StudentProfileProps> = ({
     onDeleteClick
 }) => {
     // 학생 아이콘 렌더링 함수
-    const renderIcon = (iconType: string | undefined, size: number = 24) => {
+    const renderIcon = (iconType: any, size: number = 24) => {
         if (!iconType) {
             return <div className="bg-blue-100 w-full h-full" />
         }
@@ -39,11 +40,11 @@ const StudentProfile: React.FC<StudentProfileProps> = ({
         )
     }
 
-    // 경험치바 계산
-    const EXP_PER_LEVEL = 100
+    // 경험치바 계산 - 새로운 함수 사용
     const exp = student.stats.exp || 0
-    const expPercentage = ((exp % EXP_PER_LEVEL) / EXP_PER_LEVEL) * 100
-    const remainingExp = EXP_PER_LEVEL - (exp % EXP_PER_LEVEL)
+    const { level: calculatedLevel, expInCurrentLevel, expRequiredForNextLevel } = calculateLevelFromExp(exp)
+    const expPercentage = (expInCurrentLevel / expRequiredForNextLevel) * 100
+    const remainingExp = expRequiredForNextLevel - expInCurrentLevel
 
     return (
         <div className="bg-gradient-to-b from-blue-50 to-white rounded-xl border border-blue-100 shadow-sm p-4">
@@ -53,9 +54,11 @@ const StudentProfile: React.FC<StudentProfileProps> = ({
                 <div className="relative w-28 h-28 mb-3 mx-auto">
                     <div className="w-full h-full rounded-full overflow-hidden border-4 border-white shadow-lg flex items-center justify-center">
                         {student.avatar ? (
-                            <AvatarRenderer avatar={student.avatar} size={112} className="mx-auto" />
+                            <AvatarRenderer avatar={student.avatar as any} size={112} className="mx-auto" />
                         ) : (
-                            renderIcon(student.iconType, 32)
+                            <div className="bg-blue-100 w-full h-full flex items-center justify-center">
+                                <User className="w-10 h-10 text-blue-500" />
+                            </div>
                         )}
                     </div>
                     <button
@@ -69,7 +72,9 @@ const StudentProfile: React.FC<StudentProfileProps> = ({
 
                 {/* 학생 이름 및 기본 정보 */}
                 <h3 className="text-xl font-bold text-blue-800 mb-1">{student.name}</h3>
-                <p className="text-slate-500 mb-2">{student.number}번</p>
+                <p className="text-slate-500 mb-2">
+                    {(student as any).number ? `${(student as any).number}번` : ''}
+                </p>
 
                 {/* 칭호 표시 및 수정 버튼 - 칭호가 있을 때만 표시 */}
                 {student.honorific && (
@@ -90,8 +95,8 @@ const StudentProfile: React.FC<StudentProfileProps> = ({
                 {/* 학생 레벨 및 경험치 바 */}
                 <div className="w-full mt-2">
                     <div className="flex justify-between text-sm text-slate-600 mb-1">
-                        <span className="font-semibold">Lv. {student.stats.level}</span>
-                        <span>{exp % EXP_PER_LEVEL} / {EXP_PER_LEVEL} EXP</span>
+                        <span className="font-semibold">Lv. {calculatedLevel}</span>
+                        <span>{expInCurrentLevel} / {expRequiredForNextLevel} EXP</span>
                     </div>
                     <div className="w-full bg-gray-200 rounded-full h-2.5">
                         <div

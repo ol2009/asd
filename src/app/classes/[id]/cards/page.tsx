@@ -11,6 +11,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { toast } from 'sonner'
 import AvatarRenderer from '@/components/Avatar'
+import { calculateLevelFromExp } from '@/lib/types'
 
 interface PraiseCard {
     id: number
@@ -84,7 +85,6 @@ interface PraiseCardHistory {
 }
 
 // 상수 값을 추가
-const EXP_PER_LEVEL = 100 // 레벨업에 필요한 경험치
 const EXP_FOR_PRAISE_CARD = 50 // 칭찬 카드 획득 시 획득 경험치
 const POINTS_PER_LEVEL = 100 // 레벨업 시 획득 포인트
 
@@ -305,28 +305,15 @@ export default function PraiseCardsPage() {
             // 학생 데이터 업데이트
             const student = students[studentIndex];
 
-            // 경험치, 레벨, 포인트가 없으면 초기화
+            // 학생 데이터 정규화 확인
             if (!student.stats) {
-                student.stats = { level: 0, exp: 0 };
-            }
-            if (!student.stats.exp) {
-                student.stats.exp = 0;
-            }
-            if (student.stats.level === undefined) {
-                student.stats.level = 0;
-            }
-            if (!student.points) {
-                student.points = 0;
+                student.stats = { level: 1, exp: 0 };
             }
 
-            // stats.abilities가 없으면 초기화
-            if (!student.stats.abilities) {
-                student.stats.abilities = {
-                    intelligence: 1,
-                    diligence: 1,
-                    creativity: 1,
-                    personality: 1
-                };
+            // exp 필드가 숫자인지 확인하고 아니면 초기화
+            if (typeof student.stats.exp !== 'number') {
+                console.warn('학생의 경험치가 숫자가 아닙니다. 0으로 초기화합니다.', student.stats.exp);
+                student.stats.exp = 0;
             }
 
             // 현재 레벨과 경험치 기록
@@ -335,7 +322,7 @@ export default function PraiseCardsPage() {
             console.log(`현재 상태: Lv.${currentLevel}, Exp ${currentExp}, 포인트 ${student.points}`);
 
             // 요구사항에 맞게 직접 레벨 1 증가
-            const newLevel = currentLevel + 1;
+            const { level: newLevel } = calculateLevelFromExp(currentExp + expToAdd);
 
             // 경험치 추가 (로직 유지를 위해)
             student.stats.exp += expToAdd;
@@ -723,6 +710,26 @@ export default function PraiseCardsPage() {
                     <div className="mb-8 bg-white/40 backdrop-blur-sm p-6 rounded-xl shadow-md">
                         <h1 className="text-2xl font-bold text-blue-800">칭찬카드 관리</h1>
                         <p className="text-slate-700">학생들에게 칭찬카드를 발급하고 관리하세요.</p>
+
+                        {/* 보상 정보 추가 */}
+                        <div className="mt-4 flex items-center gap-2 bg-yellow-50/50 p-3 rounded-lg border border-yellow-100/50">
+                            <div className="flex items-center gap-1.5">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-yellow-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <circle cx="12" cy="8" r="7" />
+                                    <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
+                                </svg>
+                                <span className="text-sm font-medium text-yellow-700">경험치 +50</span>
+                            </div>
+                            <div className="w-px h-4 bg-yellow-200/50"></div>
+                            <div className="flex items-center gap-1.5">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-yellow-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <circle cx="12" cy="12" r="8" />
+                                    <path d="M12 8v8" />
+                                    <path d="M8 12h8" />
+                                </svg>
+                                <span className="text-sm font-medium text-yellow-700">골드 +50</span>
+                            </div>
+                        </div>
                     </div>
 
                     {/* 칭찬카드 목록 */}

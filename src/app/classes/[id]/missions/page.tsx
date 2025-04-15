@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import Image from 'next/image'
 import AvatarRenderer from '@/components/Avatar'
+import { calculateLevelFromExp, getExpRequiredForLevel } from '@/lib/types'
 
 // 미션 타입 정의
 interface Mission {
@@ -56,7 +57,7 @@ interface ClassInfo {
 }
 
 // 상수 값을 추가
-const EXP_PER_LEVEL = 100 // 레벨업에 필요한 경험치
+// const EXP_PER_LEVEL = 100 // 레벨업에 필요한 경험치 (이제 함수로 계산)
 const EXP_FOR_MISSION = 100 // 미션 완료 시 획득 경험치
 const POINTS_PER_LEVEL = 100 // 레벨업 시 획득 포인트
 
@@ -304,8 +305,8 @@ export default function MissionsPage() {
         currentMissions[missionIndex].achievers!.push(studentId)
         setMissions(currentMissions)
 
-        // 학생에게 경험치 부여 및 능력치 증가
-        updateStudentExpAndLevel(studentId, EXP_FOR_MISSION, currentMissions[missionIndex].abilities)
+        // 학생에게 경험치 부여 및 능력치 증가, 골드 지급
+        updateStudentExpAndLevel(studentId, EXP_FOR_MISSION, currentMissions[missionIndex].abilities, 100)
 
         // 로컬 스토리지 업데이트
         localStorage.setItem(`missions_${classId}`, JSON.stringify(currentMissions))
@@ -333,7 +334,7 @@ export default function MissionsPage() {
         personality?: boolean
         health?: boolean
         communication?: boolean
-    }) => {
+    }, goldToAdd: number = 0) => {
         try {
             // 학생 정보 가져오기
             const studentsJson = localStorage.getItem(`students_${classId}`);
@@ -353,6 +354,12 @@ export default function MissionsPage() {
             const student = students[studentIndex];
             console.log('업데이트 전 학생 상태:', JSON.stringify(student, null, 2));
 
+            // exp 필드가 숫자인지 확인하고 아니면 초기화
+            if (typeof student.stats.exp !== 'number') {
+                console.warn('학생의 경험치가 숫자가 아닙니다. 0으로 초기화합니다.', student.stats.exp);
+                student.stats.exp = 0;
+            }
+
             // 현재 레벨과 경험치 기록 (변화 감지용)
             const currentLevel = student.stats.level;
             const currentExp = student.stats.exp;
@@ -361,11 +368,17 @@ export default function MissionsPage() {
             const newExp = currentExp + expToAdd;
 
             // 새로운 레벨 계산
-            const newLevel = Math.floor(newExp / EXP_PER_LEVEL) + 1;
+            const { level: newLevel } = calculateLevelFromExp(newExp);
 
             // 경험치 업데이트
             student.stats.exp = newExp;
             student.stats.level = newLevel;
+
+            // 골드 추가 (미션 보상)
+            if (goldToAdd > 0) {
+                student.points = (student.points || 0) + goldToAdd;
+                console.log(`미션 완료 보상: ${goldToAdd} 골드 지급`);
+            }
 
             // 학생이 abilities 객체를 가지고 있지 않으면 초기화
             if (!student.abilities) {
@@ -411,10 +424,12 @@ export default function MissionsPage() {
             // 레벨업 시 포인트 지급
             if (newLevel > currentLevel) {
                 const levelsGained = newLevel - currentLevel;
-                const pointsToAdd = levelsGained * POINTS_PER_LEVEL;
 
-                student.points = (student.points || 0) + pointsToAdd;
-                console.log(`레벨업! Lv.${currentLevel} -> Lv.${newLevel} (${pointsToAdd} 포인트 지급)`);
+                // 레벨업 시 포인트(골드) 추가 코드 제거
+                // const pointsToAdd = levelsGained * POINTS_PER_LEVEL;
+                // student.points = (student.points || 0) + pointsToAdd;
+
+                console.log(`레벨업! Lv.${currentLevel} -> Lv.${newLevel}`);
             }
 
             // 학생 아이콘이 없는 경우 기본 아이콘 설정
@@ -551,15 +566,27 @@ export default function MissionsPage() {
                     timestamp: Date.now() + 100
                 });
 
-                // 포인트 획득 알림
-                const levelsGained = newLevel - currentLevel;
+                // 포인트 획득 알림 제거 (레벨업으로 인한 골드 지급 알림)
+                // const levelsGained = newLevel - currentLevel;
+                // newNotifications.push({
+                //     id: `${baseId}-points`,
+                //     type: 'points',
+                //     message: `${student.name} 학생에게 ${levelsGained * POINTS_PER_LEVEL} 포인트가 지급되었습니다!`,
+                //     studentId: student.id,
+                //     expanded: false,
+                //     timestamp: Date.now() + 200
+                // });
+            }
+
+            // 골드 획득 알림 (미션 보상)
+            if (goldToAdd > 0) {
                 newNotifications.push({
-                    id: `${baseId}-points`,
+                    id: `${baseId}-mission-gold`,
                     type: 'points',
-                    message: `${student.name} 학생에게 ${levelsGained * POINTS_PER_LEVEL} 포인트가 지급되었습니다!`,
+                    message: `${student.name} 학생이 미션 보상으로 ${goldToAdd} 골드를 획득했습니다!`,
                     studentId: student.id,
                     expanded: false,
-                    timestamp: Date.now() + 200
+                    timestamp: Date.now() + 150
                 });
             }
 
@@ -768,7 +795,27 @@ export default function MissionsPage() {
                 <div className="container mx-auto py-8 px-4">
                     <div className="mb-8 bg-white/40 backdrop-blur-sm p-6 rounded-xl shadow-md">
                         <h1 className="text-2xl font-bold text-blue-800">미션 관리</h1>
-                        <p className="text-slate-700">학생들의 미션 달성을 관리하고 기록하세요.</p>
+                        <p className="text-slate-700">학생들의 미션을 관리하고 진행 상황을 확인하세요.</p>
+
+                        {/* 보상 정보 추가 */}
+                        <div className="mt-4 flex items-center gap-2 bg-yellow-50/50 p-3 rounded-lg border border-yellow-100/50">
+                            <div className="flex items-center gap-1.5">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-yellow-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <circle cx="12" cy="8" r="7" />
+                                    <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
+                                </svg>
+                                <span className="text-sm font-medium text-yellow-700">경험치 +100</span>
+                            </div>
+                            <div className="w-px h-4 bg-yellow-200/50"></div>
+                            <div className="flex items-center gap-1.5">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-yellow-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <circle cx="12" cy="12" r="8" />
+                                    <path d="M12 8v8" />
+                                    <path d="M8 12h8" />
+                                </svg>
+                                <span className="text-sm font-medium text-yellow-700">골드 +100</span>
+                            </div>
+                        </div>
                     </div>
 
                     {/* 메인 콘텐츠 - 그리드로 나눔 */}
@@ -1210,8 +1257,8 @@ export default function MissionsPage() {
                                         // 달성자에 추가
                                         currentMissions[missionIndex].achievers!.push(studentId);
 
-                                        // 학생에게 경험치 부여 및 능력치 증가
-                                        updateStudentExpAndLevel(studentId, EXP_FOR_MISSION, currentMissions[missionIndex].abilities);
+                                        // 학생에게 경험치 부여 및 능력치 증가, 골드 지급
+                                        updateStudentExpAndLevel(studentId, EXP_FOR_MISSION, currentMissions[missionIndex].abilities, 100);
 
                                         // 미션 정보 업데이트
                                         setMissions(currentMissions);
@@ -1227,10 +1274,10 @@ export default function MissionsPage() {
                                         toast.success(`${allNewAchievements.length}명의 학생이 미션 달성자로 등록되었습니다.`);
                                     }
 
+                                    // 모달 닫기
                                     setIsAddAchieverModalOpen(false);
                                 }}
                                 onCancel={() => setIsAddAchieverModalOpen(false)}
-                                renderStudentAvatar={renderStudentAvatar}
                             />
                         </div>
                     </div>
@@ -1238,24 +1285,24 @@ export default function MissionsPage() {
 
                 {/* 미션 삭제 확인 모달 */}
                 {isDeleteConfirmOpen && selectedMission && (
-                    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70]">
-                        <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
+                    <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-[60]">
+                        <div className="bg-white/90 backdrop-blur-sm rounded-lg shadow-xl p-6 w-full max-w-md">
                             <h3 className="text-xl font-bold text-red-600 mb-3">⚠️ 미션 삭제</h3>
                             <p className="text-slate-700 mb-6">
-                                <strong>{selectedMission.name}</strong> 미션을 정말 삭제하시겠습니까?
-                                이 작업은 되돌릴 수 없습니다.
+                                &quot;{selectedMission.name}&quot; 미션을 정말 삭제하시겠습니까?<br />
+                                이 작업은 되돌릴 수 없으며, 모든 미션 달성 내역이 함께 삭제됩니다.
                             </p>
 
                             <div className="flex justify-end gap-3">
                                 <button
                                     onClick={() => setIsDeleteConfirmOpen(false)}
-                                    className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md mr-2"
+                                    className="px-4 py-2 border border-slate-300 text-slate-700 rounded-md hover:bg-slate-50 transition"
                                 >
                                     취소
                                 </button>
                                 <button
                                     onClick={() => handleDeleteMission(selectedMission.id)}
-                                    className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-md"
+                                    className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition"
                                 >
                                     삭제하기
                                 </button>
@@ -1265,110 +1312,119 @@ export default function MissionsPage() {
                 )}
             </div>
         </div>
-    )
+    );
 }
 
-// 달성자 추가 폼 컴포넌트
-interface AddAchieverFormProps {
-    students: Student[]
-    existingAchieverIds: string[]
-    missionId: string
-    onSubmit: (studentIds: string[]) => void
+// AddAchieverForm 컴포넌트
+function AddAchieverForm({ students, existingAchieverIds, missionId, onSubmit, onCancel }: {
+    students: Student[],
+    existingAchieverIds: string[],
+    missionId: string,
+    onSubmit: (studentIds: string[]) => void,
     onCancel: () => void
-    renderStudentAvatar: (student: any) => React.ReactNode
-}
+}) {
+    const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
+    const [searchTerm, setSearchTerm] = useState("");
 
-function AddAchieverForm({ students, existingAchieverIds, missionId, onSubmit, onCancel, renderStudentAvatar }: AddAchieverFormProps) {
-    const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([])
-
-    // 중복 제거 및 이미 달성자인 학생들 제외
-    const uniqueStudentIds = new Set<string>();
-    const eligibleStudents = students
-        .filter(student => {
-            // 중복된 학생 필터링 (같은 ID를 가진 학생은 한 번만 포함)
-            if (uniqueStudentIds.has(student.id)) {
-                return false;
-            }
-
-            // 이미 달성자인 학생 필터링
-            if (existingAchieverIds.includes(student.id)) {
-                return false;
-            }
-
-            uniqueStudentIds.add(student.id);
-            return true;
-        });
-
-    console.log("중복 제거 후 유효한 학생 수:", eligibleStudents.length);
+    // 이미 달성한 학생 제외, 검색어로 필터링된 학생 목록
+    const filteredStudents = students.filter(student =>
+        !existingAchieverIds.includes(student.id) &&
+        (student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            student.number.toString().includes(searchTerm))
+    );
 
     const handleStudentToggle = (studentId: string) => {
-        if (selectedStudentIds.includes(studentId)) {
-            setSelectedStudentIds(selectedStudentIds.filter(id => id !== studentId))
-        } else {
-            setSelectedStudentIds([...selectedStudentIds, studentId])
-        }
-    }
+        setSelectedStudents(prev => {
+            if (prev.includes(studentId)) {
+                return prev.filter(id => id !== studentId);
+            } else {
+                return [...prev, studentId];
+            }
+        });
+    };
 
     const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault()
-        onSubmit(selectedStudentIds)
-    }
+        e.preventDefault();
+        if (selectedStudents.length > 0) {
+            onSubmit(selectedStudents);
+        }
+    };
 
     return (
-        <form onSubmit={handleSubmit}>
-            {eligibleStudents.length === 0 ? (
-                <div className="text-center py-8">
-                    <p className="text-slate-600">추가할 수 있는 학생이 없습니다.</p>
-                    <p className="text-sm text-slate-500 mt-1">모든 학생이 이미 미션을 달성했습니다.</p>
-                </div>
-            ) : (
-                <>
-                    <div className="mb-4">
-                        <p className="mb-2 text-sm text-slate-600">미션을 달성한 학생을 선택하세요</p>
-                        <div className="max-h-64 overflow-y-auto p-2 border rounded-md">
-                            {eligibleStudents.map((student) => (
-                                <div key={student.id} className="mb-2 last:mb-0">
-                                    <label className="flex items-center space-x-2 p-2 hover:bg-slate-50 rounded cursor-pointer">
-                                        <input
-                                            type="checkbox"
-                                            checked={selectedStudentIds.includes(student.id)}
-                                            onChange={() => handleStudentToggle(student.id)}
-                                            className="rounded border-slate-300 text-blue-600 focus:ring-blue-600"
-                                        />
-                                        <div className="flex items-center gap-2 flex-1">
-                                            <div className="w-8 h-8 rounded-full overflow-hidden relative bg-blue-50">
-                                                {renderStudentAvatar(student)}
-                                            </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-xs text-blue-600">{student.honorific}</span>
-                                                <span className="text-sm font-medium text-slate-800">{student.name}</span>
-                                            </div>
-                                        </div>
-                                        <span className="text-xs bg-slate-100 px-2 py-0.5 rounded-full text-slate-600">{student.number}번</span>
-                                    </label>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
+        <div>
+            {/* 검색창 */}
+            <div className="mb-4 relative">
+                <input
+                    type="text"
+                    placeholder="학생 이름 검색..."
+                    className="w-full p-2 pl-8 border border-slate-300 rounded-md"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 absolute left-2 top-3 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-18 0 7 7 0 0118 0z" />
+                </svg>
+            </div>
 
-                    <div className="flex justify-end space-x-2 mt-6">
-                        <button
-                            type="button"
-                            onClick={onCancel}
-                            className="px-4 py-2 border border-slate-300 rounded-md text-slate-700 hover:bg-slate-50 transition-colors"
-                        >
-                            취소
-                        </button>
-                        <button
-                            type="submit"
-                            disabled={selectedStudentIds.length === 0}
-                            className="px-4 py-2 bg-blue-600 rounded-md text-white hover:bg-blue-700 transition-colors disabled:bg-blue-300 disabled:cursor-not-allowed"
-                        >
-                            {selectedStudentIds.length}명 추가하기
-                        </button>
+            {/* 학생 선택 목록 */}
+            <div className="max-h-[50vh] overflow-y-auto mb-4 space-y-2">
+                {filteredStudents.length === 0 ? (
+                    <div className="text-center py-4 text-slate-500">
+                        {searchTerm ? "검색 결과가 없습니다." : "미션을 달성할 수 있는 학생이 없습니다."}
                     </div>
-                </>
-            )}
-        </form>
-    )
-} 
+                ) : (
+                    filteredStudents.map(student => (
+                        <div
+                            key={student.id}
+                            className={`p-3 border rounded-lg flex items-center justify-between cursor-pointer
+                                ${selectedStudents.includes(student.id)
+                                    ? 'bg-blue-50 border-blue-300'
+                                    : 'bg-white border-slate-200 hover:border-blue-300'}`}
+                            onClick={() => handleStudentToggle(student.id)}
+                        >
+                            <div className="flex items-center">
+                                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3 overflow-hidden">
+                                    {student.iconType ? (
+                                        <img src={student.iconType} alt={student.name} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="text-blue-500 font-bold">{student.name?.charAt(0) || "?"}</span>
+                                    )}
+                                </div>
+                                <div>
+                                    <div className="font-medium text-slate-800">{student.name}</div>
+                                    <div className="text-xs text-slate-500">
+                                        {student.honorific || `학생 #${student.number}`}
+                                    </div>
+                                </div>
+                            </div>
+                            {selectedStudents.includes(student.id) && (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-600" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                            )}
+                        </div>
+                    ))
+                )}
+            </div>
+
+            {/* 하단 버튼 */}
+            <div className="flex justify-end space-x-2 mt-4">
+                <button
+                    type="button"
+                    onClick={onCancel}
+                    className="px-4 py-2 border border-slate-300 text-slate-700 rounded-md hover:bg-slate-50 transition"
+                >
+                    취소
+                </button>
+                <button
+                    type="button"
+                    onClick={handleSubmit}
+                    className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition"
+                    disabled={selectedStudents.length === 0}
+                >
+                    {selectedStudents.length}명 등록하기
+                </button>
+            </div>
+        </div>
+    );
+}

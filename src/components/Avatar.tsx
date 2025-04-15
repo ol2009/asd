@@ -1,6 +1,6 @@
 'use client'
 
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import Image from 'next/image'
 import {
     Avatar,
@@ -10,7 +10,8 @@ import {
     AvatarItem as AvatarItemType,
     AvatarRarity,
     RARITY_NAMES,
-    RARITY_BORDER_CLASSES
+    RARITY_BORDER_CLASSES,
+    getAvatarItemDisplayName
 } from '@/lib/avatar'
 
 interface AvatarRendererProps {
@@ -76,6 +77,7 @@ interface AvatarItemRendererProps {
     onClick?: () => void;
     rarity?: AvatarRarity; // 희귀도 추가
     showRarityBadge?: boolean; // 희귀도 배지 표시 여부
+    itemId?: string; // 아이템 ID 추가
 }
 
 // 희귀도에 따른 배지 색상 클래스
@@ -94,10 +96,46 @@ export function AvatarItemRenderer({
     isSelected = false,
     onClick,
     rarity = AvatarRarity.COMMON,
-    showRarityBadge = true
+    showRarityBadge = true,
+    itemId
 }: AvatarItemRendererProps) {
     // 희귀도에 따른 테두리 스타일
     const rarityBorderClass = RARITY_BORDER_CLASSES[rarity];
+    const [displayName, setDisplayName] = useState(name);
+
+    // itemId가 있으면 커스텀 이름이 있는지 확인
+    useEffect(() => {
+        if (!itemId) return;
+
+        const checkCustomName = () => {
+            try {
+                const customNamesStr = localStorage.getItem('avatarCustomNames');
+                if (customNamesStr) {
+                    const customNames = JSON.parse(customNamesStr) as Record<string, string>;
+                    if (customNames[itemId]) {
+                        setDisplayName(customNames[itemId]);
+                    } else {
+                        setDisplayName(name);
+                    }
+                }
+            } catch (error) {
+                console.error('이름 로드 오류:', error);
+            }
+        };
+
+        // 초기 로드
+        checkCustomName();
+
+        // 로컬 스토리지 변경 이벤트 리스너
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === 'avatarCustomNames') {
+                checkCustomName();
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, [itemId, name]);
 
     return (
         <div
@@ -106,7 +144,7 @@ export function AvatarItemRenderer({
                 ${rarityBorderClass}`}
             style={{ width: size, height: size }}
             onClick={onClick}
-            title={`${name} [${RARITY_NAMES[rarity]}]`}
+            title={`${displayName} [${RARITY_NAMES[rarity]}]`}
         >
             {/* 희귀도 배지 (선택적) - 숫자 제거 */}
             {showRarityBadge && rarity > AvatarRarity.COMMON && (
@@ -117,7 +155,7 @@ export function AvatarItemRenderer({
 
             <Image
                 src={imagePath}
-                alt={name}
+                alt={displayName}
                 width={size}
                 height={size}
                 className="w-full h-full object-contain object-center"

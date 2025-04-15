@@ -203,6 +203,57 @@ const PointShopTab: React.FC<PointShopTabProps> = ({
         }, 1000);
     };
 
+    // 쿠폰 사용 처리 함수 추가
+    const handleUseCoupon = (purchaseId: string) => {
+        try {
+            // 쿠폰 사용 처리 로직
+            const key = `pointshop_purchases_${classId}_${studentId}`;
+            const savedPurchases = localStorage.getItem(key) || '[]';
+            const purchases = JSON.parse(savedPurchases);
+
+            // 구매 내역 업데이트
+            const updatedPurchases = purchases.map((purchase: PurchaseHistory) => {
+                if (purchase.id === purchaseId) {
+                    return {
+                        ...purchase,
+                        used: true,
+                        usedDate: new Date().toISOString()
+                    };
+                }
+                return purchase;
+            });
+
+            // 로컬 스토리지에 저장
+            localStorage.setItem(key, JSON.stringify(updatedPurchases));
+
+            // 해당 쿠폰을 전체 구매 내역에서도 업데이트
+            const allPurchasesKey = `purchase_history_${classId}`;
+            const allPurchases = JSON.parse(localStorage.getItem(allPurchasesKey) || '[]');
+
+            const updatedAllPurchases = allPurchases.map((purchase: any) => {
+                if (purchase.id === purchaseId && purchase.studentId === studentId) {
+                    return {
+                        ...purchase,
+                        used: true,
+                        usedDate: new Date().toISOString()
+                    };
+                }
+                return purchase;
+            });
+
+            localStorage.setItem(allPurchasesKey, JSON.stringify(updatedAllPurchases));
+
+            // 구매 내역 상태 업데이트
+            setPurchaseHistory(updatedPurchases);
+
+            // 성공 메시지
+            toast.success('쿠폰이 사용 완료 처리되었습니다!');
+        } catch (error) {
+            console.error('쿠폰 사용 처리 중 오류:', error);
+            toast.error('쿠폰 사용 처리 중 오류가 발생했습니다.');
+        }
+    };
+
     // 필터링된 구매 내역 계산 - 아바타 아이템은 제외하고 표시
     const filteredPurchaseHistory = showUsedCoupons
         ? purchaseHistory.filter(purchase => purchase.item.type !== PointShopItemType.AVATAR && purchase.item.itemType !== 'avatar')
@@ -231,7 +282,7 @@ const PointShopTab: React.FC<PointShopTabProps> = ({
     return (
         <div>
             <div className="flex justify-between items-center mb-3">
-                <h3 className="text-base font-bold text-gray-800">쿠폰 상점</h3>
+                <h3 className="text-base font-bold text-gray-800">골드 상점</h3>
                 <div className="text-yellow-600 font-medium">
                     보유 골드: {displayedPoints} G
                 </div>
@@ -264,7 +315,7 @@ const PointShopTab: React.FC<PointShopTabProps> = ({
                         : 'text-gray-600 hover:text-blue-500'
                         }`}
                 >
-                    내 쿠폰함
+                    학급 쿠폰 보관함
                 </button>
             </div>
 
@@ -452,10 +503,25 @@ const PointShopTab: React.FC<PointShopTabProps> = ({
                                             <div className="text-sm font-medium text-yellow-600 mb-1">
                                                 {purchase.item.price} G
                                             </div>
-                                            {!purchase.used && (
-                                                <div className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">
-                                                    사용 가능
+                                            {!purchase.used ? (
+                                                <div className="flex flex-col items-end gap-2">
+                                                    <div className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded-full">
+                                                        사용 가능
+                                                    </div>
+                                                    <button
+                                                        onClick={() => handleUseCoupon(purchase.id)}
+                                                        className="px-3 py-1 text-xs rounded-full bg-blue-500 hover:bg-blue-600 text-white"
+                                                    >
+                                                        쿠폰 사용
+                                                    </button>
                                                 </div>
+                                            ) : (
+                                                <button
+                                                    disabled
+                                                    className="px-3 py-1 text-xs rounded-full bg-gray-300 text-gray-600 cursor-not-allowed"
+                                                >
+                                                    사용 완료
+                                                </button>
                                             )}
                                         </div>
                                     </div>
@@ -468,8 +534,8 @@ const PointShopTab: React.FC<PointShopTabProps> = ({
                         <div className="mt-4 p-3 bg-blue-50 rounded-lg text-sm text-blue-700">
                             <p className="font-medium mb-1">쿠폰 사용 안내</p>
                             <ul className="list-disc list-inside text-xs space-y-1">
-                                <li>구매한 쿠폰은 선생님에게 보여주고 사용할 수 있습니다.</li>
-                                <li>사용된 쿠폰은 선생님이 사용 처리를 해주며, 재사용할 수 없습니다.</li>
+                                <li>구매한 쿠폰은 '쿠폰 사용' 버튼을 클릭하여 사용할 수 있습니다.</li>
+                                <li>사용된 쿠폰은 재사용할 수 없습니다.</li>
                                 <li>쿠폰 사용에 대한 자세한 내용은 선생님께 문의하세요.</li>
                             </ul>
                         </div>

@@ -5,8 +5,10 @@ export interface Student {
     id: string;
     name: string;
     honorific?: string;
-    level: number;
-    exp: number;
+    stats: {
+        level: number;
+        exp: number;
+    };
     points: number;
     abilities: {
         intelligence: number;
