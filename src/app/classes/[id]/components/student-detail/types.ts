@@ -65,6 +65,8 @@ export interface ChallengeStep {
     title: string;
     description: string;
     completedAt?: string;
+    stepNumber?: number;
+    safeStepNumber?: number;
 }
 
 // 완료된 챌린지
@@ -76,6 +78,7 @@ export interface CompletedChallenge {
     abilities?: AbilityFlags;
     rewards?: Reward;
     timestamp: string;
+    rewardTitle?: string;
 }
 
 // 기존 타입과의 호환성을 위한 타입 별칭

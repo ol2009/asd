@@ -509,7 +509,8 @@ export default function ChallengePage() {
         // 2. 경험치와 레벨 업데이트
         filteredStudentIds.forEach(studentId => {
             // 기존 내부 함수 호출을 useStudentData에서 제공하는 함수로 교체
-            updateStudentExpAndLevel(studentId, EXP_FOR_CHALLENGE_STEP, selectedChallenge.abilities);
+            // 챌린지는 골드를 추가로 지급하지 않음, 경험치만 200 지급
+            updateStudentExpAndLevel(studentId, EXP_FOR_CHALLENGE_STEP, selectedChallenge.abilities, 0);
         });
 
         // 3. 마지막 단계 완료 시 칭호 부여
@@ -771,8 +772,41 @@ export default function ChallengePage() {
 
             // 6. 경험치 및 레벨 업데이트
             if (selectedChallenge) {
-                // 기존 내부 함수 호출을 useStudentData에서 제공하는 함수로 교체
-                updateStudentExpAndLevel(studentId, EXP_FOR_CHALLENGE_STEP, selectedChallenge.abilities);
+                try {
+                    // 단계 번호를 정확히 추출 (stepId에서 숫자 추출 또는 인덱스 + 1)
+                    const stepNumber = step.id.replace(/\D/g, '');
+                    let actualStepNumber: number;
+
+                    // 스텝 번호가 추출되면 사용, 아니면 인덱스 기반으로 계산
+                    if (stepNumber && parseInt(stepNumber) > 0 && parseInt(stepNumber) < 100) {
+                        actualStepNumber = parseInt(stepNumber);
+                    } else {
+                        const stepIndex = challenge.steps.findIndex((s: any) => s.id === step.id);
+                        actualStepNumber = stepIndex + 1; // 인덱스는 0부터 시작하므로 +1
+                    }
+
+                    // 단계 번호가 1~10 범위를 벗어나지 않도록 제한
+                    actualStepNumber = Math.min(Math.max(1, actualStepNumber), 10);
+
+                    // 단계 번호에 따른 경험치 계산 (각 단계마다 EXP_FOR_CHALLENGE_STEP 경험치)
+                    // 안전하게 수의 범위 제한
+                    const expToAdd = Math.min(actualStepNumber * EXP_FOR_CHALLENGE_STEP, 2000);
+
+                    console.log(`단계 ${actualStepNumber}에 따라 경험치 ${expToAdd} 추가 (최대 2000)`);
+
+                    // 수정된 경험치로 업데이트 - 기존 abilities 객체 그대로 사용
+                    // 안전하게 값의 범위를 제한하여 업데이트
+                    const result = updateStudentExpAndLevel(studentId, expToAdd, selectedChallenge.abilities, 0);
+
+                    if (result) {
+                        console.log("경험치 업데이트 성공:", expToAdd);
+                    } else {
+                        console.error("경험치 업데이트 실패");
+                    }
+                } catch (error) {
+                    console.error("경험치 업데이트 중 오류 발생:", error);
+                    toast.error("경험치 업데이트 중 오류가 발생했습니다");
+                }
             }
 
             // 7. 마지막 단계면 칭호 부여 (보상)

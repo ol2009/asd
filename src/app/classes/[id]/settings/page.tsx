@@ -5,10 +5,12 @@ import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card } from '@/components/ui/card'
-import { CalendarIcon, School, Users, Calendar, Save, Check, ArrowLeft, LogOut } from 'lucide-react'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { CalendarIcon, School, Users, Calendar, Save, Check, ArrowLeft, LogOut, Settings, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import { ExpNormalizationButton } from '../components/ExpNormalizationButton'
+import { normalizeStudentExpData } from '../utils/data-migration'
 
 interface ClassInfo {
     id: string
@@ -30,6 +32,12 @@ export default function ClassSettingsPage() {
     const classId = params?.id as string
     const [isLoading, setIsLoading] = useState(true)
     const [classInfo, setClassInfo] = useState<ClassInfo | null>(null)
+    const [normalizationResult, setNormalizationResult] = useState<{
+        success?: boolean;
+        message?: string;
+        processed?: number;
+        timestamp?: Date;
+    }>({})
 
     // 설정 양식 데이터
     const [formData, setFormData] = useState({
@@ -149,6 +157,13 @@ export default function ClassSettingsPage() {
         } finally {
             setIsSaving(false)
         }
+    }
+
+    const handleNormalizationComplete = (result: { success: boolean; message: string; processed: number }) => {
+        setNormalizationResult({
+            ...result,
+            timestamp: new Date()
+        })
     }
 
     if (isLoading) {
@@ -309,6 +324,72 @@ export default function ClassSettingsPage() {
                         </Button>
                     </div>
                 </div>
+
+                {/* 데이터 관리 섹션 */}
+                <Card className="mt-6">
+                    <CardHeader>
+                        <CardTitle>데이터 관리</CardTitle>
+                        <CardDescription>
+                            클래스 데이터를 관리하고 문제를 해결하는 도구입니다.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="space-y-4">
+                            <div className="border border-amber-200 bg-amber-50 rounded-md p-4">
+                                <div className="flex items-start">
+                                    <AlertTriangle className="h-5 w-5 text-amber-500 mr-2 mt-0.5 flex-shrink-0" />
+                                    <div>
+                                        <h3 className="font-semibold text-amber-800">경험치 데이터 정상화</h3>
+                                        <p className="text-sm text-amber-700 mb-2">
+                                            이 도구는 학생들의 경험치 데이터 문제를 해결합니다. 경험치가 10배로 표시되는 경우 사용하세요.
+                                            정상화 이후에는 페이지가 새로고침됩니다.
+                                        </p>
+                                        <div className="mt-4">
+                                            <ExpNormalizationButton
+                                                classId={classId}
+                                                onComplete={handleNormalizationComplete}
+                                                variant="outline"
+                                            />
+                                        </div>
+
+                                        {normalizationResult.timestamp && (
+                                            <div className="mt-3 text-xs text-gray-600 border-t border-amber-200 pt-2">
+                                                <p>
+                                                    마지막 실행: {normalizationResult.timestamp.toLocaleString()}
+                                                    ({normalizationResult.success ? '성공' : '실패'})
+                                                </p>
+                                                {normalizationResult.processed !== undefined && (
+                                                    <p>처리된 학생 수: {normalizationResult.processed}명</p>
+                                                )}
+                                                {normalizationResult.message && (
+                                                    <p>결과: {normalizationResult.message}</p>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr />
+
+                            {/* 다른 관리 도구들 */}
+                            <div>
+                                <h3 className="font-semibold mb-2">기타 관리 도구</h3>
+                                <p className="text-sm text-gray-600 mb-4">
+                                    클래스 데이터 관리를 위한 추가 도구들입니다.
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                    <Button variant="outline" size="sm" onClick={() => alert('준비 중인 기능입니다.')}>
+                                        데이터 백업
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => alert('준비 중인 기능입니다.')}>
+                                        데이터 복원
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </CardContent>
+                </Card>
             </div>
         </div>
     )

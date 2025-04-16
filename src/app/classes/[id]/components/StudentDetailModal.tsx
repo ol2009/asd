@@ -456,10 +456,31 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
                         const avatarItem = getRandomPremiumAvatarItemByType(type);
 
                         if (avatarItem) {
-                            // 아바타 아이템 획득 업데이트
-                            loadAvatarItems();
+                            // 아바타 아이템 저장소에 추가
+                            const avatarItemsKey = `student_avatar_items_${classId}_${studentId}`;
+                            const storedItems = localStorage.getItem(avatarItemsKey);
+                            let items = storedItems ? JSON.parse(storedItems) : [];
 
-                            toast.success(`${avatarItem.name} 아이템을 획득했습니다!`);
+                            // 중복 검사 (같은 id의 아이템이 이미 있는지 확인)
+                            const isDuplicate = items.some((existingItem: any) => existingItem.id === avatarItem.id);
+
+                            if (!isDuplicate) {
+                                // 새 아이템 추가
+                                items.push(avatarItem);
+                                localStorage.setItem(avatarItemsKey, JSON.stringify(items));
+
+                                // UI에 즉시 반영
+                                setAvailableAvatarItems(prevItems => [...prevItems, avatarItem]);
+
+                                console.log(`새 아바타 아이템 추가됨: ${avatarItem.name} (타입: ${type})`);
+                                toast.success(`${avatarItem.name} 아이템을 획득했습니다!`);
+
+                                // 아바타 탭으로 이동 (선택적)
+                                setActiveTab('avatar');
+                            } else {
+                                console.log(`중복된 아바타 아이템: ${avatarItem.name}`);
+                                toast.info(`이미 보유한 ${avatarItem.name} 아이템입니다!`);
+                            }
                         } else {
                             // 아이템을 찾을 수 없는 경우
                             toast.error(`해당 타입의 아바타 아이템을 찾을 수 없습니다.`);

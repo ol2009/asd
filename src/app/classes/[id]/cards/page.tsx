@@ -271,7 +271,8 @@ export default function PraiseCardsPage() {
         // 선택된 모든 학생에게 카드 발급 및 경험치 부여
         selectedStudents.forEach(studentId => {
             // 경험치 및 능력치 업데이트 - useStudentData 훅 사용
-            updateStudentExpAndLevel(studentId, EXP_FOR_PRAISE_CARD, selectedCard.abilities);
+            // 경험치 50과 골드 50을 함께 지급
+            updateStudentExpAndLevel(studentId, EXP_FOR_PRAISE_CARD, selectedCard.abilities, 50);
         })
 
         // 선택 초기화

@@ -41,6 +41,11 @@ interface UseStudentDataReturn {
 // 상수 값을 훅 내부에서 사용할 수 있도록 추가
 const POINTS_PER_LEVEL = 100; // 레벨업 시 획득 포인트
 
+// 각 활동별 보상 정의
+const MISSION_REWARDS = { exp: 100, gold: 100 };
+const CHALLENGE_STEP_REWARDS = { exp: 200, gold: 0 }; // 챌린지 1단계당 보상
+const PRAISE_CARD_REWARDS = { exp: 50, gold: 50 };
+
 export function useStudentData({ studentId, classId }: UseStudentDataProps): UseStudentDataReturn {
     const [student, setStudent] = useState<Student | null>(null)
     const [completedChallenges, setCompletedChallenges] = useState<CompletedChallenge[]>([])
@@ -52,6 +57,19 @@ export function useStudentData({ studentId, classId }: UseStudentDataProps): Use
     const [missionsLoading, setMissionsLoading] = useState(true)
     const [cardsLoading, setCardsLoading] = useState(true)
     const [pointshopLoading, setPointshopLoading] = useState(true)
+
+    const [statsLoading, setStatsLoading] = useState(true)
+    const [stats, setStats] = useState<StudentStats>({
+        totalExp: 0,
+        abilities: {
+            strength: 0,
+            dexterity: 0,
+            constitution: 0,
+            intelligence: 0,
+            wisdom: 0,
+            charisma: 0
+        }
+    })
 
     useEffect(() => {
         // studentId나 classId가 없으면 데이터 로드하지 않음
@@ -71,6 +89,48 @@ export function useStudentData({ studentId, classId }: UseStudentDataProps): Use
 
         loadData();
     }, [studentId, classId]);
+
+    // 학생 데이터와 완료된 챌린지 목록이 모두 로드된 경우, 스탯 계산
+    useEffect(() => {
+        if (student && completedChallenges.length > 0 && !statsLoading) {
+            console.log('스탯 계산 시작...');
+
+            // 초기 스탯 값 설정
+            const initialStats: StudentStats = {
+                totalExp: 0,
+                abilities: {
+                    strength: 0,
+                    dexterity: 0,
+                    constitution: 0,
+                    intelligence: 0,
+                    wisdom: 0,
+                    charisma: 0
+                }
+            };
+
+            // 모든 완료된 챌린지에서 스탯 합산
+            const calculatedStats = completedChallenges.reduce((stats, challenge) => {
+                // 경험치 합산
+                stats.totalExp += challenge.rewards.exp;
+
+                // 능력치 합산
+                if (challenge.abilities) {
+                    Object.entries(challenge.abilities).forEach(([ability, value]) => {
+                        if (ability in stats.abilities) {
+                            // 비정상적으로 큰 능력치 값 정규화
+                            const normalizedValue = normalizeAbilityValue(value);
+                            stats.abilities[ability as keyof Abilities] += normalizedValue;
+                        }
+                    });
+                }
+                return stats;
+            }, initialStats);
+
+            console.log('계산된 스탯:', calculatedStats);
+            setStats(calculatedStats);
+            setStatsLoading(false);
+        }
+    }, [student, completedChallenges, statsLoading]);
 
     const loadStudentInfo = async () => {
         try {
@@ -304,7 +364,9 @@ export function useStudentData({ studentId, classId }: UseStudentDataProps): Use
                                     id: step.id,
                                     title: `${actualStepNumber}단계`,
                                     description: step.goal,
-                                    completedAt: completedAt
+                                    completedAt: completedAt,
+                                    // 실제 단계 번호 저장 - 1~10 범위로 제한
+                                    stepNumber: Math.min(Math.max(1, actualStepNumber), 10)
                                 });
                             } else {
                                 console.log(`학생 ${currentStudentId}는 챌린지 ${challenge.name}(ID: ${challenge.id})의 단계 ${step.goal}를 완료하지 않음`);
@@ -334,6 +396,14 @@ export function useStudentData({ studentId, classId }: UseStudentDataProps): Use
                         completedStepCount = completedSteps.length;
                     }
 
+                    // 단계 번호로 정렬
+                    completedSteps.sort((a, b) => {
+                        // 단계 번호가 1~10 범위를 벗어나지 않도록 보장
+                        const aNumber = Math.min(Math.max(1, a.stepNumber || parseInt(a.id.replace(/\D/g, '')) || 1), 10);
+                        const bNumber = Math.min(Math.max(1, b.stepNumber || parseInt(b.id.replace(/\D/g, '')) || 1), 10);
+                        return aNumber - bNumber;
+                    });
+
                     // 마지막으로 완료한 단계의 정보를 명확히 표시
                     const lastCompletedStep = completedSteps[completedSteps.length - 1];
                     const descriptionText = isFullyCompleted
@@ -346,21 +416,23 @@ export function useStudentData({ studentId, classId }: UseStudentDataProps): Use
                         description: descriptionText
                     });
 
-                    completedChallenges.push({
+                    // 완료된 챌린지 정보 생성
+                    const completedChallenge: CompletedChallenge = {
                         id: challenge.id,
                         title: challenge.name,
-                        description: descriptionText,
-                        steps: completedSteps.sort((a, b) =>
-                            // 단계별로 정렬 - id 기준으로 오름차순 정렬 (1단계, 2단계, ... 순서대로)
-                            Number(a.id.replace(/\D/g, '') || 0) - Number(b.id.replace(/\D/g, '') || 0)
-                        ),
-                        abilities: challenge.abilities,
+                        description: '',
+                        steps: completedSteps,
+                        abilities: challenge.abilities || {},
                         rewards: {
-                            exp: isFullyCompleted ? 200 : 100, // 모두 완료 시 더 많은 경험치
-                            gold: 0
+                            // 경험치는 고정된 값 (완료한 단계 수 * 200)을 사용
+                            // 비정상적으로 큰 값은, 해당 값을 10으로 나누어 정규화
+                            exp: normalizeLargeExp(CHALLENGE_STEP_REWARDS.exp * Math.min(completedStepCount, 10)),
+                            gold: isFullyCompleted ? CHALLENGE_STEP_REWARDS.gold : 0 // 챌린지 완료시에만 골드 지급
                         },
                         timestamp: lastCompletedDate || new Date().toISOString()
-                    });
+                    };
+
+                    completedChallenges.push(completedChallenge);
                 } else {
                     console.log(`챌린지 ${challenge.name}(ID: ${challenge.id})의 단계를 하나도 완료하지 않음`);
                 }
@@ -379,6 +451,17 @@ export function useStudentData({ studentId, classId }: UseStudentDataProps): Use
         } finally {
             setChallengesLoading(false);
         }
+    };
+
+    // 비정상적으로 큰 경험치 값을 정규화하는 함수
+    const normalizeLargeExp = (exp: number): number => {
+        // 비정상적으로 큰 값(1000 이상)일 경우, 수정이 필요함을 로그로 남김
+        if (exp >= 1000) {
+            const normalizedExp = Math.round(exp / 10); // 10으로 나누어 정규화
+            console.log(`경험치 정규화: ${exp} → ${normalizedExp}`);
+            return normalizedExp;
+        }
+        return exp; // 정상 범위 내 값은 그대로 반환
     };
 
     const loadCompletedMissions = () => {
@@ -450,8 +533,8 @@ export function useStudentData({ studentId, classId }: UseStudentDataProps): Use
                         communication: false
                     },
                     rewards: {
-                        exp: 100,
-                        gold: 0
+                        exp: MISSION_REWARDS.exp,
+                        gold: MISSION_REWARDS.gold
                     },
                     timestamp: achievement.timestamp
                 };
@@ -530,8 +613,8 @@ export function useStudentData({ studentId, classId }: UseStudentDataProps): Use
                         communication: false
                     },
                     rewards: {
-                        exp: 50, // 칭찬카드 획득 시 기본 50 경험치
-                        gold: 0
+                        exp: PRAISE_CARD_REWARDS.exp,
+                        gold: PRAISE_CARD_REWARDS.gold
                     },
                     timestamp: history.issuedAt || new Date().toISOString()
                 };
@@ -830,6 +913,27 @@ export function useStudentData({ studentId, classId }: UseStudentDataProps): Use
         goldToAdd: number = 0
     ): Student | null => {
         try {
+            // 비정상적으로 큰 값이 입력되는 것을 방지
+            const safeExpToAdd = Math.min(Math.max(0, expToAdd), 2000); // 최대 2000 경험치로 제한
+            const safeGoldToAdd = Math.min(Math.max(0, goldToAdd), 1000); // 최대 1000 골드로 제한
+
+            // 입력값이 제한되었는지 확인하고 로그 출력
+            if (safeExpToAdd !== expToAdd) {
+                console.warn(`경험치 값이 제한됨: ${expToAdd} → ${safeExpToAdd}`);
+            }
+            if (safeGoldToAdd !== goldToAdd) {
+                console.warn(`골드 값이 제한됨: ${goldToAdd} → ${safeGoldToAdd}`);
+            }
+
+            // 디버깅: 어떤 함수가 호출했는지 추적
+            console.log('[DEBUG] updateStudentExpAndLevel 호출됨:', {
+                caller: new Error().stack?.split('\n')[2].trim(),
+                studentId,
+                expToAdd: safeExpToAdd, // 안전한 값 사용
+                goldToAdd: safeGoldToAdd, // 안전한 값 사용
+                abilities
+            });
+
             if (!classId) {
                 console.error('클래스 ID가 없습니다.');
                 return null;
@@ -851,7 +955,12 @@ export function useStudentData({ studentId, classId }: UseStudentDataProps): Use
             }
 
             const student = students[studentIndex];
-            console.log('업데이트 전 학생 상태:', JSON.stringify(student, null, 2));
+            console.log('[DEBUG] 업데이트 전 학생 상태:', {
+                name: student.name,
+                level: student.stats?.level,
+                exp: student.stats?.exp,
+                points: student.points
+            });
 
             // 학생 데이터 구조 표준화
             if (!student.stats) {
@@ -871,20 +980,37 @@ export function useStudentData({ studentId, classId }: UseStudentDataProps): Use
             const currentLevel = student.stats.level;
             const currentExp = student.stats.exp;
 
-            // 새로운 경험치 계산
-            const newExp = currentExp + expToAdd;
+            // 기존 경험치가 비정상적으로 크면 초기화
+            if (currentExp > 10000) {
+                console.warn(`비정상적으로 큰 경험치 값 감지: ${currentExp}, 0으로 초기화`);
+                student.stats.exp = 0;
+            }
+
+            // 새로운 경험치 계산 (안전한 값 사용)
+            const newExp = Math.min((student.stats.exp || 0) + safeExpToAdd, 10000); // 최대 10000으로 제한
+            console.log('[DEBUG] 경험치 계산:', {
+                currentExp: student.stats.exp,
+                safeExpToAdd,
+                newExp
+            });
 
             // 새로운 레벨 계산
             const { level: newLevel } = calculateLevelFromExp(newExp);
 
+            // 레벨이 비정상적으로 높으면 제한
+            const safeNewLevel = Math.min(newLevel, 100); // 최대 레벨 100으로 제한
+
             // 경험치 업데이트
             student.stats.exp = newExp;
-            student.stats.level = newLevel;
+            student.stats.level = safeNewLevel;
 
-            // 골드 추가 (미션 보상)
-            if (goldToAdd > 0) {
-                student.points = (student.points || 0) + goldToAdd;
-                console.log(`미션 완료 보상: ${goldToAdd} 골드 지급`);
+            // 골드 추가 (미션/칭찬카드 보상) - 안전한 값 사용
+            if (safeGoldToAdd > 0) {
+                const oldPoints = student.points || 0;
+                student.points = Math.min(oldPoints + safeGoldToAdd, 100000); // 최대 100000 포인트로 제한
+                console.log(`[DEBUG] 골드 추가: ${oldPoints} + ${safeGoldToAdd} = ${student.points}`);
+            } else {
+                console.log('[DEBUG] 골드 추가 없음 (goldToAdd가 0이하)');
             }
 
             // 학생이 abilities 객체를 가지고 있지 않으면 초기화
@@ -902,42 +1028,51 @@ export function useStudentData({ studentId, classId }: UseStudentDataProps): Use
             // 능력치 증가 (미션에서 선택된 능력치가 있는 경우)
             let abilitiesChanged = false;
             if (abilities) {
+                // 각 능력치 값이 합리적인 범위를 벗어나지 않게 제한
+                const MAX_ABILITY = 100; // 최대 능력치 값
+
                 if (abilities.intelligence) {
-                    student.abilities.intelligence = (student.abilities.intelligence || 1) + 1;
+                    const newVal = (student.abilities.intelligence || 1) + 1;
+                    student.abilities.intelligence = Math.min(newVal, MAX_ABILITY);
                     abilitiesChanged = true;
                 }
                 if (abilities.diligence) {
-                    student.abilities.diligence = (student.abilities.diligence || 1) + 1;
+                    const newVal = (student.abilities.diligence || 1) + 1;
+                    student.abilities.diligence = Math.min(newVal, MAX_ABILITY);
                     abilitiesChanged = true;
                 }
                 if (abilities.creativity) {
-                    student.abilities.creativity = (student.abilities.creativity || 1) + 1;
+                    const newVal = (student.abilities.creativity || 1) + 1;
+                    student.abilities.creativity = Math.min(newVal, MAX_ABILITY);
                     abilitiesChanged = true;
                 }
                 if (abilities.personality) {
-                    student.abilities.personality = (student.abilities.personality || 1) + 1;
+                    const newVal = (student.abilities.personality || 1) + 1;
+                    student.abilities.personality = Math.min(newVal, MAX_ABILITY);
                     abilitiesChanged = true;
                 }
                 if (abilities.health) {
-                    student.abilities.health = (student.abilities.health || 1) + 1;
+                    const newVal = (student.abilities.health || 1) + 1;
+                    student.abilities.health = Math.min(newVal, MAX_ABILITY);
                     abilitiesChanged = true;
                 }
                 if (abilities.communication) {
-                    student.abilities.communication = (student.abilities.communication || 1) + 1;
+                    const newVal = (student.abilities.communication || 1) + 1;
+                    student.abilities.communication = Math.min(newVal, MAX_ABILITY);
                     abilitiesChanged = true;
                 }
             }
 
             // 레벨업 시 포인트 지급
-            if (newLevel > currentLevel) {
-                const levelsGained = newLevel - currentLevel;
-                const pointsToAdd = levelsGained * POINTS_PER_LEVEL;
-                student.points = (student.points || 0) + pointsToAdd;
+            if (safeNewLevel > currentLevel) {
+                const levelsGained = safeNewLevel - currentLevel;
+                const pointsToAdd = Math.min(levelsGained * POINTS_PER_LEVEL, 1000); // 최대 1000포인트로 제한
+                student.points = Math.min((student.points || 0) + pointsToAdd, 100000); // 최대 100000 포인트로 제한
 
-                console.log(`레벨업! Lv.${currentLevel} -> Lv.${newLevel}, 포인트 +${pointsToAdd}`);
+                console.log(`레벨업! Lv.${currentLevel} -> Lv.${safeNewLevel}, 포인트 +${pointsToAdd}`);
 
                 // 레벨업 토스트 메시지
-                toast.success(`${student.name} 학생이 레벨업했습니다! Lv.${currentLevel} → Lv.${newLevel} (보상: ${pointsToAdd}G 지급)`);
+                toast.success(`${student.name} 학생이 레벨업했습니다! Lv.${currentLevel} → Lv.${safeNewLevel} (보상: ${pointsToAdd}G 지급)`);
             }
 
             // 학생 아이콘이 없는 경우 기본 아이콘 설정
@@ -1012,7 +1147,7 @@ export function useStudentData({ studentId, classId }: UseStudentDataProps): Use
             }
 
             // 경험치 획득 메시지
-            if (expToAdd > 0) {
+            if (safeExpToAdd > 0) {
                 const abilityTexts = [];
                 if (abilities?.intelligence) abilityTexts.push("지력 +1");
                 if (abilities?.diligence) abilityTexts.push("성실성 +1");
@@ -1022,7 +1157,17 @@ export function useStudentData({ studentId, classId }: UseStudentDataProps): Use
                 if (abilities?.communication) abilityTexts.push("의사소통 +1");
 
                 const abilitiesText = abilityTexts.length > 0 ? ` (${abilityTexts.join(', ')})` : '';
-                toast.success(`${student.name} 학생이 ${expToAdd} EXP를 획득했습니다!${abilitiesText}`);
+                const goldText = safeGoldToAdd > 0 ? `, ${safeGoldToAdd}G` : '';
+                toast.success(`${student.name} 학생이 ${safeExpToAdd} EXP${goldText}를 획득했습니다!${abilitiesText}`);
+
+                console.log('[DEBUG] 업데이트 완료된 학생 상태:', {
+                    name: student.name,
+                    level: student.stats.level,
+                    exp: student.stats.exp,
+                    points: student.points,
+                    expAdded: safeExpToAdd,
+                    goldAdded: safeGoldToAdd
+                });
             }
 
             return student;
@@ -1031,6 +1176,17 @@ export function useStudentData({ studentId, classId }: UseStudentDataProps): Use
             toast.error('학생 정보를 업데이트하는 중 오류가 발생했습니다.');
             return null;
         }
+    };
+
+    // 비정상적으로 큰 능력치 값을 정규화하는 함수
+    const normalizeAbilityValue = (value: number): number => {
+        // 비정상적으로 큰 값(10 이상)일 경우, 수정이 필요함을 로그로 남김
+        if (value >= 10) {
+            const normalizedValue = Math.round(value / 10); // 10으로 나누어 정규화
+            console.log(`능력치 정규화: ${value} → ${normalizedValue}`);
+            return normalizedValue;
+        }
+        return value; // 정상 범위 내 값은 그대로 반환
     };
 
     return {
