@@ -61,20 +61,10 @@ const StudentProfile: React.FC<StudentProfileProps> = ({
                             </div>
                         )}
                     </div>
-                    <button
-                        onClick={onEditIcon}
-                        className="absolute bottom-0 right-0 p-1 bg-blue-500 rounded-full"
-                        title="아이콘 변경"
-                    >
-                        <Edit className="w-4 h-4 text-white" />
-                    </button>
                 </div>
 
                 {/* 학생 이름 및 기본 정보 */}
                 <h3 className="text-xl font-bold text-blue-800 mb-1">{student.name}</h3>
-                <p className="text-slate-500 mb-2">
-                    {(student as any).number ? `${(student as any).number}번` : ''}
-                </p>
 
                 {/* 칭호 표시 및 수정 버튼 - 칭호가 있을 때만 표시 */}
                 {student.honorific && (
@@ -84,10 +74,10 @@ const StudentProfile: React.FC<StudentProfileProps> = ({
                         </span>
                         <button
                             onClick={onEditHonorific}
-                            className="p-1 text-yellow-500 hover:text-yellow-600"
+                            className="text-xs px-2 py-0.5 ml-1 border border-yellow-200 bg-yellow-50 hover:bg-yellow-100 text-yellow-600 rounded-md transition-colors"
                             title="칭호 변경"
                         >
-                            <Edit className="w-3 h-3" />
+                            칭호변경
                         </button>
                     </div>
                 )}

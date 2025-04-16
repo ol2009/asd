@@ -51,19 +51,27 @@ const defaultHonorifics = [
     '긍정적인'
 ]
 
-// 챌린지 달성 칭호 목록
-const challengeHonorifics = [
-    '미래 탐험가',
-    '지식 수집가',
-    '문제 해결사',
-    '탐구 전문가',
-    '창조적 사고자'
-]
-
 // 사용 가능한 칭호 목록을 반환하는 함수
-const getAvailableHonorifics = () => {
-    // 여기서는 간단히 챌린지 칭호만 반환합니다.
-    return challengeHonorifics;
+const getAvailableHonorifics = (completedChallenges: any[] = []) => {
+    // 디버깅 로그 추가
+    console.log('getAvailableHonorifics 호출됨, 완료된 챌린지 수:', completedChallenges?.length);
+    console.log('완료된 챌린지 목록:', JSON.stringify(completedChallenges, null, 2));
+
+    // 학생이 완료한 챌린지에서 획득한 칭호만 반환
+    const earnedHonorifics = completedChallenges
+        .filter(challenge => {
+            // 디버깅 로그 추가
+            console.log('챌린지 정보 확인:', JSON.stringify(challenge, null, 2));
+            // 챌린지와 rewardTitle이 있는지 확인
+            return challenge && typeof challenge.rewardTitle === 'string' && challenge.rewardTitle.trim() !== '';
+        })
+        .map(challenge => challenge.rewardTitle);
+
+    // 디버깅 로그 추가
+    console.log('획득한 칭호 목록:', earnedHonorifics);
+
+    // 중복 제거하여 반환
+    return [...new Set(earnedHonorifics)];
 }
 
 interface StudentDetailModalProps {
@@ -167,8 +175,33 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
     // 학생 칭호 변경 핸들러
     const handleHonorificChange = (honorific: string) => {
         if (student) {
-            updateStudentHonorific(honorific)
-            setIsEditingHonorific(false)
+            console.log('칭호 변경 시도:', { 기존칭호: student.honorific, 새칭호: honorific });
+
+            // 칭호 업데이트 시도
+            const success = updateStudentHonorific(honorific);
+
+            if (success) {
+                // 모달 닫기
+                setIsEditingHonorific(false);
+
+                // 토스트 메시지 표시
+                toast.success('칭호가 변경되었습니다!', {
+                    description: `"${honorific}" 칭호로 변경되었습니다.`,
+                    duration: 2000
+                });
+
+                // 콘솔 로그
+                console.log('칭호 변경 성공:', honorific);
+
+                // 상태가 업데이트되었는지 확인
+                console.log('변경 후 student 상태:', student);
+            } else {
+                // 실패 메시지
+                toast.error('칭호 변경에 실패했습니다.', {
+                    description: '잠시 후 다시 시도해주세요.',
+                    duration: 2000
+                });
+            }
         }
     }
 
@@ -520,6 +553,28 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
         }
     };
 
+    // 칭호 변경 모달이 닫힐 때 학생 정보를 새로 로드
+    useEffect(() => {
+        if (!isEditingHonorific && student) {
+            // 칭호 변경 모달이 닫혔을 때 최신 학생 정보 확인
+            console.log('칭호 변경 모달이 닫혔습니다. 현재 학생 칭호:', student.honorific);
+
+            // 저장소에서 최신 학생 정보 확인
+            const storedStudents = localStorage.getItem(`students_${classId}`);
+            if (storedStudents) {
+                try {
+                    const students = JSON.parse(storedStudents);
+                    const updatedStudent = students.find((s: any) => s.id === student.id);
+                    if (updatedStudent) {
+                        console.log('저장소에서 로드한 최신 학생 칭호:', updatedStudent.honorific);
+                    }
+                } catch (error) {
+                    console.error('학생 정보 확인 중 오류:', error);
+                }
+            }
+        }
+    }, [isEditingHonorific, student, classId]);
+
     // 모달 렌더링
     if (!isOpen) return null
 
@@ -635,16 +690,25 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
                         <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md">
                             <h3 className="text-lg font-medium mb-4">학생 칭호 변경</h3>
 
+                            {/* 디버깅 정보 */}
+                            <div className="mb-3 p-2 bg-gray-100 rounded text-xs overflow-auto max-h-20 hidden">
+                                <p>칭호 모달 렌더링 중, 완료된 챌린지 수: {completedChallenges?.length}</p>
+                                <p>사용 가능한 챌린지 칭호 수: {getAvailableHonorifics(completedChallenges).length}</p>
+                            </div>
+
                             <div className="space-y-2">
                                 <div className="font-medium text-sm mb-2">기본 칭호</div>
                                 <div className="grid grid-cols-2 gap-2 mb-4">
                                     {honorifics.map((honorific) => (
                                         <button
                                             key={honorific}
-                                            onClick={() => handleHonorificChange(honorific)}
+                                            onClick={() => {
+                                                console.log('기본 칭호 클릭됨:', honorific);
+                                                handleHonorificChange(honorific);
+                                            }}
                                             className={`py-2 px-3 rounded-lg transition-colors ${student?.honorific === honorific
                                                 ? 'bg-blue-500 text-white'
-                                                : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                                                : 'bg-blue-50 text-blue-700 hover:bg-blue-100 hover:scale-105 hover:shadow-md'
                                                 }`}
                                         >
                                             {honorific}
@@ -654,18 +718,41 @@ const StudentDetailModal: React.FC<StudentDetailModalProps> = ({
 
                                 <div className="font-medium text-sm mb-2">챌린지 달성 칭호</div>
                                 <div className="grid grid-cols-2 gap-2">
-                                    {getAvailableHonorifics().map((honorific) => (
-                                        <button
-                                            key={honorific}
-                                            onClick={() => handleHonorificChange(honorific)}
-                                            className={`py-2 px-3 rounded-lg transition-colors ${student.honorific === honorific
-                                                ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-white font-medium shadow-sm'
-                                                : 'bg-gradient-to-r from-yellow-50 to-amber-50 text-amber-700 hover:from-yellow-100 hover:to-amber-100 border border-amber-200'
-                                                }`}
-                                        >
-                                            {honorific}
-                                        </button>
-                                    ))}
+                                    {(() => {
+                                        // 컴포넌트 내부에서 한 번만 계산하도록 변수에 할당
+                                        const availableHonorifics = getAvailableHonorifics(completedChallenges);
+                                        console.log('사용 가능한 챌린지 칭호:', availableHonorifics);
+
+                                        // 칭호가 있으면 버튼으로 표시
+                                        if (availableHonorifics.length > 0) {
+                                            return availableHonorifics.map((honorific) => (
+                                                <button
+                                                    key={honorific}
+                                                    onClick={() => {
+                                                        console.log('챌린지 달성 칭호 클릭됨:', honorific);
+                                                        handleHonorificChange(honorific);
+                                                    }}
+                                                    className={`py-2 px-3 rounded-lg transition-colors ${student.honorific === honorific
+                                                        ? 'bg-gradient-to-r from-yellow-500 to-amber-500 text-white font-medium shadow-sm'
+                                                        : 'bg-gradient-to-r from-yellow-50 to-amber-50 text-amber-700 hover:from-yellow-100 hover:to-amber-100 border border-amber-200 hover:scale-105 hover:shadow-md'
+                                                        }`}
+                                                >
+                                                    {honorific}
+                                                </button>
+                                            ));
+                                        }
+
+                                        // 칭호가 없으면 안내 메시지 표시
+                                        return (
+                                            <p className="col-span-2 text-sm text-gray-500 py-2 px-3 bg-gray-50 rounded-lg text-center">
+                                                아직 획득한 챌린지 칭호가 없습니다.
+                                                <br />
+                                                <span className="text-xs">
+                                                    챌린지를 완료하여 특별한 칭호를 획득하세요!
+                                                </span>
+                                            </p>
+                                        );
+                                    })()}
                                 </div>
                             </div>
 

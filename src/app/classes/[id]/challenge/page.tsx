@@ -657,7 +657,38 @@ export default function ChallengePage() {
                 console.warn('class_classId 스토리지 데이터가 없음');
             }
 
-            // 4. 학생 이름 찾기 (메시지 표시용)
+            // 4. class-${classId}-students 형식의 저장소도 업데이트 (하이픈 형식)
+            const hyphenClassStudentsJson = localStorage.getItem(`class-${classId}-students`);
+            if (hyphenClassStudentsJson) {
+                try {
+                    const hyphenClassStudents = JSON.parse(hyphenClassStudentsJson);
+
+                    if (Array.isArray(hyphenClassStudents)) {
+                        const studentIndex = hyphenClassStudents.findIndex(
+                            (s: Student) => s.id === studentId
+                        );
+
+                        if (studentIndex !== -1) {
+                            // 칭호 업데이트
+                            hyphenClassStudents[studentIndex].honorific = honorific;
+                            console.log(`class-${classId}-students 스토리지 학생 칭호 업데이트 완료`);
+
+                            // 저장
+                            localStorage.setItem(`class-${classId}-students`, JSON.stringify(hyphenClassStudents));
+                        } else {
+                            console.warn(`class-${classId}-students 스토리지에서 학생을 찾을 수 없음:`, studentId);
+                        }
+                    } else {
+                        console.warn(`class-${classId}-students 스토리지의 데이터가 배열이 아님`);
+                    }
+                } catch (error) {
+                    console.error(`class-${classId}-students 스토리지 업데이트 오류:`, error);
+                }
+            } else {
+                console.warn(`class-${classId}-students 스토리지 데이터가 없음`);
+            }
+
+            // 5. 학생 이름 찾기 (메시지 표시용)
             let studentName = '알 수 없음';
             const savedStudentsForName = localStorage.getItem(`students_${classId}`);
             if (savedStudentsForName) {

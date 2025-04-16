@@ -79,6 +79,7 @@ export interface CompletedChallenge {
     rewards?: Reward;
     timestamp: string;
     rewardTitle?: string;
+    totalSteps?: number;
 }
 
 // 기존 타입과의 호환성을 위한 타입 별칭

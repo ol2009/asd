@@ -18,6 +18,16 @@ const AbilitiesDisplay: React.FC<AbilitiesDisplayProps> = ({ student }) => {
         communication: "의사소통 역량과 관련. 남의 의견을 경청하고 자신의 의견을 표현할 줄 알며 협력적으로 소통하는 능력."
     }
 
+    // 능력치 랭크 계산 함수
+    const calculateRank = (value: number = 1) => {
+        if (value >= 26) return { rank: 'LEGEND', color: 'text-orange-500 font-extrabold animate-pulse' };
+        if (value >= 21) return { rank: 'SS', color: 'text-purple-800 font-extrabold' };
+        if (value >= 16) return { rank: 'S', color: 'text-purple-600 font-bold' };
+        if (value >= 11) return { rank: 'A', color: 'text-red-600 font-bold' };
+        if (value >= 6) return { rank: 'B', color: 'text-blue-600 font-medium' };
+        return { rank: 'C', color: 'text-gray-800 font-normal' };
+    };
+
     return (
         <div className="bg-white rounded-lg border border-gray-200 p-4 mb-4">
             <h3 className="text-base font-bold text-gray-800 mb-3">학생 능력치</h3>
@@ -29,7 +39,12 @@ const AbilitiesDisplay: React.FC<AbilitiesDisplayProps> = ({ student }) => {
                         <Cpu className="w-4 h-4 text-blue-600 mr-1.5" />
                         <span className="text-sm text-blue-700">지력</span>
                     </div>
-                    <span className="text-sm font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{student.abilities?.intelligence || 1}</span>
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{student.abilities?.intelligence || 1}</span>
+                        <span className={`text-sm ${calculateRank(student.abilities?.intelligence).color}`}>
+                            {calculateRank(student.abilities?.intelligence).rank}
+                        </span>
+                    </div>
 
                     {/* 호버 시 설명 표시 */}
                     <div className="absolute left-0 -bottom-1 transform translate-y-full w-64 bg-white border border-blue-100 shadow-md rounded-md p-2 z-10 hidden group-hover:block">
@@ -43,7 +58,12 @@ const AbilitiesDisplay: React.FC<AbilitiesDisplayProps> = ({ student }) => {
                         <Target className="w-4 h-4 text-green-600 mr-1.5" />
                         <span className="text-sm text-green-700">성실성</span>
                     </div>
-                    <span className="text-sm font-semibold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{student.abilities?.diligence || 1}</span>
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold bg-green-100 text-green-700 px-2 py-0.5 rounded-full">{student.abilities?.diligence || 1}</span>
+                        <span className={`text-sm ${calculateRank(student.abilities?.diligence).color}`}>
+                            {calculateRank(student.abilities?.diligence).rank}
+                        </span>
+                    </div>
 
                     {/* 호버 시 설명 표시 */}
                     <div className="absolute left-0 -bottom-1 transform translate-y-full w-64 bg-white border border-green-100 shadow-md rounded-md p-2 z-10 hidden group-hover:block">
@@ -59,7 +79,12 @@ const AbilitiesDisplay: React.FC<AbilitiesDisplayProps> = ({ student }) => {
                         </svg>
                         <span className="text-sm text-purple-700">창의력</span>
                     </div>
-                    <span className="text-sm font-semibold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">{student.abilities?.creativity || 1}</span>
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">{student.abilities?.creativity || 1}</span>
+                        <span className={`text-sm ${calculateRank(student.abilities?.creativity).color}`}>
+                            {calculateRank(student.abilities?.creativity).rank}
+                        </span>
+                    </div>
 
                     {/* 호버 시 설명 표시 */}
                     <div className="absolute left-0 -bottom-1 transform translate-y-full w-64 bg-white border border-purple-100 shadow-md rounded-md p-2 z-10 hidden group-hover:block">
@@ -75,7 +100,12 @@ const AbilitiesDisplay: React.FC<AbilitiesDisplayProps> = ({ student }) => {
                         </svg>
                         <span className="text-sm text-red-700">인성</span>
                     </div>
-                    <span className="text-sm font-semibold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{student.abilities?.personality || 1}</span>
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{student.abilities?.personality || 1}</span>
+                        <span className={`text-sm ${calculateRank(student.abilities?.personality).color}`}>
+                            {calculateRank(student.abilities?.personality).rank}
+                        </span>
+                    </div>
 
                     {/* 호버 시 설명 표시 */}
                     <div className="absolute left-0 -bottom-1 transform translate-y-full w-64 bg-white border border-red-100 shadow-md rounded-md p-2 z-10 hidden group-hover:block">
@@ -89,7 +119,12 @@ const AbilitiesDisplay: React.FC<AbilitiesDisplayProps> = ({ student }) => {
                         <Activity className="w-4 h-4 text-yellow-600 mr-1.5" />
                         <span className="text-sm text-yellow-700">체력</span>
                     </div>
-                    <span className="text-sm font-semibold bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">{student.abilities?.health || 1}</span>
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">{student.abilities?.health || 1}</span>
+                        <span className={`text-sm ${calculateRank(student.abilities?.health).color}`}>
+                            {calculateRank(student.abilities?.health).rank}
+                        </span>
+                    </div>
 
                     {/* 호버 시 설명 표시 */}
                     <div className="absolute left-0 -bottom-1 transform translate-y-full w-64 bg-white border border-yellow-100 shadow-md rounded-md p-2 z-10 hidden group-hover:block">
@@ -103,7 +138,12 @@ const AbilitiesDisplay: React.FC<AbilitiesDisplayProps> = ({ student }) => {
                         <MessageCircle className="w-4 h-4 text-indigo-600 mr-1.5" />
                         <span className="text-sm text-indigo-700">의사소통</span>
                     </div>
-                    <span className="text-sm font-semibold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">{student.abilities?.communication || 1}</span>
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full">{student.abilities?.communication || 1}</span>
+                        <span className={`text-sm ${calculateRank(student.abilities?.communication).color}`}>
+                            {calculateRank(student.abilities?.communication).rank}
+                        </span>
+                    </div>
 
                     {/* 호버 시 설명 표시 */}
                     <div className="absolute left-0 -bottom-1 transform translate-y-full w-64 bg-white border border-indigo-100 shadow-md rounded-md p-2 z-10 hidden group-hover:block">

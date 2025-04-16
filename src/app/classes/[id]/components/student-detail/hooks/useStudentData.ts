@@ -31,7 +31,7 @@ interface UseStudentDataReturn {
     cardsLoading: boolean
     pointshopLoading: boolean
     updateStudentName: (newName: string) => void
-    updateStudentHonorific: (honorific: string) => void
+    updateStudentHonorific: (honorific: string) => boolean
     updateStudentPoints: (points: number) => void
     updateStudentAvatar: (avatarString: string) => boolean
     deleteStudent: () => Promise<boolean>
@@ -237,6 +237,20 @@ export function useStudentData({ studentId, classId }: UseStudentDataProps): Use
             const challenges = JSON.parse(challengesString);
             console.log(`${challenges.length}개의 챌린지 데이터 로드`);
 
+            // 챌린지 데이터에 rewardTitle 필드가 있는지 확인 (디버깅)
+            challenges.forEach((challenge: any, index: number) => {
+                console.log(`챌린지 ${index + 1}(${challenge.name}): rewardTitle=${challenge.rewardTitle || '없음'}`);
+
+                // rewardTitle이 없는 경우 기본값 설정 (임시 조치)
+                if (!challenge.rewardTitle) {
+                    console.log(`챌린지 ${challenge.name}에 rewardTitle이 없어 기본값을 설정합니다.`);
+                    challenge.rewardTitle = `${challenge.name} 마스터`;
+
+                    // 로컬 스토리지에 업데이트된 챌린지 데이터 저장
+                    localStorage.setItem(`challenges_${classId}`, JSON.stringify(challenges));
+                }
+            });
+
             // 2. 학생이 참여한 챌린지 단계 정보 수집
             const completedChallenges: CompletedChallenge[] = [];
             const currentStudentId = studentId.toString(); // 문자열 확실히
@@ -429,8 +443,14 @@ export function useStudentData({ studentId, classId }: UseStudentDataProps): Use
                             exp: normalizeLargeExp(CHALLENGE_STEP_REWARDS.exp * Math.min(completedStepCount, 10)),
                             gold: isFullyCompleted ? CHALLENGE_STEP_REWARDS.gold : 0 // 챌린지 완료시에만 골드 지급
                         },
-                        timestamp: lastCompletedDate || new Date().toISOString()
+                        timestamp: lastCompletedDate || new Date().toISOString(),
+                        // 항상 원본 챌린지의 rewardTitle을 가져오도록 수정 (완료 여부와 관계없이)
+                        rewardTitle: challenge.rewardTitle
                     };
+
+                    // 디버그 로그 추가 - rewardTitle 체크
+                    console.log(`챌린지 ${challenge.name}의 보상 칭호:`, challenge.rewardTitle);
+                    console.log(`완료 여부: ${isFullyCompleted}, 생성된 rewardTitle:`, completedChallenge.rewardTitle);
 
                     completedChallenges.push(completedChallenge);
                 } else {
@@ -675,31 +695,81 @@ export function useStudentData({ studentId, classId }: UseStudentDataProps): Use
         }
     };
 
-    const updateStudentHonorific = (honorific: string) => {
-        if (!student || !classId) return;
+    const updateStudentHonorific = (honorific: string): boolean => {
+        if (!student || !classId) return false;
 
         try {
-            // 로컬 스토리지에서 클래스 정보 가져오기
-            const storedClass = localStorage.getItem(`class_${classId}`);
-            if (!storedClass) return;
+            console.log(`학생 칭호 변경 시작: ${student.name}, 새 칭호: ${honorific}`);
 
-            const updatedClass = JSON.parse(storedClass);
-            const studentIndex = updatedClass.students.findIndex((s: Student) => s.id === student.id);
+            // 1. students_${classId} 저장소 업데이트
+            const storedStudents = localStorage.getItem(`students_${classId}`);
+            if (storedStudents) {
+                const students = JSON.parse(storedStudents);
+                const studentIndex = students.findIndex((s: Student) => s.id === student.id);
 
-            if (studentIndex !== -1) {
-                // 학생 칭호 업데이트
-                updatedClass.students[studentIndex].honorific = honorific;
-                localStorage.setItem(`class_${classId}`, JSON.stringify(updatedClass));
-
-                // 상태 업데이트
-                setStudent({ ...student, honorific });
-
-                // 성공 메시지 표시
-                toast.success("학생 칭호가 변경되었습니다.");
+                if (studentIndex !== -1) {
+                    students[studentIndex].honorific = honorific;
+                    localStorage.setItem(`students_${classId}`, JSON.stringify(students));
+                    console.log(`students_${classId} 저장소 칭호 업데이트 완료`);
+                }
             }
+
+            // 2. class_${classId} 저장소 업데이트
+            const storedClass = localStorage.getItem(`class_${classId}`);
+            if (storedClass) {
+                const updatedClass = JSON.parse(storedClass);
+                const studentIndex = updatedClass.students.findIndex((s: Student) => s.id === student.id);
+
+                if (studentIndex !== -1) {
+                    // 학생 칭호 업데이트
+                    updatedClass.students[studentIndex].honorific = honorific;
+                    localStorage.setItem(`class_${classId}`, JSON.stringify(updatedClass));
+                    console.log(`class_${classId} 저장소 칭호 업데이트 완료`);
+                }
+            }
+
+            // 3. class-${classId}-students 저장소 업데이트 (하이픈 형식)
+            const classStudents = localStorage.getItem(`class-${classId}-students`);
+            if (classStudents) {
+                const students = JSON.parse(classStudents);
+                const studentIndex = students.findIndex((s: Student) => s.id === student.id);
+
+                if (studentIndex !== -1) {
+                    students[studentIndex].honorific = honorific;
+                    localStorage.setItem(`class-${classId}-students`, JSON.stringify(students));
+                    console.log(`class-${classId}-students 저장소 칭호 업데이트 완료`);
+                }
+            }
+
+            // 4. 전역 classes 저장소 업데이트
+            const classes = localStorage.getItem('classes');
+            if (classes) {
+                const allClasses = JSON.parse(classes);
+                const classIndex = allClasses.findIndex((c: any) => c.id === classId);
+
+                if (classIndex !== -1 && allClasses[classIndex].students) {
+                    const studentIndex = allClasses[classIndex].students.findIndex((s: Student) => s.id === student.id);
+                    if (studentIndex !== -1) {
+                        allClasses[classIndex].students[studentIndex].honorific = honorific;
+                        localStorage.setItem('classes', JSON.stringify(allClasses));
+                        console.log(`전역 classes 저장소 칭호 업데이트 완료`);
+                    }
+                }
+            }
+
+            // 상태 업데이트
+            setStudent({ ...student, honorific });
+
+            // 성공 메시지 표시
+            toast.success("학생 칭호가 변경되었습니다.");
+            console.log('학생 칭호 변경 완료:', honorific);
+
+            // 성공 반환
+            return true;
         } catch (error) {
             console.error('학생 칭호 변경 중 오류:', error);
             toast.error('학생 칭호를 변경하는 중 오류가 발생했습니다.');
+            return false;
         }
     };
 
