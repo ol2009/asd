@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Plus, ArrowLeft, X, Save, Trash2, Image as ImageIcon, Check } from 'lucide-react'
+import { Plus, ArrowLeft, X, Save, Trash2, Image as ImageIcon, Check, HandCoins, BookOpen } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import Image from 'next/image'
@@ -1046,7 +1046,27 @@ export default function ChallengePage() {
                     <div className="mb-8 bg-white/40 backdrop-blur-sm p-6 rounded-xl shadow-md">
                         <h1 className="text-2xl font-bold text-blue-800">챌린지</h1>
                         <p className="text-slate-700">학생들의 장기적인 목표를 설정하고 학생들이 목표를 달성하게 도와주세요.</p>
-                        <p className="text-slate-700 mt-1 text-sm bg-blue-50 p-2 rounded-md inline-block">챌린지에서 학생이 각 단계를 달성하면 레벨 2씩 오릅니다.</p>
+
+                        {/* 보상 정보 추가 */}
+                        <div className="mt-4 flex items-center gap-2 bg-yellow-50/50 p-3 rounded-lg border border-yellow-100/50">
+                            <div className="flex items-center gap-1.5">
+                                <BookOpen className="w-5 h-5 text-yellow-600" />
+                                <span className="text-sm font-medium text-yellow-700">각 단계 완료시 경험치 +200</span>
+                            </div>
+                            <div className="w-px h-4 bg-yellow-200/50"></div>
+                            <div className="flex items-center gap-1.5">
+                                <HandCoins className="w-5 h-5 text-yellow-600" />
+                                <span className="text-sm font-medium text-yellow-700">각 단계 완료시 골드 +200 G</span>
+                            </div>
+                            <div className="w-px h-4 bg-yellow-200/50"></div>
+                            <div className="flex items-center gap-1.5">
+                                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-yellow-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                    <circle cx="12" cy="12" r="8"></circle>
+                                    <path d="m8 11 3 3 6-6"></path>
+                                </svg>
+                                <span className="text-sm font-medium text-yellow-700">최종 단계 완료시 칭호 획득</span>
+                            </div>
+                        </div>
                     </div>
 
                     {/* 챌린지 목록 */}
@@ -1504,10 +1524,13 @@ export default function ChallengePage() {
                                             {/* 획득 능력치 표시 */}
                                             <div className="mt-3 flex flex-wrap items-center gap-2">
                                                 <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full flex items-center">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 mr-1">
-                                                        <path d="M11.645 20.91l-.007-.003-.022-.012a15.247 15.247 0 01-.383-.218 25.18 25.18 0 01-4.244-3.17C4.688 15.36 2.25 12.174 2.25 8.25 2.25 5.322 4.714 3 7.688 3A5.5 5.5 0 0112 5.052 5.5 5.5 0 0116.313 3c2.973 0 5.437 2.322 5.437 5.25 0 3.925-2.438 7.111-4.739 9.256a25.175 25.175 0 01-4.244 3.17 15.247 15.247 0 01-.383.219l-.022.012-.007.004-.003.001a.752.752 0 01-.704 0l-.003-.001z" />
-                                                    </svg>
+                                                    <BookOpen className="w-3 h-3 mr-1" />
                                                     +200 EXP
+                                                </span>
+
+                                                <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full flex items-center">
+                                                    <HandCoins className="w-3 h-3 mr-1" />
+                                                    +200 G
                                                 </span>
 
                                                 {isLastStep && selectedChallenge.rewardTitle && (

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Plus, ArrowLeft, X, Save, LogOut, Check, Search, User, Edit, Trash2 } from 'lucide-react'
+import { Plus, ArrowLeft, X, Save, LogOut, Check, Search, User, Edit, Trash2, BookOpen, HandCoins } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'sonner'
 import Image from 'next/image'
@@ -525,20 +525,13 @@ export default function MissionsPage() {
                         {/* 보상 정보 추가 */}
                         <div className="mt-4 flex items-center gap-2 bg-yellow-50/50 p-3 rounded-lg border border-yellow-100/50">
                             <div className="flex items-center gap-1.5">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-yellow-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <circle cx="12" cy="8" r="7" />
-                                    <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88" />
-                                </svg>
+                                <BookOpen className="w-5 h-5 text-yellow-600" />
                                 <span className="text-sm font-medium text-yellow-700">경험치 +100</span>
                             </div>
                             <div className="w-px h-4 bg-yellow-200/50"></div>
                             <div className="flex items-center gap-1.5">
-                                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-yellow-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                    <circle cx="12" cy="12" r="8" />
-                                    <path d="M12 8v8" />
-                                    <path d="M8 12h8" />
-                                </svg>
-                                <span className="text-sm font-medium text-yellow-700">골드 +100</span>
+                                <HandCoins className="w-5 h-5 text-yellow-600" />
+                                <span className="text-sm font-medium text-yellow-700">골드 +100 G</span>
                             </div>
                         </div>
                     </div>
@@ -856,6 +849,18 @@ export default function MissionsPage() {
                             <div className="mt-4 mb-6 p-4 bg-blue-50/60 rounded-lg">
                                 <h3 className="font-semibold text-blue-700 mb-2">미션 달성 조건</h3>
                                 <p className="text-slate-700 whitespace-pre-wrap">{selectedMission.condition}</p>
+
+                                {/* 보상 정보 추가 */}
+                                <div className="flex items-center mt-3 space-x-2">
+                                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full flex items-center">
+                                        <BookOpen className="w-3 h-3 mr-1" />
+                                        +100 EXP
+                                    </span>
+                                    <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full flex items-center">
+                                        <HandCoins className="w-3 h-3 mr-1" />
+                                        +100 G
+                                    </span>
+                                </div>
 
                                 {/* 관련 능력치 표시 */}
                                 {selectedMission.abilities && (
