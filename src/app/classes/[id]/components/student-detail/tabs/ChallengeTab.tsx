@@ -21,6 +21,7 @@ const abilityKoreanNames: Record<Ability, string> = {
 
 // 상수 정의
 const EXP_PER_STEP = 200; // 챌린지 단계당 경험치
+const GOLD_PER_STEP = 200; // 챌린지 단계당 골드
 const MAX_STEP_NUMBER = 10; // 최대 단계 번호 (이 이상은 비정상적 값으로 간주)
 
 // 특정 챌린지의 기본 단계 수 설정 (폴백 값으로만 사용)
@@ -227,6 +228,20 @@ export function ChallengeTab({ completedChallenges, isLoading }: Props) {
                 // 완료 여부 판단 - 심층 디버깅 로그 추가
                 const completedStepCount = uniqueCompletedStepNumbers.length;
 
+                // 총 획득 골드 계산
+                const totalEarnedGold = uniqueCompletedStepNumbers.reduce((total, stepNum) => {
+                    return total + (GOLD_PER_STEP * stepNum);
+                }, 0);
+
+                // 총 획득 경험치 계산
+                const totalEarnedExp = uniqueCompletedStepNumbers.reduce((total, stepNum) => {
+                    return total + (EXP_PER_STEP * stepNum);
+                }, 0);
+
+                // 추가 골드 보상이 있으면 합산
+                const additionalGold = challenge.rewards?.gold || 0;
+                const finalTotalGold = totalEarnedGold + additionalGold;
+
                 // 요구사항 2: 칭호 획득 여부를 통한 챌린지 완료 판단
                 // 칭호가 있고 rewardTitle이 있으면 챌린지가 완료된 것으로 판단
                 const hasRewardTitle = !!challenge.rewardTitle && challenge.rewardTitle.trim() !== '';
@@ -259,7 +274,13 @@ export function ChallengeTab({ completedChallenges, isLoading }: Props) {
                     모든단계완료여부: completedAllSteps,
                     최종_완료여부: isFullyCompleted,
                     칭호표시여부: isFullyCompleted && challenge.rewardTitle && (completedLastStep || completedAllSteps),
-                    완료배지조건: `isFullyCompleted && isLastStepOfChallenge && totalSteps > 1`
+                    완료배지조건: `isFullyCompleted && isLastStepOfChallenge && totalSteps > 1`,
+                    단계별_경험치: `${EXP_PER_STEP} * 단계번호`,
+                    총_획득_경험치: totalEarnedExp,
+                    단계별_골드: `${GOLD_PER_STEP} * 단계번호`,
+                    총_획득_골드: totalEarnedGold,
+                    추가_골드: additionalGold,
+                    최종_골드: finalTotalGold
                 });
 
                 // 챌린지 완료 정보 기록 (나중에 활용 가능)
@@ -307,10 +328,11 @@ export function ChallengeTab({ completedChallenges, isLoading }: Props) {
                                 // 추가 조건: 해당 단계가 전체 단계 수와 같아야 함 (총 단계 수는 1보다 커야 함)
                                 const showCompletionBadge = isFullyCompleted && isLastStepOfChallenge && totalSteps > 1;
 
-                                // 경험치 계산 - 10배로 표시되는 문제 수정을 위해 값 보정
-                                // 실제 경험치 값을 구하기 위해 먼저 10으로 나누고 다시 계산
-                                const calculatedExp = Math.min(EXP_PER_STEP * stepNumber, 2000);
-                                const displayExp = calculatedExp / 10; // 경험치 값을 10으로 나눔
+                                // 경험치 계산 - 단계별 경험치 계산
+                                const calculatedExp = EXP_PER_STEP * stepNumber;
+
+                                // 골드 계산 - 각 단계별 골드 보상 (단계 번호 * 200 골드)
+                                const earnedGold = GOLD_PER_STEP * stepNumber;
 
                                 // 진행상태 표시를 위한 계산 - 마지막 단계가 완료되었으면 전체 완료로 표시
                                 const displayStepCount = completedLastStep ? totalSteps : completedStepCount;
@@ -364,13 +386,17 @@ export function ChallengeTab({ completedChallenges, isLoading }: Props) {
                                                     </p>
                                                 )}
 
-                                                {/* 경험치 - 정확한 값으로 표시 */}
+                                                {/* 경험치 표시 */}
                                                 <p className="text-xs font-medium text-amber-700">
-                                                    경험치 +{displayExp}
-                                                    {challenge.rewards && challenge.rewards.gold && challenge.rewards.gold > 0 &&
-                                                        `, 골드 +${challenge.rewards.gold}`
-                                                    }
+                                                    경험치 +{calculatedExp}
                                                 </p>
+
+                                                {/* 총 획득 경험치와 골드 (마지막 단계에만 표시) */}
+                                                {isLastCompletedStep && (
+                                                    <p className="text-xs font-medium text-yellow-700 mt-1">
+                                                        획득 골드: +{totalEarnedGold}G
+                                                    </p>
+                                                )}
 
                                                 {/* 칭호 (마지막 단계와 모든 단계 완료의 경우만) */}
                                                 {showHonorific && (

@@ -95,7 +95,7 @@ const StudentProfile: React.FC<StudentProfileProps> = ({
                         ></div>
                     </div>
                     <p className="text-xs text-slate-500 mt-1 text-right">
-                        다음 레벨까지 {remainingExp} EXP 필요
+                        Lv.{calculatedLevel + 1} 레벨업까지 {remainingExp} EXP 필요 (필요 경험치: {expRequiredForNextLevel})
                     </p>
                 </div>
 

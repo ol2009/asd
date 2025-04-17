@@ -113,7 +113,7 @@ const PointShopTab: React.FC<PointShopTabProps> = ({
     onItemPurchase
 }) => {
     // 포인트 상점 서브탭 (아바타 상품/학급 상품/구매 내역)
-    const [pointShopSubTab, setPointShopSubTab] = useState<'avatar' | 'class' | 'history'>('class')
+    const [pointShopSubTab, setPointShopSubTab] = useState<'avatar' | 'class' | 'history'>('avatar')
     const [showUsedCoupons, setShowUsedCoupons] = useState<boolean>(false)
     const [items, setItems] = useState<PointShopItem[]>([])
     const [purchaseHistory, setPurchaseHistory] = useState<PurchaseHistory[]>([])
@@ -291,15 +291,6 @@ const PointShopTab: React.FC<PointShopTabProps> = ({
             {/* 탭 내 서브탭 (아바타 상품 목록/학급 상품 목록/구매 내역) */}
             <div className="flex border-b border-gray-200 mb-3">
                 <button
-                    onClick={() => setPointShopSubTab('class')}
-                    className={`py-2 px-4 text-sm font-medium ${pointShopSubTab === 'class'
-                        ? 'text-blue-600 border-b-2 border-blue-600'
-                        : 'text-gray-600 hover:text-blue-500'
-                        }`}
-                >
-                    학급 쿠폰
-                </button>
-                <button
                     onClick={() => setPointShopSubTab('avatar')}
                     className={`py-2 px-4 text-sm font-medium ${pointShopSubTab === 'avatar'
                         ? 'text-blue-600 border-b-2 border-blue-600'
@@ -307,6 +298,15 @@ const PointShopTab: React.FC<PointShopTabProps> = ({
                         }`}
                 >
                     아바타 상품
+                </button>
+                <button
+                    onClick={() => setPointShopSubTab('class')}
+                    className={`py-2 px-4 text-sm font-medium ${pointShopSubTab === 'class'
+                        ? 'text-blue-600 border-b-2 border-blue-600'
+                        : 'text-gray-600 hover:text-blue-500'
+                        }`}
+                >
+                    학급 쿠폰
                 </button>
                 <button
                     onClick={() => setPointShopSubTab('history')}

@@ -130,13 +130,24 @@ export function getExpRequiredForLevel(level: number): number {
 // 총 경험치에서 레벨 계산 함수
 export function calculateLevelFromExp(totalExp: number): { level: number, expInCurrentLevel: number, expRequiredForNextLevel: number } {
     console.log('calculateLevelFromExp 호출됨, totalExp:', totalExp);
-    console.log('calculateLevelFromExp 호출 스택:', new Error().stack);
 
     // 레벨 계산 로직
-    // 레벨 1: 0-100, 레벨 2: 100-200, 레벨 3: 200-300, ...
-    const level = Math.floor(totalExp / 100) + 1;
-    const expInCurrentLevel = totalExp % 100;
-    const expRequiredForNextLevel = 100; // 모든 레벨은 100 경험치가 필요
+    // 레벨에 따라 필요 경험치가 점점 증가함
+    // 레벨 1->2: 100, 레벨 2->3: 200, 레벨 3->4: 300, ...
+    let level = 1;
+    let expRemaining = totalExp;
+    let expRequired = getExpRequiredForLevel(level);
+
+    // 레벨 계산
+    while (expRemaining >= expRequired) {
+        expRemaining -= expRequired;
+        level++;
+        expRequired = getExpRequiredForLevel(level);
+    }
+
+    // 현재 레벨에서의 경험치와 다음 레벨까지 필요한 경험치
+    const expInCurrentLevel = expRemaining;
+    const expRequiredForNextLevel = getExpRequiredForLevel(level);
 
     // 계산 결과를 객체로 반환
     const result = { level, expInCurrentLevel, expRequiredForNextLevel };
